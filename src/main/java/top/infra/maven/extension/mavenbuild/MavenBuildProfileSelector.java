@@ -1,5 +1,7 @@
 package top.infra.maven.extension.mavenbuild;
 
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -28,6 +30,9 @@ public class MavenBuildProfileSelector extends DefaultProfileSelector {
     @Requirement
     protected Logger logger;
 
+    @Requirement(role = CustomActivator.class, hint = "JavaVersionSensitiveActivator")
+    private JavaVersionSensitiveActivator javaVersionSensitiveActivator;
+
     /**
      * Collect only custom activators.
      * Note: keep field name different from super.
@@ -44,30 +49,48 @@ public class MavenBuildProfileSelector extends DefaultProfileSelector {
         final ProfileActivationContext context,
         final ModelProblemCollector problems
     ) {
+        final List<Profile> defaultActiveProfiles = super.getActiveProfiles(profiles, context, problems);
+        defaultActiveProfiles.removeIf(p -> javaVersionSensitiveActivator.isJavaVersionSensitive(p));
+
         final List<Profile> customActiveProfiles = new ArrayList<>(profiles.size());
         for (final Profile profile : profiles) {
-            if (this.isActive(profile, context, problems)) {
+            if (this.thisIsActive(profile, context, problems)) {
                 customActiveProfiles.add(profile);
             }
         }
 
-        final List<Profile> defaultActiveProfiles = super.getActiveProfiles(profiles, context, problems);
-
         final ArrayList<Profile> activeProfiles = new ArrayList<>();
-        activeProfiles.addAll(customActiveProfiles);
         activeProfiles.addAll(defaultActiveProfiles);
+        activeProfiles.addAll(customActiveProfiles);
 
-        if (logger.isDebugEnabled() && !activeProfiles.isEmpty()) {
-            logger.debug("SELECT: " + Arrays.toString(activeProfiles.toArray()));
+        if (!activeProfiles.isEmpty()) {
+            if (logger.isDebugEnabled()) {
+                logger.debug("SELECT: " + Arrays.toString(activeProfiles.toArray()));
+            }
         }
 
         return activeProfiles;
     }
 
+    protected boolean superIsActive(
+        final Profile profile,
+        final ProfileActivationContext context,
+        final ModelProblemCollector problems
+    ) {
+        try {
+            final Method superIsActive = super.getClass().getDeclaredMethod(
+                "isActive", Profile.class, ProfileActivationContext.class, ModelProblemCollector.class);
+            superIsActive.setAccessible(true);
+            return (boolean) superIsActive.invoke(this, profile, context, problems);
+        } catch (final NoSuchMethodException | IllegalAccessException | InvocationTargetException ex) {
+            return false;
+        }
+    }
+
     /**
      * Note: "AND" for custom activators. See super.
      */
-    protected boolean isActive(
+    protected boolean thisIsActive(
         final Profile profile,
         final ProfileActivationContext context,
         final ModelProblemCollector problems
@@ -87,7 +110,7 @@ public class MavenBuildProfileSelector extends DefaultProfileSelector {
                 isActive &= customActivator.isActive(profile, context, problems);
             }
         }
-        
+
         return isActive;
     }
 }

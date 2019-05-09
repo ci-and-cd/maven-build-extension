@@ -172,4 +172,18 @@ public abstract class SupportFunction {
             .setLocation(profile.getLocation(""));
         problems.add(request);
     }
+
+    /**
+     * Report titled activator problem.
+     */
+    static void reportProblem(
+        final String title,
+        final Exception error,
+        final Profile profile,
+        final ProfileActivationContext context,
+        final ModelProblemCollector problems
+    ) {
+        final String message = String.format("%s: project='%s' profile='%s'", title, projectName(context), profileId(profile));
+        registerProblem(message, error, profile, problems);
+    }
 }

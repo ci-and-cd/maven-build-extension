@@ -6,7 +6,7 @@ import static top.infra.maven.extension.mavenbuild.SupportFunction.projectContex
 import static top.infra.maven.extension.mavenbuild.SupportFunction.projectJavaVersion;
 import static top.infra.maven.extension.mavenbuild.SupportFunction.projectName;
 import static top.infra.maven.extension.mavenbuild.SupportFunction.propertiesToMap;
-import static top.infra.maven.extension.mavenbuild.SupportFunction.registerProblem;
+import static top.infra.maven.extension.mavenbuild.SupportFunction.reportProblem;
 
 import java.io.File;
 import java.util.LinkedHashMap;
@@ -22,22 +22,18 @@ import org.apache.maven.model.building.ModelBuildingResult;
 import org.apache.maven.model.building.ModelProblemCollector;
 import org.apache.maven.model.profile.ProfileActivationContext;
 import org.apache.maven.model.profile.activation.ProfileActivator;
-import org.apache.maven.rtinfo.RuntimeInformation;
 import org.codehaus.plexus.component.annotations.Component;
 import org.codehaus.plexus.component.annotations.Requirement;
 import org.codehaus.plexus.logging.Logger;
 
-@Component(role = CustomActivator.class, hint = "SpecificJavaVersionActivator")
-public class SpecificJavaVersionActivator implements ProfileActivator, CustomActivator {
+@Component(role = CustomActivator.class, hint = "JavaVersionSensitiveActivator")
+public class JavaVersionSensitiveActivator implements ProfileActivator, CustomActivator {
 
     /**
      * Logger provided by Maven runtime.
      */
     @Requirement
     protected Logger logger;
-
-    @Requirement
-    private RuntimeInformation runtime;
 
     /**
      * Builder provided by Maven runtime.
@@ -96,32 +92,7 @@ public class SpecificJavaVersionActivator implements ProfileActivator, CustomAct
                 reportProblem(error.getMessage(), error, profile, context, problems);
                 result = false;
             } else {
-                final Optional<Integer> profileJavaVersion = profileJavaVersion(profile.getId());
-
-                if (profileJavaVersion.isPresent()) {
-                    logger.debug(String.format("found java %s related profile", profileJavaVersion.get()));
-
-                    final Map<String, Object> projectContext = projectContext(project, context);
-                    Optional<Integer> forceJavaVersion;
-                    try {
-                        forceJavaVersion = Optional.of(Integer.parseInt("" + projectContext.get("forceJavaVersion")));
-                    } catch (final Exception ex) {
-                        forceJavaVersion = Optional.empty();
-                    }
-
-                    if (forceJavaVersion.isPresent()) {
-                        result = forceJavaVersion.get().equals(profileJavaVersion.get());
-                    } else {
-                        final Optional<Integer> projectJavaVersion = projectJavaVersion("" + projectContext.get("java.version"));
-                        result = projectJavaVersion.map(integer -> integer.equals(profileJavaVersion.get())).orElse(false);
-                    }
-                } else {
-                    logger.debug("not java related profile");
-
-                    result = false;
-                }
-
-                // this.registerMemento(context, profile, result);
+                result = this.isActiveByProfileName(profile, context, project);
             }
         }
 
@@ -136,18 +107,45 @@ public class SpecificJavaVersionActivator implements ProfileActivator, CustomAct
         return model != null;
     }
 
-    /**
-     * Report titled activator problem.
-     */
-    protected void reportProblem(
-        final String title,
-        final Exception error,
+    public boolean isJavaVersionSensitive(final Profile profile) {
+        return profileJavaVersion(profile.getId()).isPresent();
+    }
+
+    protected boolean isActiveByProfileName(
         final Profile profile,
         final ProfileActivationContext context,
-        final ModelProblemCollector problems
+        final Model project
     ) {
-        final String message = String.format("%s: project='%s' profile='%s'", title, projectName(context), profileId(profile));
-        registerProblem(message, error, profile, problems);
+        final boolean result;
+        if (this.isJavaVersionSensitive(profile)) {
+            final Optional<Integer> profileJavaVersion = profileJavaVersion(profile.getId());
+            logger.debug(String.format("found java %s related profile", profileJavaVersion.orElse(null)));
+
+            final Map<String, Object> projectContext = projectContext(project, context);
+            Optional<Integer> forceJavaVersion;
+            try {
+                forceJavaVersion = Optional.of(Integer.parseInt("" + projectContext.get("forceJavaVersion")));
+            } catch (final Exception ex) {
+                forceJavaVersion = Optional.empty();
+            }
+
+            final boolean javaVersionActive;
+            if (forceJavaVersion.isPresent()) {
+                javaVersionActive = forceJavaVersion.get().equals(profileJavaVersion.orElse(null));
+            } else {
+                final Optional<Integer> projectJavaVersion = projectJavaVersion("" + projectContext.get("java.version"));
+                javaVersionActive = projectJavaVersion
+                    .map(integer -> integer.equals(profileJavaVersion.orElse(null))).orElse(false);
+            }
+
+            result = javaVersionActive;
+        } else {
+            logger.debug("not java related profile");
+
+            result = false;
+        }
+
+        return result;
     }
 
     /**

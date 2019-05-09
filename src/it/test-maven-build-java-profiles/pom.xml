@@ -73,6 +73,9 @@
 
         <profile>
             <id>parent-java-8-profile2</id>
+            <activation>
+                <file><missing>${basedir}/src/main/groovy</missing></file>
+            </activation>
             <properties>
                 <magic.file.parent-java-8-profile2>${project.basedir}/target/parent-java-8-profile2.md</magic.file.parent-java-8-profile2>
             </properties>
