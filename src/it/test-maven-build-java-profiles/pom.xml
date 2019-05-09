@@ -1,0 +1,103 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>top.infra</groupId>
+    <artifactId>maven-build</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+    <packaging>pom</packaging>
+
+    <build>
+        <plugins>
+            <plugin>
+                <artifactId>maven-help-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>help-active-profiles</id>
+                        <phase>validate</phase>
+                        <goals>
+                            <goal>active-profiles</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-antrun-plugin</artifactId>
+                    <version>1.8</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-help-plugin</artifactId>
+                    <version>3.2.0</version>
+                </plugin>
+            </plugins>
+        </pluginManagement>
+    </build>
+
+    <modules>
+        <module>build-docker</module>
+    </modules>
+
+    <profiles>
+        <!-- Produce marker file for integration test. -->
+        <profile>
+            <id>parent-java8-profile1</id>
+            <properties>
+                <magic.file.parent-java8-profile1>${project.basedir}/target/parent-java8-profile1.md</magic.file.parent-java8-profile1>
+            </properties>
+            <build>
+                <plugins>
+                    <plugin>
+                        <artifactId>maven-antrun-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <configuration>
+                                    <target name="magic-file-parent-java8-profile1">
+                                        <echo file="${magic.file.parent-java8-profile1}" append="false">${magic.file}</echo>
+                                    </target>
+                                </configuration>
+                                <id>parent-java8-profile1-magic-file</id>
+                                <goals><goal>run</goal></goals>
+                                <phase>validate</phase>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
+        <profile>
+            <id>parent-java-8-profile2</id>
+            <properties>
+                <magic.file.parent-java-8-profile2>${project.basedir}/target/parent-java-8-profile2.md</magic.file.parent-java-8-profile2>
+            </properties>
+            <build>
+                <plugins>
+                    <plugin>
+                        <artifactId>maven-antrun-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <configuration>
+                                    <target name="magic-file-parent-java-8-profile2">
+                                        <echo file="${magic.file.parent-java-8-profile2}" append="false">${magic.file}</echo>
+                                    </target>
+                                </configuration>
+                                <id>parent-java-8-profile2-magic-file</id>
+                                <goals><goal>run</goal></goals>
+                                <phase>validate</phase>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
+
+    <properties>
+    </properties>
+</project>
