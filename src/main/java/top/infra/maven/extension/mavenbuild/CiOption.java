@@ -28,6 +28,7 @@ import static top.infra.maven.extension.mavenbuild.SupportFunction.urlWithoutPat
 
 import java.io.File;
 import java.util.Arrays;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.function.Function;
@@ -340,29 +341,32 @@ public enum CiOption {
 
             return Optional.ofNullable(gpgExecutable);
         }
-
-        @Override
-        public Optional<String> setProperties(
-            final GitProperties gitProperties,
-            final Properties systemProperties,
-            final Properties userProperties,
-            final Properties properties
-        ) {
-            final Optional<String> result = super.setProperties(gitProperties, systemProperties, userProperties, properties);
-
-            if (result.isPresent()
-                && gpgVersionGreater(
-                exec(null, null, result.get(), " --batch=true --version").getValue(), "2.1")
-            ) {
-                properties.setProperty(GPG_LOOPBACK.getPropertyName(), BOOL_STRING_TRUE);
-            }
-
-            return result;
-        }
     },
     GPG_KEYID("gpg.keyid"),
     GPG_KEYNAME("gpg.keyname"),
-    GPG_LOOPBACK("gpg.loopback"),
+    GPG_LOOPBACK("gpg.loopback") {
+        @Override
+        protected Optional<String> calculateValue(
+            final GitProperties gitProperties,
+            final Properties systemProperties,
+            final Properties userProperties
+        ) {
+            final Optional<String> gpgExecutable = GPG_EXECUTABLE.getValue(gitProperties, systemProperties, userProperties);
+
+            final Optional<String> result;
+            if (gpgExecutable.isPresent()) {
+                final Map.Entry<Integer, String> gpgVersion = exec(null, null, gpgExecutable.get(), "--batch=true", "--version");
+                if (gpgVersionGreater(gpgVersion.getValue(), "2.1")) {
+                    result = Optional.of(BOOL_STRING_TRUE);
+                } else {
+                    result = Optional.empty();
+                }
+            } else {
+                result = Optional.empty();
+            }
+            return result;
+        }
+    },
     GPG_PASSPHRASE("gpg.passphrase"),
     /**
      * Auto detect infrastructure using for this build.<br/>
@@ -618,7 +622,7 @@ public enum CiOption {
             final Properties systemProperties,
             final Properties userProperties
         ) {
-            final Boolean infrastructureMatch = INFRASTRUCTURE.findInProperties( systemProperties, userProperties)
+            final Boolean infrastructureMatch = INFRASTRUCTURE.findInProperties(systemProperties, userProperties)
                 .map(INFRASTRUCTURE_PRIVATE::equals).orElse(FALSE);
 
             return infrastructureMatch
