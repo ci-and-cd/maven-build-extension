@@ -4,7 +4,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static top.infra.maven.extension.mavenbuild.SupportFunction.isJavaVersionRelatedProfile;
 import static top.infra.maven.extension.mavenbuild.SupportFunction.profileJavaVersion;
-import static top.infra.maven.extension.mavenbuild.SupportFunction.projectJavaVersion;
+import static top.infra.maven.extension.mavenbuild.SupportFunction.parseJavaVersion;
 
 import org.junit.Test;
 
@@ -36,7 +36,7 @@ public class JavaVersionAndProfileIdTest {
 
     @Test
     public void testProjectJavaVersion() {
-        assertEquals(Integer.valueOf(8), projectJavaVersion("1.8.0_201").orElse(null));
-        assertEquals(Integer.valueOf(10), projectJavaVersion("10.0.1").orElse(null));
+        assertEquals(Integer.valueOf(8), parseJavaVersion("1.8.0_201").orElse(null));
+        assertEquals(Integer.valueOf(10), parseJavaVersion("10.0.1").orElse(null));
     }
 }
