@@ -23,6 +23,7 @@ import static top.infra.maven.extension.mavenbuild.Constants.GIT_REF_NAME_DEVELO
 import static top.infra.maven.extension.mavenbuild.Constants.INFRASTRUCTURE_OPENSOURCE;
 import static top.infra.maven.extension.mavenbuild.Constants.SRC_MAVEN_SETTINGS_SECURITY_XML;
 import static top.infra.maven.extension.mavenbuild.Constants.SRC_MAVEN_SETTINGS_XML;
+import static top.infra.maven.extension.mavenbuild.Constants.USER_PROPERTY_SETTINGS_LOCALREPOSITORY;
 import static top.infra.maven.extension.mavenbuild.MavenProjectInfo.newProjectInfoByBuildProject;
 import static top.infra.maven.extension.mavenbuild.MavenProjectInfo.newProjectInfoByReadPom;
 import static top.infra.maven.extension.mavenbuild.SupportFunction.exec;
@@ -54,6 +55,7 @@ import org.apache.maven.project.ProjectBuilder;
 import org.apache.maven.project.ProjectBuildingRequest;
 import org.apache.maven.rtinfo.RuntimeInformation;
 import org.apache.maven.settings.building.SettingsBuildingRequest;
+import org.apache.maven.settings.building.SettingsBuildingResult;
 import org.apache.maven.toolchain.building.ToolchainsBuildingRequest;
 import org.eclipse.aether.RepositorySystemSession;
 import org.slf4j.Logger;
@@ -95,6 +97,8 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
 
     private final DefaultRepositorySystemSessionFactory repositorySessionFactory;
 
+    private String settingsLocalRepository;
+
     private CiOptionAccessor ciOpts;
 
     private String mavenSettingsPathname;
@@ -119,8 +123,10 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
         this.projectBuilder = projectBuilder;
         this.repositorySessionFactory = repositorySessionFactory;
 
+        this.settingsLocalRepository = null;
         this.ciOpts = null;
         this.mavenSettingsPathname = null;
+        this.rootProjectPathname = null;
     }
 
     @Override
@@ -259,7 +265,22 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
             if (event instanceof SettingsBuildingRequest) {
                 final SettingsBuildingRequest request = (SettingsBuildingRequest) event;
 
+                this.settingsLocalRepository = request.getUserProperties().getProperty(USER_PROPERTY_SETTINGS_LOCALREPOSITORY);
+
                 this.onSettingsBuildingRequest(request, this.homeDir, this.ciOpts);
+            } else if (event instanceof SettingsBuildingResult) {
+                final SettingsBuildingResult result = (SettingsBuildingResult) event;
+
+                // Allow override value of localRepository in settings.xml by user property settings.localRepository.
+                // e.g. ./mvnw -Dsettings.localRepository=${HOME}/.m3/repository clean install
+                if (!isEmpty(this.settingsLocalRepository)) {
+                    final String currentValue = result.getEffectiveSettings().getLocalRepository();
+                    if (logger.isInfoEnabled()) {
+                        logger.info(String.format(
+                            "Override localRepository [%s] to [%s]", currentValue, this.settingsLocalRepository));
+                    }
+                    result.getEffectiveSettings().setLocalRepository(this.settingsLocalRepository);
+                }
             } else if (event instanceof ToolchainsBuildingRequest) {
                 final ToolchainsBuildingRequest request = (ToolchainsBuildingRequest) event;
 

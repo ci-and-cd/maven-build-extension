@@ -23,6 +23,8 @@ public final class Constants {
     static final String PUBLISH_CHANNEL_RELEASE = "release";
     static final String PUBLISH_CHANNEL_SNAPSHOT = "snapshot";
 
+    static final String USER_PROPERTY_SETTINGS_LOCALREPOSITORY = "settings.localRepository";
+
     private Constants() {
     }
 }
