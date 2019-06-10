@@ -24,7 +24,6 @@ import org.apache.maven.model.profile.ProfileActivationContext;
 import org.apache.maven.model.profile.activation.ProfileActivator;
 import org.codehaus.plexus.component.annotations.Component;
 import org.codehaus.plexus.component.annotations.Requirement;
-import org.codehaus.plexus.logging.Logger;
 
 @Component(role = CustomActivator.class, hint = "JavaVersionSensitiveActivator")
 public class JavaVersionSensitiveActivator implements ProfileActivator, CustomActivator {
@@ -33,7 +32,7 @@ public class JavaVersionSensitiveActivator implements ProfileActivator, CustomAc
      * Logger provided by Maven runtime.
      */
     @Requirement
-    protected Logger logger;
+    protected org.codehaus.plexus.logging.Logger logger;
 
     /**
      * Builder provided by Maven runtime.
@@ -101,10 +100,10 @@ public class JavaVersionSensitiveActivator implements ProfileActivator, CustomAc
         }
 
         if (result && logger.isInfoEnabled()) {
-            this.logger.info(String.format("JavaVersionSensitiveActivator project='%s' profile='%s' result='true'",
+            logger.info(String.format("JavaVersionSensitiveActivator project='%s' profile='%s' result='true'",
                 projectName(context), profileId(profile)));
         } else if (!result && logger.isDebugEnabled()) {
-            this.logger.debug(String.format("JavaVersionSensitiveActivator project='%s' profile='%s' result='false'",
+            logger.debug(String.format("JavaVersionSensitiveActivator project='%s' profile='%s' result='false'",
                 projectName(context), profileId(profile)));
         }
 

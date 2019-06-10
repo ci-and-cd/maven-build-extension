@@ -47,7 +47,6 @@ import java.util.Properties;
 import java.util.regex.Pattern;
 
 import org.json.JSONObject;
-import org.slf4j.Logger;
 import org.unix4j.Unix4j;
 
 public class CiOptionAccessor {
@@ -221,7 +220,7 @@ public class CiOptionAccessor {
             if (PATTERN_GITLAB_URL.matcher(repo.get()).matches()) {
                 final String fromUrl = repo.get() + sourceFile.replaceAll("/", "%2F") + "?ref=" + repoRef;
                 final String saveToFile = targetFile + ".json";
-                final Optional<Integer> status = download(this.logger, fromUrl, saveToFile, headers);
+                final Optional<Integer> status = download(logger, fromUrl, saveToFile, headers);
                 if (status.map(value -> value >= 200 && value < 300).orElse(FALSE)) {
                     if (logger.isDebugEnabled()) {
                         logger.debug(String.format("decode %s", saveToFile));
@@ -241,7 +240,7 @@ public class CiOptionAccessor {
                 }
             } else {
                 final Optional<Integer> status = download(
-                    this.logger,
+                    logger,
                     repo.get() + "/raw/" + repoRef + "/" + sourceFile,
                     targetFile,
                     headers

@@ -47,7 +47,7 @@ public class ProjectVersionTest {
         userProperties.setProperty(SITE.getPropertyName(), BOOL_STRING_TRUE);
 
         final CiOptionAccessor ciOpts = new CiOptionAccessor(
-            logger,
+            new LoggerSlf4jImpl(logger),
             systemProperties,
             userProperties
         );
@@ -83,7 +83,7 @@ public class ProjectVersionTest {
         userProperties.setProperty(SITE.getPropertyName(), BOOL_STRING_TRUE);
 
         final CiOptionAccessor ciOpts = new CiOptionAccessor(
-            logger,
+            new LoggerSlf4jImpl(logger),
             systemProperties,
             userProperties
         );

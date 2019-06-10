@@ -42,7 +42,6 @@ import org.apache.maven.model.building.ModelProblemCollector;
 import org.apache.maven.model.building.ModelProblemCollectorRequest;
 import org.apache.maven.model.io.xpp3.MavenXpp3Reader;
 import org.apache.maven.model.profile.ProfileActivationContext;
-import org.slf4j.Logger;
 
 public abstract class SupportFunction {
 

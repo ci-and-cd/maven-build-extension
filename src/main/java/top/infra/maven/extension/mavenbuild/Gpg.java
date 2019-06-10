@@ -27,7 +27,6 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.apache.maven.artifact.versioning.DefaultArtifactVersion;
-import org.slf4j.LoggerFactory;
 import org.unix4j.Unix4j;
 
 public class Gpg {
@@ -38,7 +37,7 @@ public class Gpg {
     private static final String CODESIGNING_ASC_GPG = "codesigning.asc.gpg";
     private static final String DOT_GNUPG = ".gnupg";
 
-    private final org.slf4j.Logger logger = LoggerFactory.getLogger(getClass());
+    private final Logger logger;
 
     private final String homeDir;
     private final String workingDir;
@@ -52,6 +51,7 @@ public class Gpg {
     private final Map<String, String> environment;
 
     public Gpg(
+        final Logger logger,
         final String homeDir,
         final String workingDir,
         final String executable,
@@ -59,6 +59,7 @@ public class Gpg {
         final String keyName,
         final String passphrase
     ) {
+        this.logger = logger;
         this.homeDir = homeDir;
         this.workingDir = workingDir;
         this.keyId = keyId;

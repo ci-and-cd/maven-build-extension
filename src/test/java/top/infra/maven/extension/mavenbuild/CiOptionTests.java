@@ -17,12 +17,11 @@ import static top.infra.maven.extension.mavenbuild.Constants.INFRASTRUCTURE_OPEN
 import java.util.Properties;
 
 import org.junit.Test;
-import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class CiOptionTests {
 
-    private static final Logger logger = LoggerFactory.getLogger(CiOptionTests.class);
+    private static final org.slf4j.Logger logger = LoggerFactory.getLogger(CiOptionTests.class);
 
     @Test
     public void testDockerRegistry() {
@@ -33,7 +32,7 @@ public class CiOptionTests {
         userProperties.setProperty(SITE.getPropertyName(), BOOL_STRING_TRUE);
 
         final CiOptionAccessor ciOpts = new CiOptionAccessor(
-            logger,
+            new LoggerSlf4jImpl(logger),
             systemProperties,
             userProperties
         );
@@ -64,7 +63,7 @@ public class CiOptionTests {
         userProperties.setProperty(SITE.getPropertyName(), BOOL_STRING_TRUE);
 
         final CiOptionAccessor ciOpts = new CiOptionAccessor(
-            logger,
+            new LoggerSlf4jImpl(logger),
             systemProperties,
             userProperties
         );
@@ -86,7 +85,7 @@ public class CiOptionTests {
         userProperties.setProperty(SITE.getPropertyName(), BOOL_STRING_TRUE);
 
         final CiOptionAccessor ciOpts = new CiOptionAccessor(
-            logger,
+            new LoggerSlf4jImpl(logger),
             systemProperties,
             userProperties
         );
@@ -121,7 +120,7 @@ public class CiOptionTests {
         final Properties userProperties = new Properties();
 
         final CiOptionAccessor ciOpts = new CiOptionAccessor(
-            logger,
+            new LoggerSlf4jImpl(logger),
             systemProperties,
             userProperties
         );

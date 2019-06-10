@@ -58,8 +58,6 @@ import org.apache.maven.settings.building.SettingsBuildingRequest;
 import org.apache.maven.settings.building.SettingsBuildingResult;
 import org.apache.maven.toolchain.building.ToolchainsBuildingRequest;
 import org.eclipse.aether.RepositorySystemSession;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.unix4j.Unix4j;
 import org.unix4j.unix.cut.CutOptions;
 import org.unix4j.unix.sed.SedOptions;
@@ -82,10 +80,7 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
     private static final String NA = "N/A";
     private static final Pattern PATTERN_CI_ENV_VARS = Pattern.compile("^env\\.CI_.+");
 
-    /**
-     * Use org.slf4j.Logger instead of org.codehaus.plexus.logging.Logger.
-     */
-    private final org.slf4j.Logger logger = LoggerFactory.getLogger(getClass());
+    private final Logger logger;
 
     private final String homeDir;
 
@@ -108,17 +103,20 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
     /**
      * Constructor.
      *
+     * @param logger                   inject logger {@link org.codehaus.plexus.logging.Logger}
      * @param runtime                  inject RuntimeInformation of maven-core
      * @param projectBuilder           inject ProjectBuilder of maven-core
      * @param repositorySessionFactory inject DefaultRepositorySystemSessionFactory of maven-core
      */
     @Inject
     public MavenBuildEventSpy(
+        final org.codehaus.plexus.logging.Logger logger,
         final RuntimeInformation runtime,
         final ProjectBuilder projectBuilder,
         final DefaultRepositorySystemSessionFactory repositorySessionFactory
     ) {
         this.homeDir = System.getProperty("user.home");
+        this.logger = new LoggerPlexusImpl(logger);
         this.runtime = runtime;
         this.projectBuilder = projectBuilder;
         this.repositorySessionFactory = repositorySessionFactory;
@@ -208,7 +206,7 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
         }
 
         this.ciOpts = new CiOptionAccessor(
-            this.logger,
+            logger,
             systemProperties,
             userProperties
         );
@@ -593,6 +591,7 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
             final String gpgKeyname = ciOpts.getOption(GPG_KEYNAME).orElse("");
             final Optional<String> gpgPassphrase = ciOpts.getOption(GPG_PASSPHRASE);
             final Gpg gpg = new Gpg(
+                logger,
                 homeDir,
                 this.rootProjectPathname,
                 executable.get(),
@@ -737,7 +736,7 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
         final Optional<String> registryPass = ciOpts.getOption(DOCKER_REGISTRY_PASS);
         final Optional<String> registryUser = ciOpts.getOption(DOCKER_REGISTRY_USER);
         if (registry.isPresent() && registryPass.isPresent() && registryUser.isPresent()) {
-            dockerLogin(this.logger, host.orElse(null), registry.get(), registryUser.get(), registryPass.get());
+            dockerLogin(logger, host.orElse(null), registry.get(), registryUser.get(), registryPass.get());
             logger.info("docker login done");
         } else {
             logger.info("skip docker login");
