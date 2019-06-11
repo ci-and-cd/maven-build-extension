@@ -62,6 +62,8 @@ import org.unix4j.Unix4j;
 import org.unix4j.unix.cut.CutOptions;
 import org.unix4j.unix.sed.SedOptions;
 
+import top.infra.maven.extension.mavenbuild.model.ProjectBuilderActivatorModelResolver;
+
 /**
  * Main entry point. Reads properties and exposes them as user properties.
  * Existing user properties will not be overwritten.
@@ -92,6 +94,8 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
 
     private final DefaultRepositorySystemSessionFactory repositorySessionFactory;
 
+    private final ProjectBuilderActivatorModelResolver resolver;
+
     private String settingsLocalRepository;
 
     private CiOptionAccessor ciOpts;
@@ -113,13 +117,15 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
         final org.codehaus.plexus.logging.Logger logger,
         final RuntimeInformation runtime,
         final ProjectBuilder projectBuilder,
-        final DefaultRepositorySystemSessionFactory repositorySessionFactory
+        final DefaultRepositorySystemSessionFactory repositorySessionFactory,
+        final ProjectBuilderActivatorModelResolver resolver
     ) {
         this.homeDir = System.getProperty("user.home");
         this.logger = new LoggerPlexusImpl(logger);
         this.runtime = runtime;
         this.projectBuilder = projectBuilder;
         this.repositorySessionFactory = repositorySessionFactory;
+        this.resolver = resolver;
 
         this.settingsLocalRepository = null;
         this.ciOpts = null;
@@ -286,10 +292,20 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
             } else if (event instanceof MavenExecutionRequest) {
                 final MavenExecutionRequest request = (MavenExecutionRequest) event;
 
+                if (isEmpty(this.settingsLocalRepository)) {
+                    this.settingsLocalRepository = request.getLocalRepository().getBasedir();
+                    if (logger.isInfoEnabled()) {
+                        logger.info(String.format("Current localRepository [%s]", this.settingsLocalRepository));
+                    }
+                    request.getUserProperties().setProperty(USER_PROPERTY_SETTINGS_LOCALREPOSITORY, this.settingsLocalRepository);
+                }
+
                 final ProjectBuildingRequest projectBuildingRequest = request.getProjectBuildingRequest();
                 if (projectBuildingRequest != null) {
                     final boolean repositorySystemSessionNull = this.createRepositorySystemSessionIfAbsent(request);
                     try {
+                        this.resolver.setProjectBuildingRequest(projectBuildingRequest);
+
                         this.onMavenExecutionRequest(request, this.homeDir, this.ciOpts);
                     } finally {
                         if (repositorySystemSessionNull) {
@@ -413,7 +429,7 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
         // Options are not calculated and merged into projectBuildingRequest this time.
         final File pomFile = request.getPom();
         final ProjectBuildingRequest projectBuildingRequest = request.getProjectBuildingRequest();
-        final MavenProjectInfo projectInfo = newProjectInfoByReadPom(pomFile)
+        final MavenProjectInfo projectInfo = newProjectInfoByReadPom(logger, pomFile)
             .orElseGet(() -> newProjectInfoByBuildProject(logger, this.projectBuilder, pomFile, projectBuildingRequest));
         if (logger.isInfoEnabled()) {
             logger.info(projectInfo.toString());

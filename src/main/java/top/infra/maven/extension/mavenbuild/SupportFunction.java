@@ -362,15 +362,6 @@ public abstract class SupportFunction {
     }
 
     /**
-     * Change properties format.
-     */
-    static Properties propertiesToMap(final Map<String, String> map) {
-        final Properties props = new Properties();
-        props.putAll(map);
-        return props;
-    }
-
-    /**
      * Extract profile property value.
      */
     private static String propertyValue(final Profile profile) {
