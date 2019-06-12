@@ -5,7 +5,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static top.infra.maven.extension.mavenbuild.CiOption.DOCKER_REGISTRY;
 import static top.infra.maven.extension.mavenbuild.CiOption.DOCKER_REGISTRY_URL;
-import static top.infra.maven.extension.mavenbuild.CiOption.GITHUB_SITE_REPO_OWNER;
+import static top.infra.maven.extension.mavenbuild.CiOption.GITHUB_GLOBAL_REPOSITORYOWNER;
 import static top.infra.maven.extension.mavenbuild.CiOption.INFRASTRUCTURE;
 import static top.infra.maven.extension.mavenbuild.CiOption.SITE;
 import static top.infra.maven.extension.mavenbuild.CiOption.SONAR;
@@ -42,7 +42,7 @@ public class CiOptionTests {
         ciOpts.updateSystemProperties(loadedProperties);
 
         // ciOpts.githubSiteRepoOwner().ifPresent(githubSiteRepoOwner ->
-        //     ciOpts.setSystemProperty(GITHUB_SITE_REPO_OWNER, githubSiteRepoOwner));
+        //     ciOpts.setSystemProperty(GITHUB_GLOBAL_REPOSITORYOWNER, githubSiteRepoOwner));
 
         final Properties newProperties = ciOpts.mavenOptsInto(userProperties);
         ciOpts.docker();
@@ -71,9 +71,9 @@ public class CiOptionTests {
         final Properties loadedProperties = new Properties();
         ciOpts.updateSystemProperties(loadedProperties);
 
-        // final Optional<String> owner = ciOpts.getOption(GITHUB_SITE_REPO_OWNER);
-        logger.info("{} {}", GITHUB_SITE_REPO_OWNER.getPropertyName(), ciOpts.getOption(GITHUB_SITE_REPO_OWNER).orElse(null));
-        assertEquals("ci-and-cd", ciOpts.getOption(GITHUB_SITE_REPO_OWNER).orElse(null));
+        // final Optional<String> owner = ciOpts.getOption(GITHUB_GLOBAL_REPOSITORYOWNER);
+        logger.info("{} {}", GITHUB_GLOBAL_REPOSITORYOWNER.getPropertyName(), ciOpts.getOption(GITHUB_GLOBAL_REPOSITORYOWNER).orElse(null));
+        assertEquals("ci-and-cd", ciOpts.getOption(GITHUB_GLOBAL_REPOSITORYOWNER).orElse(null));
     }
 
     @Test

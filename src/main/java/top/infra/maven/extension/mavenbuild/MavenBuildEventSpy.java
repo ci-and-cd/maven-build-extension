@@ -6,7 +6,7 @@ import static top.infra.maven.extension.mavenbuild.CiOption.DOCKER;
 import static top.infra.maven.extension.mavenbuild.CiOption.DOCKER_REGISTRY;
 import static top.infra.maven.extension.mavenbuild.CiOption.DOCKER_REGISTRY_PASS;
 import static top.infra.maven.extension.mavenbuild.CiOption.DOCKER_REGISTRY_USER;
-import static top.infra.maven.extension.mavenbuild.CiOption.GITHUB_SITE_REPO_OWNER;
+import static top.infra.maven.extension.mavenbuild.CiOption.GITHUB_GLOBAL_REPOSITORYOWNER;
 import static top.infra.maven.extension.mavenbuild.CiOption.GIT_AUTH_TOKEN;
 import static top.infra.maven.extension.mavenbuild.CiOption.GIT_REF_NAME;
 import static top.infra.maven.extension.mavenbuild.CiOption.GPG_EXECUTABLE;
@@ -328,8 +328,8 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
         }
 
         // github site options
-        ciOpts.getOption(GITHUB_SITE_REPO_OWNER).ifPresent(githubSiteRepoOwner ->
-            ciOpts.setSystemProperty(GITHUB_SITE_REPO_OWNER, githubSiteRepoOwner));
+        ciOpts.getOption(GITHUB_GLOBAL_REPOSITORYOWNER).ifPresent(githubSiteRepoOwner ->
+            ciOpts.setSystemProperty(GITHUB_GLOBAL_REPOSITORYOWNER, githubSiteRepoOwner));
         logger.info("<<<<<<<<<< ---------- load options from file ---------- <<<<<<<<<<");
 
         // maven options

@@ -299,6 +299,41 @@ public enum CiOption {
             return result;
         }
     },
+    GITHUB_GLOBAL_OAUTH2TOKEN("github.global.oauth2Token") {
+        @Override
+        protected Optional<String> calculateValue(
+            final GitProperties gitProperties,
+            final Properties systemProperties,
+            final Properties userProperties
+        ) {
+            return GIT_AUTH_TOKEN.getValue(gitProperties, systemProperties, userProperties);
+        }
+    },
+    GITHUB_GLOBAL_REPOSITORYNAME("github.global.repositoryName") {
+        @Override
+        protected Optional<String> calculateValue(
+            final GitProperties gitProperties,
+            final Properties systemProperties,
+            final Properties userProperties
+        ) {
+            return SITE_PATH_PREFIX.getValue(gitProperties, systemProperties, userProperties);
+        }
+    },
+    GITHUB_GLOBAL_REPOSITORYOWNER("github.global.repositoryOwner", "unknown-owner") {
+        @Override
+        protected Optional<String> calculateValue(
+            final GitProperties gitProperties,
+            final Properties systemProperties,
+            final Properties userProperties
+        ) {
+            final boolean openSource = INFRASTRUCTURE.getValue(gitProperties, systemProperties, userProperties)
+                .map(INFRASTRUCTURE_OPENSOURCE::equals).orElse(FALSE);
+
+            return openSource
+                ? this.gitRepoSlug(gitProperties, systemProperties).map(slug -> slug.split("/")[0])
+                : Optional.empty();
+        }
+    },
     GITHUB_SITE_PUBLISH("github.site.publish", BOOL_STRING_FALSE) {
         @Override
         public Optional<String> getValue(
@@ -312,37 +347,6 @@ public enum CiOption {
                 .map(INFRASTRUCTURE_OPENSOURCE::equals).orElse(FALSE);
 
             return site && openSource ? this.findInProperties(systemProperties, userProperties) : Optional.of(BOOL_STRING_FALSE);
-        }
-    },
-    @Deprecated
-    GITHUB_SITE_REPO_NAME("github.site.repo.name") {
-        @Override
-        protected Optional<String> calculateValue(
-            final GitProperties gitProperties,
-            final Properties systemProperties,
-            final Properties userProperties
-        ) {
-            final boolean openSource = INFRASTRUCTURE.getValue(gitProperties, systemProperties, userProperties)
-                .map(INFRASTRUCTURE_OPENSOURCE::equals).orElse(FALSE);
-
-            return openSource
-                ? SITE_PATH_PREFIX.getValue(gitProperties, systemProperties, userProperties)
-                : Optional.empty();
-        }
-    },
-    GITHUB_SITE_REPO_OWNER("github.site.repo.owner", "unknown-owner") {
-        @Override
-        protected Optional<String> calculateValue(
-            final GitProperties gitProperties,
-            final Properties systemProperties,
-            final Properties userProperties
-        ) {
-            final boolean openSource = INFRASTRUCTURE.getValue(gitProperties, systemProperties, userProperties)
-                .map(INFRASTRUCTURE_OPENSOURCE::equals).orElse(FALSE);
-
-            return openSource
-                ? this.gitRepoSlug(gitProperties, systemProperties).map(slug -> slug.split("/")[0])
-                : Optional.empty();
         }
     },
 
@@ -845,7 +849,7 @@ public enum CiOption {
 
             final String prefix = systemUserHome() + "/.ci-and-cd/tmp";
 
-            return Optional.of(prefix + "/" + commitId + "/" + "local-deploy");
+            return Optional.of(prefix + "/" + "local-deploy" + "/" + commitId);
         }
 
         @Override
