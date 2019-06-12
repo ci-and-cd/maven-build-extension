@@ -5,7 +5,6 @@ import static top.infra.maven.extension.mavenbuild.SupportFunction.profileId;
 import static top.infra.maven.extension.mavenbuild.SupportFunction.profileJavaVersion;
 import static top.infra.maven.extension.mavenbuild.SupportFunction.projectContext;
 import static top.infra.maven.extension.mavenbuild.SupportFunction.projectName;
-import static top.infra.maven.extension.mavenbuild.SupportFunction.reportProblem;
 
 import java.util.Map;
 import java.util.Optional;
@@ -54,14 +53,14 @@ public class JavaVersionSensitiveActivator implements ProfileActivator, CustomAc
             result = false;
         } else {
             // Required project.
-            final Model project = this.resolver.resolveModel(profile, context);
-            if (project == null) {
-                final Exception error = new Exception("Invalid Project");
-                reportProblem(error.getMessage(), error, profile, context, problems);
-                result = false;
-            } else {
-                final Map<String, Object> projectContext = projectContext(project, context);
+            final Optional<Model> project = this.resolver.resolveModel(profile, context);
+            if (project.isPresent()) {
+                final Map<String, Object> projectContext = projectContext(project.get(), context);
                 result = this.isActiveByProfileName(profile, projectContext);
+            } else {
+                // final Exception error = new Exception("Invalid Project");
+                // reportProblem(error.getMessage(), error, profile, context, problems);
+                result = false;
             }
         }
 
@@ -78,8 +77,8 @@ public class JavaVersionSensitiveActivator implements ProfileActivator, CustomAc
 
     @Override
     public boolean presentInConfig(final Profile profile, final ProfileActivationContext context, final ModelProblemCollector problems) {
-        final Model model = this.resolver.resolveModel(profile, context);
-        return model != null;
+        final Optional<Model> model = this.resolver.resolveModel(profile, context);
+        return model.isPresent();
     }
 
     public boolean isJavaVersionSensitive(final Profile profile) {

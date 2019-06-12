@@ -3,6 +3,7 @@ package top.infra.maven.extension.mavenbuild.model;
 import java.io.File;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Optional;
 
 import org.apache.maven.model.Model;
 import org.apache.maven.model.Profile;
@@ -43,25 +44,25 @@ public abstract class AbstractActivatorModelResolver implements ActivatorModelRe
      * Control recursion by processing projects only once via {@link #profileMemento}.
      */
     @Override
-    public Model resolveModel(final Profile profile, final ProfileActivationContext context) {
+    public Optional<Model> resolveModel(final Profile profile, final ProfileActivationContext context) {
         final File pomFile = this.projectPOM(context);
 
         if ("source".equals(profile.getSource())) {
             // logger.debug(String.format("profile %s is from settings not pom", profile));
             this.registerMemento(profile, pomFile, null);
-            return null;
+            return Optional.empty();
         }
 
         if (profile.getBuild() == null) {
             // logger.debug(String.format("profile %s has a null build", profile));
             this.registerMemento(profile, pomFile, null);
-            return null;
+            return Optional.empty();
         }
 
         if (pomFile == null) {
             // logger.debug(String.format("profile %s pomFile not found", profile));
             this.registerMemento(profile, null, null);
-            return null;
+            return Optional.empty();
         }
 
         final Model modelFound;
@@ -94,13 +95,13 @@ public abstract class AbstractActivatorModelResolver implements ActivatorModelRe
             try {
                 final ModelBuildingRequest buildingRequest = this.modelBuildingRequest(context, pomFile);
                 final ModelBuildingResult buildingResult = this.modelBuilder.build(buildingRequest);
-                return this.registerMemento(profile, pomFile, buildingResult.getEffectiveModel());
+                return Optional.of(this.registerMemento(profile, pomFile, buildingResult.getEffectiveModel()));
             } catch (final Exception error) {
                 logger.error(String.format("model build error: %s", error.getMessage()), error);
-                return null;
+                return Optional.empty();
             }
         } else {
-            return modelFound;
+            return Optional.ofNullable(modelFound);
         }
     }
 

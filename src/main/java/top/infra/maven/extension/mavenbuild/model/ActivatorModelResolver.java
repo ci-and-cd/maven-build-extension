@@ -1,10 +1,12 @@
 package top.infra.maven.extension.mavenbuild.model;
 
+import java.util.Optional;
+
 import org.apache.maven.model.Model;
 import org.apache.maven.model.Profile;
 import org.apache.maven.model.profile.ProfileActivationContext;
 
 public interface ActivatorModelResolver {
 
-    Model resolveModel(Profile profile, ProfileActivationContext context);
+    Optional<Model> resolveModel(Profile profile, ProfileActivationContext context);
 }
