@@ -392,7 +392,7 @@ public abstract class SupportFunction {
 
             final MavenXpp3Reader pomReader = new MavenXpp3Reader();
             return pomReader.read(fileReader);
-        } catch (Throwable e) {
+        } catch (final Exception ex) {
             return new Model();
         }
     }
@@ -436,6 +436,11 @@ public abstract class SupportFunction {
     public static Optional<Integer> systemJavaVersion() {
         final String systemJavaVersion = System.getProperty("java.version");
         return parseJavaVersion(systemJavaVersion);
+    }
+
+    static String systemUserHome() {
+        final String pathname = System.getProperty("user.home", ".");
+        return pathname(new File(pathname));
     }
 
     static String systemUserDir() {

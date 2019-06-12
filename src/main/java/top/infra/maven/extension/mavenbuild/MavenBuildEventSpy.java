@@ -31,6 +31,7 @@ import static top.infra.maven.extension.mavenbuild.SupportFunction.isEmpty;
 import static top.infra.maven.extension.mavenbuild.SupportFunction.notEmpty;
 import static top.infra.maven.extension.mavenbuild.SupportFunction.os;
 import static top.infra.maven.extension.mavenbuild.SupportFunction.stackTrace;
+import static top.infra.maven.extension.mavenbuild.SupportFunction.systemUserHome;
 
 import java.io.File;
 import java.net.URL;
@@ -120,7 +121,7 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
         final DefaultRepositorySystemSessionFactory repositorySessionFactory,
         final ProjectBuilderActivatorModelResolver resolver
     ) {
-        this.homeDir = System.getProperty("user.home");
+        this.homeDir = systemUserHome();
         this.logger = new LoggerPlexusImpl(logger);
         this.runtime = runtime;
         this.projectBuilder = projectBuilder;
@@ -135,13 +136,103 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
 
     @Override
     public void init(final Context context) throws Exception {
+        try {
+            this.onInit(context);
+        } catch (final Exception ex) {
+            logger.error("Failed on init.", ex);
+            System.exit(1);
+        }
+    }
+
+    @Override
+    public void onEvent(final Object event) throws Exception {
+        try {
+            if (event instanceof SettingsBuildingRequest) {
+                final SettingsBuildingRequest request = (SettingsBuildingRequest) event;
+
+                this.settingsLocalRepository = request.getUserProperties().getProperty(USER_PROPERTY_SETTINGS_LOCALREPOSITORY);
+
+                this.onSettingsBuildingRequest(request, this.homeDir, this.ciOpts);
+            } else if (event instanceof SettingsBuildingResult) {
+                final SettingsBuildingResult result = (SettingsBuildingResult) event;
+
+                // Allow override value of localRepository in settings.xml by user property settings.localRepository.
+                // e.g. ./mvnw -Dsettings.localRepository=${HOME}/.m3/repository clean install
+                if (!isEmpty(this.settingsLocalRepository)) {
+                    final String currentValue = result.getEffectiveSettings().getLocalRepository();
+                    if (logger.isInfoEnabled()) {
+                        logger.info(String.format(
+                            "Override localRepository [%s] to [%s]", currentValue, this.settingsLocalRepository));
+                    }
+                    result.getEffectiveSettings().setLocalRepository(this.settingsLocalRepository);
+                }
+            } else if (event instanceof ToolchainsBuildingRequest) {
+                final ToolchainsBuildingRequest request = (ToolchainsBuildingRequest) event;
+
+                this.onToolchainsBuildingRequest(request, this.homeDir, this.ciOpts);
+            } else if (event instanceof MavenExecutionRequest) {
+                final MavenExecutionRequest request = (MavenExecutionRequest) event;
+
+                if (isEmpty(this.settingsLocalRepository)) {
+                    this.settingsLocalRepository = request.getLocalRepository().getBasedir();
+                    if (logger.isInfoEnabled()) {
+                        logger.info(String.format("Current localRepository [%s]", this.settingsLocalRepository));
+                    }
+                    request.getUserProperties().setProperty(USER_PROPERTY_SETTINGS_LOCALREPOSITORY, this.settingsLocalRepository);
+                }
+
+                final ProjectBuildingRequest projectBuildingRequest = request.getProjectBuildingRequest();
+                if (projectBuildingRequest != null) {
+                    final boolean repositorySystemSessionNull = this.createRepositorySystemSessionIfAbsent(request);
+                    try {
+                        this.resolver.setProjectBuildingRequest(projectBuildingRequest);
+
+                        this.onMavenExecutionRequest(request, this.homeDir, this.ciOpts);
+                    } finally {
+                        if (repositorySystemSessionNull) {
+                            projectBuildingRequest.setRepositorySession(null);
+                        }
+
+                        // To make profile activation conditions work
+                        SupportFunction.merge(request.getUserProperties(), projectBuildingRequest.getUserProperties());
+                        SupportFunction.merge(request.getUserProperties(), projectBuildingRequest.getSystemProperties());
+
+                        if (logger.isInfoEnabled()) {
+                            logger.info("     >>>>> projectBuildingRequest (ProfileActivationContext) systemProperties >>>>>");
+                            logger.info(SupportFunction.toString(projectBuildingRequest.getSystemProperties(), PATTERN_CI_ENV_VARS));
+                            logger.info("     <<<<< projectBuildingRequest (ProfileActivationContext) systemProperties <<<<<");
+
+                            logger.info("     >>>>> projectBuildingRequest (ProfileActivationContext) userProperties >>>>>");
+                            logger.info(SupportFunction.toString(projectBuildingRequest.getUserProperties(), null));
+                            logger.info("     <<<<< projectBuildingRequest (ProfileActivationContext) userProperties <<<<<");
+                        }
+                    }
+                } else {
+                    if (logger.isInfoEnabled()) {
+                        logger.info(String.format("onEvent MavenExecutionRequest %s but projectBuildingRequest is null.", request));
+                    }
+                }
+            } else {
+                if (logger.isDebugEnabled()) {
+                    logger.debug(String.format("onEvent %s", event));
+                }
+            }
+        } catch (final Exception ex) {
+            logger.error(String.format("%s%n%s", ex.getMessage(), stackTrace(ex)));
+            System.exit(1);
+        }
+
+        super.onEvent(event);
+    }
+
+    void onInit(final Context context) {
         if (logger.isInfoEnabled()) {
             logger.info(String.format("init with context [%s]", context));
         }
 
         final Map<String, Object> contextData = context.getData();
 
-        if (logger.isDebugEnabled()) {
+        if (logger.isInfoEnabled()) {
             contextData.keySet().stream().sorted().forEach(k -> {
                 final Object v = contextData.get(k);
                 if (v instanceof Properties) {
@@ -245,7 +336,9 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
         if (logger.isInfoEnabled()) {
             logger.info(">>>>>>>>>> ---------- set options (update userProperties) ---------- >>>>>>>>>>");
         }
+
         final Properties newProperties = ciOpts.mavenOptsInto(userProperties);
+
         if (logger.isInfoEnabled()) {
             logger.info(SupportFunction.toString(systemProperties, PATTERN_CI_ENV_VARS));
             logger.info(SupportFunction.toString(userProperties, null));
@@ -261,85 +354,6 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
 
         this.mavenSettingsPathname = this.downloadMavenSettingsFile(this.homeDir, this.ciOpts).orElse(null);
         this.downloadMavenToolchainFile(this.homeDir, this.ciOpts);
-    }
-
-    @Override
-    public void onEvent(final Object event) throws Exception {
-        try {
-            if (event instanceof SettingsBuildingRequest) {
-                final SettingsBuildingRequest request = (SettingsBuildingRequest) event;
-
-                this.settingsLocalRepository = request.getUserProperties().getProperty(USER_PROPERTY_SETTINGS_LOCALREPOSITORY);
-
-                this.onSettingsBuildingRequest(request, this.homeDir, this.ciOpts);
-            } else if (event instanceof SettingsBuildingResult) {
-                final SettingsBuildingResult result = (SettingsBuildingResult) event;
-
-                // Allow override value of localRepository in settings.xml by user property settings.localRepository.
-                // e.g. ./mvnw -Dsettings.localRepository=${HOME}/.m3/repository clean install
-                if (!isEmpty(this.settingsLocalRepository)) {
-                    final String currentValue = result.getEffectiveSettings().getLocalRepository();
-                    if (logger.isInfoEnabled()) {
-                        logger.info(String.format(
-                            "Override localRepository [%s] to [%s]", currentValue, this.settingsLocalRepository));
-                    }
-                    result.getEffectiveSettings().setLocalRepository(this.settingsLocalRepository);
-                }
-            } else if (event instanceof ToolchainsBuildingRequest) {
-                final ToolchainsBuildingRequest request = (ToolchainsBuildingRequest) event;
-
-                this.onToolchainsBuildingRequest(request, this.homeDir, this.ciOpts);
-            } else if (event instanceof MavenExecutionRequest) {
-                final MavenExecutionRequest request = (MavenExecutionRequest) event;
-
-                if (isEmpty(this.settingsLocalRepository)) {
-                    this.settingsLocalRepository = request.getLocalRepository().getBasedir();
-                    if (logger.isInfoEnabled()) {
-                        logger.info(String.format("Current localRepository [%s]", this.settingsLocalRepository));
-                    }
-                    request.getUserProperties().setProperty(USER_PROPERTY_SETTINGS_LOCALREPOSITORY, this.settingsLocalRepository);
-                }
-
-                final ProjectBuildingRequest projectBuildingRequest = request.getProjectBuildingRequest();
-                if (projectBuildingRequest != null) {
-                    final boolean repositorySystemSessionNull = this.createRepositorySystemSessionIfAbsent(request);
-                    try {
-                        this.resolver.setProjectBuildingRequest(projectBuildingRequest);
-
-                        this.onMavenExecutionRequest(request, this.homeDir, this.ciOpts);
-                    } finally {
-                        if (repositorySystemSessionNull) {
-                            projectBuildingRequest.setRepositorySession(null);
-                        }
-
-                        SupportFunction.merge(request.getUserProperties(), projectBuildingRequest.getUserProperties());
-
-                        if (logger.isInfoEnabled()) {
-                            logger.info("     >>>>> projectBuildingRequest (ProfileActivationContext) systemProperties >>>>>");
-                            logger.info(SupportFunction.toString(projectBuildingRequest.getSystemProperties(), PATTERN_CI_ENV_VARS));
-                            logger.info("     <<<<< projectBuildingRequest (ProfileActivationContext) systemProperties <<<<<");
-
-                            logger.info("     >>>>> projectBuildingRequest (ProfileActivationContext) userProperties >>>>>");
-                            logger.info(SupportFunction.toString(projectBuildingRequest.getUserProperties(), null));
-                            logger.info("     <<<<< projectBuildingRequest (ProfileActivationContext) userProperties <<<<<");
-                        }
-                    }
-                } else {
-                    if (logger.isInfoEnabled()) {
-                        logger.info(String.format("onEvent MavenExecutionRequest %s but projectBuildingRequest is null.", request));
-                    }
-                }
-            } else {
-                if (logger.isDebugEnabled()) {
-                    logger.debug(String.format("onEvent %s", event));
-                }
-            }
-        } catch (final Exception ex) {
-            logger.error(String.format("%s%n%s", ex.getMessage(), stackTrace(ex)));
-            System.exit(1);
-        }
-
-        super.onEvent(event);
     }
 
     Optional<String> downloadMavenSettingsFile(final String homeDir, final CiOptionAccessor ciOpts) {

@@ -1,6 +1,7 @@
 package top.infra.maven.extension.mavenbuild;
 
 import static java.lang.Boolean.FALSE;
+import static java.lang.Boolean.parseBoolean;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static top.infra.maven.extension.mavenbuild.Constants.BOOL_STRING_FALSE;
 import static top.infra.maven.extension.mavenbuild.Constants.BOOL_STRING_TRUE;
@@ -10,6 +11,7 @@ import static top.infra.maven.extension.mavenbuild.Constants.BRANCH_PREFIX_RELEA
 import static top.infra.maven.extension.mavenbuild.Constants.BRANCH_PREFIX_SUPPORT;
 import static top.infra.maven.extension.mavenbuild.Constants.GIT_REF_NAME_DEVELOP;
 import static top.infra.maven.extension.mavenbuild.Constants.GIT_REF_NAME_MASTER;
+import static top.infra.maven.extension.mavenbuild.Constants.INFRASTRUCTURE_DEFAULT;
 import static top.infra.maven.extension.mavenbuild.Constants.INFRASTRUCTURE_OPENSOURCE;
 import static top.infra.maven.extension.mavenbuild.Constants.INFRASTRUCTURE_PRIVATE;
 import static top.infra.maven.extension.mavenbuild.Constants.PUBLISH_CHANNEL_RELEASE;
@@ -24,6 +26,7 @@ import static top.infra.maven.extension.mavenbuild.SupportFunction.isEmpty;
 import static top.infra.maven.extension.mavenbuild.SupportFunction.systemJavaIoTmp;
 import static top.infra.maven.extension.mavenbuild.SupportFunction.systemJavaVersion;
 import static top.infra.maven.extension.mavenbuild.SupportFunction.systemUserDir;
+import static top.infra.maven.extension.mavenbuild.SupportFunction.systemUserHome;
 import static top.infra.maven.extension.mavenbuild.SupportFunction.urlWithoutPath;
 
 import java.io.File;
@@ -88,6 +91,33 @@ public enum CiOption {
         }
     },
     FILE_ENCODING("file.encoding", UTF_8.name()),
+    /**
+     * Custom property.
+     * maven.javadoc.skip and maven.source.skip
+     */
+    MAVEN_ARTIFACTS_SKIP("maven.artifacts.skip", BOOL_STRING_FALSE) {
+        @Override
+        public Optional<String> setProperties(
+            final GitProperties gitProperties,
+            final Properties systemProperties,
+            final Properties userProperties,
+            final Properties properties
+        ) {
+            final Optional<String> result = super.setProperties(gitProperties, systemProperties, userProperties, properties);
+
+            result.ifPresent(value -> {
+                final boolean skip = parseBoolean(value);
+                if (skip || !userProperties.containsKey("maven.javadoc.skip")) {
+                    properties.setProperty("maven.javadoc.skip", value);
+                }
+                if (skip || !userProperties.containsKey("maven.source.skip")) {
+                    properties.setProperty("maven.source.skip", value);
+                }
+            });
+
+            return result;
+        }
+    },
     MAVEN_CLEAN_SKIP("maven.clean.skip", BOOL_STRING_TRUE),
     MAVEN_COMPILER_ENCODING("maven.compiler.encoding", UTF_8.name()),
     MAVEN_INTEGRATIONTEST_SKIP("maven.integration-test.skip", BOOL_STRING_FALSE),
@@ -103,14 +133,11 @@ public enum CiOption {
             final Properties systemProperties,
             final Properties userProperties
         ) {
-            final Optional<String> gitCommitId = gitProperties.commitId();
+            final String commitId = gitProperties.commitId().map(value -> value.substring(0, 8)).orElse("unknown-commit");
 
-            // System.getProperty("user.home") + "/.ci-and-cd/tmp/" + groupId + "/" + artifactId + "/" + version;
-            final String prefix = systemJavaIoTmp() + "/.ci-and-cd/tmp/" + SupportFunction.uniqueKey();
+            final String prefix = systemJavaIoTmp() + "/.ci-and-cd/tmp" + "/" + SupportFunction.uniqueKey();
 
-            return Optional.of(gitCommitId
-                .map(commitId -> prefix + "/" + commitId)
-                .orElseGet(() -> prefix + "/" + "cache-of-unknown-git-commit-id"));
+            return Optional.of(prefix + "/" + commitId);
         }
     },
     CHECKSTYLE_CONFIG_LOCATION("checkstyle.config.location",
@@ -122,24 +149,14 @@ public enum CiOption {
             final Properties systemProperties,
             final Properties userProperties
         ) {
-            final Optional<String> infrastructureCiOptsProperties = INFRASTRUCTURE.getValue(gitProperties, systemProperties, userProperties)
-                .map(infrastructure -> "../maven-build-opts-" + infrastructure + "/" + SRC_CI_OPTS_PROPERTIES);
-
             final Optional<String> result;
             if (new File(SRC_CI_OPTS_PROPERTIES).exists()) {
                 result = Optional.of(SRC_CI_OPTS_PROPERTIES);
-            } else if (infrastructureCiOptsProperties.isPresent()) {
-                final String pathname = infrastructureCiOptsProperties.get();
-                if (new File(pathname).exists()) {
-                    result = Optional.of(pathname);
-                } else {
-                    final String cacheDirectory = CACHE_DIRECTORY.getValue(gitProperties, systemProperties, userProperties)
-                        .orElse(systemJavaIoTmp());
-                    final String cachedCiOptsProperties = cacheDirectory + "/" + SRC_CI_OPTS_PROPERTIES;
-                    result = Optional.of(cachedCiOptsProperties);
-                }
             } else {
-                result = Optional.empty();
+                final String cacheDirectory = CACHE_DIRECTORY.getValue(gitProperties, systemProperties, userProperties)
+                    .orElse(systemJavaIoTmp());
+                final String cachedCiOptsProperties = cacheDirectory + "/" + SRC_CI_OPTS_PROPERTIES;
+                result = Optional.of(cachedCiOptsProperties);
             }
             return result;
         }
@@ -394,10 +411,10 @@ public enum CiOption {
                 && ciProjectUrl.get().startsWith(privateGitPrefix.get())) {
                 result = INFRASTRUCTURE_PRIVATE;
             } else {
-                result = null;
+                result = INFRASTRUCTURE_DEFAULT;
             }
 
-            return Optional.ofNullable(result);
+            return Optional.of(result);
         }
     },
 
@@ -457,12 +474,15 @@ public enum CiOption {
             final Properties systemProperties,
             final Properties userProperties
         ) {
-            // TODO default infrastructure ?
             final String infrastructure = INFRASTRUCTURE.getValue(gitProperties, systemProperties, userProperties)
                 .orElse(INFRASTRUCTURE_OPENSOURCE);
 
+            final String repoOwner = "ci-and-cd";
+            final String repoName = "maven-build-opts-"
+                + (INFRASTRUCTURE_DEFAULT.equals(infrastructure) ? INFRASTRUCTURE_OPENSOURCE : infrastructure);
+
             return GIT_PREFIX.getValue(gitProperties, systemProperties, userProperties)
-                .map(gitPrefix -> gitPrefix + "/ci-and-cd/maven-build-opts-" + infrastructure);
+                .map(gitPrefix -> String.format("%s/%s/%s", gitPrefix, repoOwner, repoName));
         }
     },
     MAVEN_BUILD_OPTS_REPO_REF("maven.build.opts.repo.ref", GIT_REF_NAME_MASTER),
@@ -814,7 +834,20 @@ public enum CiOption {
         }
     },
     WAGON_MERGEMAVENREPOS_ARTIFACTDIR("wagon.merge-maven-repos.artifactDir", "${project.groupId}/${project.artifactId}"),
-    WAGON_MERGEMAVENREPOS_SOURCE("wagon.merge-maven-repos.source", "${user.home}/.ci-and-cd/local-deploy/${git.commit.id}") {
+    WAGON_MERGEMAVENREPOS_SOURCE("wagon.merge-maven-repos.source") {
+        @Override
+        protected Optional<String> calculateValue(
+            final GitProperties gitProperties,
+            final Properties systemProperties,
+            final Properties userProperties
+        ) {
+            final String commitId = gitProperties.commitId().map(value -> value.substring(0, 8)).orElse("unknown-commit");
+
+            final String prefix = systemUserHome() + "/.ci-and-cd/tmp";
+
+            return Optional.of(prefix + "/" + commitId + "/" + "local-deploy");
+        }
+
         @Override
         public Optional<String> setProperties(
             final GitProperties gitProperties,

@@ -9,7 +9,6 @@ import static top.infra.maven.extension.mavenbuild.CiOption.CI_OPTS_FILE;
 import static top.infra.maven.extension.mavenbuild.CiOption.DOCKER;
 import static top.infra.maven.extension.mavenbuild.CiOption.GIT_AUTH_TOKEN;
 import static top.infra.maven.extension.mavenbuild.CiOption.GIT_REF_NAME;
-import static top.infra.maven.extension.mavenbuild.CiOption.INFRASTRUCTURE;
 import static top.infra.maven.extension.mavenbuild.CiOption.MAVEN_BUILD_OPTS_REPO;
 import static top.infra.maven.extension.mavenbuild.CiOption.MAVEN_BUILD_OPTS_REPO_REF;
 import static top.infra.maven.extension.mavenbuild.CiOption.MAVEN_EXTRA_OPTS;
@@ -280,14 +279,6 @@ public class CiOptionAccessor {
 
             final Map<String, String> extraMavenOpts = this.mavenExtraOpts();
             extraMavenOpts.forEach(newProperties::setProperty);
-
-            if (!this.getOption(INFRASTRUCTURE).isPresent()) {
-                final String errorMsg = String.format("%s not set", INFRASTRUCTURE);
-                if (logger.isErrorEnabled()) {
-                    logger.error(errorMsg);
-                }
-                throw new IllegalArgumentException(errorMsg);
-            }
         }
 
         SupportFunction.merge(newProperties, intoProperties);

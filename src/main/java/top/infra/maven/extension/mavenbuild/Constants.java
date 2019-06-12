@@ -13,6 +13,7 @@ public final class Constants {
     static final String GIT_REF_NAME_DEVELOP = "develop";
     static final String GIT_REF_NAME_MASTER = "master";
 
+    static final String INFRASTRUCTURE_DEFAULT = "default";
     static final String INFRASTRUCTURE_OPENSOURCE = "opensource";
     static final String INFRASTRUCTURE_PRIVATE = "private";
 

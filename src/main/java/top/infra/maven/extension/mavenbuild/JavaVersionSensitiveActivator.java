@@ -58,8 +58,7 @@ public class JavaVersionSensitiveActivator implements ProfileActivator, CustomAc
                 final Map<String, Object> projectContext = projectContext(project.get(), context);
                 result = this.isActiveByProfileName(profile, projectContext);
             } else {
-                // final Exception error = new Exception("Invalid Project");
-                // reportProblem(error.getMessage(), error, profile, context, problems);
+                // reportProblem("Failed to resolve model", new Exception("Invalid Project"), profile, context, problems);
                 result = false;
             }
         }
