@@ -422,7 +422,7 @@ public enum CiOption {
         }
     },
 
-    JACOCO("jacoco"),
+    JACOCO("jacoco", BOOL_STRING_TRUE),
     JAVA_ADDMODULES("java.addModules") {
         @Override
         protected Optional<String> calculateValue(
