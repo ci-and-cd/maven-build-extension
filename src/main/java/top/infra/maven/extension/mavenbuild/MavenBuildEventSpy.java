@@ -1,11 +1,7 @@
 package top.infra.maven.extension.mavenbuild;
 
 import static java.lang.Boolean.FALSE;
-import static java.util.Collections.singletonMap;
 import static top.infra.maven.extension.mavenbuild.CiOption.DOCKER;
-import static top.infra.maven.extension.mavenbuild.CiOption.DOCKER_REGISTRY;
-import static top.infra.maven.extension.mavenbuild.CiOption.DOCKER_REGISTRY_PASS;
-import static top.infra.maven.extension.mavenbuild.CiOption.DOCKER_REGISTRY_USER;
 import static top.infra.maven.extension.mavenbuild.CiOption.GITHUB_GLOBAL_REPOSITORYOWNER;
 import static top.infra.maven.extension.mavenbuild.CiOption.GIT_AUTH_TOKEN;
 import static top.infra.maven.extension.mavenbuild.CiOption.GIT_REF_NAME;
@@ -26,16 +22,13 @@ import static top.infra.maven.extension.mavenbuild.Constants.SRC_MAVEN_SETTINGS_
 import static top.infra.maven.extension.mavenbuild.Constants.USER_PROPERTY_SETTINGS_LOCALREPOSITORY;
 import static top.infra.maven.extension.mavenbuild.MavenProjectInfo.newProjectInfoByBuildProject;
 import static top.infra.maven.extension.mavenbuild.MavenProjectInfo.newProjectInfoByReadPom;
-import static top.infra.maven.extension.mavenbuild.SupportFunction.exec;
 import static top.infra.maven.extension.mavenbuild.SupportFunction.isEmpty;
-import static top.infra.maven.extension.mavenbuild.SupportFunction.notEmpty;
 import static top.infra.maven.extension.mavenbuild.SupportFunction.os;
 import static top.infra.maven.extension.mavenbuild.SupportFunction.systemUserHome;
 
 import java.io.File;
 import java.net.URL;
 import java.net.URLClassLoader;
-import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -58,9 +51,6 @@ import org.apache.maven.settings.building.SettingsBuildingRequest;
 import org.apache.maven.settings.building.SettingsBuildingResult;
 import org.apache.maven.toolchain.building.ToolchainsBuildingRequest;
 import org.eclipse.aether.RepositorySystemSession;
-import org.unix4j.Unix4j;
-import org.unix4j.unix.cut.CutOptions;
-import org.unix4j.unix.sed.SedOptions;
 
 import top.infra.maven.extension.mavenbuild.model.ProjectBuilderActivatorModelResolver;
 
@@ -72,9 +62,6 @@ import top.infra.maven.extension.mavenbuild.model.ProjectBuilderActivatorModelRe
 @Named
 @Singleton
 public class MavenBuildEventSpy extends AbstractEventSpy {
-
-    private static final String DOCKER_EXECUTABLE = "docker";
-    private static final String ENV_VAR_DOCKER_HOST = "DOCKER_HOST";
 
     private static final String GOAL_CLEAN = "clean";
     private static final String GOAL_DEPLOY = "deploy";
@@ -495,8 +482,9 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
         request.setGoals(this.editMavenGoals(projectInfo.getVersion(), ciOpts, request.getGoals(), publishToRepo));
 
         ciOpts.docker();
-        this.cleanOldImages(ciOpts, homeDir);
-        this.pullBaseImage(ciOpts);
+        final Docker docker = new Docker(logger, ciOpts, homeDir);
+        docker.cleanOldImages();
+        docker.pullBaseImage();
     }
 
     private void checkGitAuthToken(final CiOptionAccessor ciOpts) {
@@ -518,65 +506,6 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
             }
         }
         logger.info("<<<<<<<<<< ---------- check GIT_AUTH_TOKEN ---------- <<<<<<<<<<");
-    }
-
-    public void cleanOldImages(
-        final CiOptionAccessor ciOpts,
-        final String homeDir
-    ) {
-        if (ciOpts.docker()) {
-            final Map<String, String> env = ciOpts.dockerHost().map(host -> singletonMap(ENV_VAR_DOCKER_HOST, host)).orElse(null);
-            exec(env, null, DOCKER_EXECUTABLE, "version");
-            this.initDockerConfig(ciOpts, homeDir);
-
-            final Entry<Integer, String> dockerImages = exec(env, null, DOCKER_EXECUTABLE, "images");
-            if (dockerImages.getKey() == 0) {
-                Unix4j.fromString(dockerImages.getValue())
-                    .grep("none")
-                    .sed(SedOptions.EMPTY, "s#[ ]+# #g")
-                    .cut(CutOptions.EMPTY, " ", 3)
-                    .toStringList()
-                    .forEach(imageId -> {
-                        logger.info(String.format("Delete old image %s", imageId));
-                        final Entry<Integer, String> dockerRmi = exec(env, null, DOCKER_EXECUTABLE, "rmi", imageId);
-                        if (dockerRmi.getKey() != 0) {
-                            logger.warn(String.format("Error on remove image %s", imageId));
-                        }
-                    });
-            }
-        }
-    }
-
-    public void pullBaseImage(
-        final CiOptionAccessor ciOpts
-    ) {
-        logger.info(">>>>>>>>>> ---------- pull_base_image ---------- >>>>>>>>>>");
-        if (ciOpts.docker()) {
-            final List<String> dockerfiles = Unix4j
-                .find(".", "*Docker*")
-                .grep("-E", "-v", ".+/.+\\..+")
-                .grep("-v", "/target/classes/")
-                .toStringList();
-            if (logger.isInfoEnabled()) {
-                logger.info(String.format("Found dockerfiles %s", dockerfiles));
-            }
-            final List<String> baseImages = Unix4j
-                .find(".", "*Docker*")
-                .grep("-E", "-v", ".+/.+\\..+")
-                .grep("-v", "/target/classes/")
-                .xargs("cat")
-                .grep("-E", "^FROM")
-                .sed(SedOptions.EMPTY, "s#[ ]+# #g")
-                .cut(CutOptions.EMPTY, " ", 2)
-                .uniq()
-                .toStringList();
-            if (logger.isInfoEnabled()) {
-                logger.info(String.format("Found baseImages %s", baseImages));
-            }
-            final Map<String, String> env = ciOpts.dockerHost().map(host -> singletonMap(ENV_VAR_DOCKER_HOST, host)).orElse(null);
-            baseImages.forEach(image -> exec(env, null, DOCKER_EXECUTABLE, "pull", image));
-        }
-        logger.info("<<<<<<<<<< ---------- pull_base_image ---------- <<<<<<<<<<");
     }
 
     /**
@@ -764,25 +693,6 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
         return resultGoals;
     }
 
-    private void initDockerConfig(final CiOptionAccessor ciOpts, final String homeDir) {
-        // TODO config docker log rotation
-        final File dockerConfigDir = new File(homeDir + ".docker");
-        if (!dockerConfigDir.exists()) {
-            dockerConfigDir.mkdirs();
-        }
-
-        final Optional<String> host = ciOpts.dockerHost();
-        final Optional<String> registry = ciOpts.getOption(DOCKER_REGISTRY);
-        final Optional<String> registryPass = ciOpts.getOption(DOCKER_REGISTRY_PASS);
-        final Optional<String> registryUser = ciOpts.getOption(DOCKER_REGISTRY_USER);
-        if (registry.isPresent() && registryPass.isPresent() && registryUser.isPresent()) {
-            dockerLogin(logger, host.orElse(null), registry.get(), registryUser.get(), registryPass.get());
-            logger.info("docker login done");
-        } else {
-            logger.info("skip docker login");
-        }
-    }
-
     private static List<String> classPathEntries(
         final Logger logger,
         final ClassLoader cl
@@ -799,32 +709,5 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
             }
         }
         return result;
-    }
-
-    public static Map.Entry<Integer, String> dockerLogin(
-        final Logger logger,
-        final String dockerHost,
-        final String registry,
-        final String user,
-        final String pass
-    ) {
-        final Map<String, String> environment = new LinkedHashMap<>();
-        if (registry.startsWith("https://")) {
-            if (logger.isInfoEnabled()) {
-                logger.info(String.format("docker logging into secure registry %s", registry));
-            }
-        } else {
-            if (logger.isInfoEnabled()) {
-                logger.info(String.format("docker logging into insecure registry %s", registry));
-            }
-            environment.put("DOCKER_OPTS", String.format("–insecure-registry %s", registry));
-        }
-        if (notEmpty(dockerHost)) {
-            environment.put(ENV_VAR_DOCKER_HOST, dockerHost);
-        }
-
-        final String[] command = {DOCKER_EXECUTABLE, "login", "--password-stdin", "-u=" + user, registry};
-
-        return exec(environment, pass, command);
     }
 }

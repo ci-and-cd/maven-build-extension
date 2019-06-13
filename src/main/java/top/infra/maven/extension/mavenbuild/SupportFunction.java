@@ -214,6 +214,10 @@ public abstract class SupportFunction {
         return str == null || str.isEmpty();
     }
 
+    public static boolean isNotEmpty(final String str) {
+        return str != null && !str.isEmpty();
+    }
+
     public static boolean isJavaVersionRelatedProfile(final String id) {
         return PATTERN_JAVA_PROFILE.matcher(id).matches();
     }
