@@ -206,6 +206,10 @@ public abstract class SupportFunction {
         return path != null && path.toFile().exists();
     }
 
+    public static boolean is2xxStatus(final Integer status) {
+        return status != null && status >= 200 && status < 300;
+    }
+
     public static boolean isEmpty(final String str) {
         return str == null || str.isEmpty();
     }

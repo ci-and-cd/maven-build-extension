@@ -21,7 +21,16 @@ import org.slf4j.LoggerFactory;
 
 public class CiOptionTests {
 
-    private static final org.slf4j.Logger logger = LoggerFactory.getLogger(CiOptionTests.class);
+    private static final org.slf4j.Logger slf4jLogger = LoggerFactory.getLogger(CiOptionTests.class);
+
+    private static Logger logger() {
+        return new LoggerSlf4jImpl(slf4jLogger);
+    }
+
+    private static GitProperties gitProperties() {
+        final Logger logger = logger();
+        return GitProperties.newInstance(logger).orElseGet(() -> GitProperties.newBlankInstance(logger));
+    }
 
     @Test
     public void testDockerRegistry() {
@@ -32,7 +41,8 @@ public class CiOptionTests {
         userProperties.setProperty(SITE.getPropertyName(), BOOL_STRING_TRUE);
 
         final CiOptionAccessor ciOpts = new CiOptionAccessor(
-            new LoggerSlf4jImpl(logger),
+            logger(),
+            gitProperties(),
             systemProperties,
             userProperties
         );
@@ -47,8 +57,8 @@ public class CiOptionTests {
         final Properties newProperties = ciOpts.mavenOptsInto(userProperties);
         ciOpts.docker();
 
-        logger.info("{} {}", DOCKER_REGISTRY_URL.getPropertyName(), ciOpts.getOption(DOCKER_REGISTRY_URL).orElse(null));
-        logger.info("{} {}", DOCKER_REGISTRY.getPropertyName(), ciOpts.getOption(DOCKER_REGISTRY).orElse(null));
+        slf4jLogger.info("{} {}", DOCKER_REGISTRY_URL.getPropertyName(), ciOpts.getOption(DOCKER_REGISTRY_URL).orElse(null));
+        slf4jLogger.info("{} {}", DOCKER_REGISTRY.getPropertyName(), ciOpts.getOption(DOCKER_REGISTRY).orElse(null));
         assertEquals("https://docker.io/v2/", ciOpts.getOption(DOCKER_REGISTRY_URL).orElse(null));
         // assertEquals("docker.io", ciOpts.getOption(DOCKER_REGISTRY).orElse(null));
         assertNull(ciOpts.getOption(DOCKER_REGISTRY).orElse(null));
@@ -63,7 +73,8 @@ public class CiOptionTests {
         userProperties.setProperty(SITE.getPropertyName(), BOOL_STRING_TRUE);
 
         final CiOptionAccessor ciOpts = new CiOptionAccessor(
-            new LoggerSlf4jImpl(logger),
+            logger(),
+            gitProperties(),
             systemProperties,
             userProperties
         );
@@ -72,7 +83,7 @@ public class CiOptionTests {
         ciOpts.updateSystemProperties(loadedProperties);
 
         // final Optional<String> owner = ciOpts.getOption(GITHUB_GLOBAL_REPOSITORYOWNER);
-        logger.info("{} {}", GITHUB_GLOBAL_REPOSITORYOWNER.getPropertyName(), ciOpts.getOption(GITHUB_GLOBAL_REPOSITORYOWNER).orElse(null));
+        slf4jLogger.info("{} {}", GITHUB_GLOBAL_REPOSITORYOWNER.getPropertyName(), ciOpts.getOption(GITHUB_GLOBAL_REPOSITORYOWNER).orElse(null));
         assertEquals("ci-and-cd", ciOpts.getOption(GITHUB_GLOBAL_REPOSITORYOWNER).orElse(null));
     }
 
@@ -85,24 +96,25 @@ public class CiOptionTests {
         userProperties.setProperty(SITE.getPropertyName(), BOOL_STRING_TRUE);
 
         final CiOptionAccessor ciOpts = new CiOptionAccessor(
-            new LoggerSlf4jImpl(logger),
+            logger(),
+            gitProperties(),
             systemProperties,
             userProperties
         );
 
-        logger.info("site {}", ciOpts.getOption(SITE).orElse(null));
+        slf4jLogger.info("site {}", ciOpts.getOption(SITE).orElse(null));
         assertEquals(TRUE.toString(), ciOpts.getOption(SITE).orElse(null));
 
         final Properties loadedProperties = ciOpts.ciOptsFromFile();
         ciOpts.updateSystemProperties(loadedProperties);
 
-        logger.info("site {}", ciOpts.getOption(SITE).orElse(null));
+        slf4jLogger.info("site {}", ciOpts.getOption(SITE).orElse(null));
         assertEquals(TRUE.toString(), ciOpts.getOption(SITE).orElse(null));
 
         ciOpts.mavenOptsInto(userProperties);
         ciOpts.docker();
 
-        logger.info("site {}", ciOpts.getOption(SITE).orElse(null));
+        slf4jLogger.info("site {}", ciOpts.getOption(SITE).orElse(null));
         assertEquals(TRUE.toString(), ciOpts.getOption(SITE).orElse(null));
     }
 
@@ -120,7 +132,8 @@ public class CiOptionTests {
         final Properties userProperties = new Properties();
 
         final CiOptionAccessor ciOpts = new CiOptionAccessor(
-            new LoggerSlf4jImpl(logger),
+            logger(),
+            gitProperties(),
             systemProperties,
             userProperties
         );
@@ -132,13 +145,13 @@ public class CiOptionTests {
         final Properties newProperties = ciOpts.mavenOptsInto(userProperties);
         ciOpts.docker();
 
-        logger.info("{} {}", SONAR_HOST_URL.getEnvVariableName(), ciOpts.getOption(SONAR_HOST_URL).orElse(null));
-        logger.info("{} {}", SONAR_HOST_URL.getPropertyName(), userProperties.getProperty(SONAR_HOST_URL.getPropertyName()));
+        slf4jLogger.info("{} {}", SONAR_HOST_URL.getEnvVariableName(), ciOpts.getOption(SONAR_HOST_URL).orElse(null));
+        slf4jLogger.info("{} {}", SONAR_HOST_URL.getPropertyName(), userProperties.getProperty(SONAR_HOST_URL.getPropertyName()));
         assertEquals(expectedSonarHostUrl, ciOpts.getOption(SONAR_HOST_URL).orElse(null));
         assertEquals(expectedSonarHostUrl, userProperties.getProperty(SONAR_HOST_URL.getPropertyName()));
 
-        logger.info("{} {}", SONAR_ORGANIZATION.getEnvVariableName(), ciOpts.getOption(SONAR_ORGANIZATION).orElse(null));
-        logger.info("{} {}", SONAR_ORGANIZATION.getPropertyName(), userProperties.getProperty(SONAR_ORGANIZATION.getPropertyName()));
+        slf4jLogger.info("{} {}", SONAR_ORGANIZATION.getEnvVariableName(), ciOpts.getOption(SONAR_ORGANIZATION).orElse(null));
+        slf4jLogger.info("{} {}", SONAR_ORGANIZATION.getPropertyName(), userProperties.getProperty(SONAR_ORGANIZATION.getPropertyName()));
         assertEquals(expectedSonarOrganization, ciOpts.getOption(SONAR_ORGANIZATION).orElse(null));
         assertEquals(expectedSonarOrganization, userProperties.getProperty(SONAR_ORGANIZATION.getPropertyName()));
     }

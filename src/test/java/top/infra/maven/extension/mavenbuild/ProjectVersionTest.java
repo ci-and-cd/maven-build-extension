@@ -18,12 +18,20 @@ import java.util.Optional;
 import java.util.Properties;
 
 import org.junit.Test;
-import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class ProjectVersionTest {
 
-    private static final Logger logger = LoggerFactory.getLogger(ProjectVersionTest.class);
+    private static final org.slf4j.Logger slf4jLogger = LoggerFactory.getLogger(ProjectVersionTest.class);
+
+    private static Logger logger() {
+        return new LoggerSlf4jImpl(slf4jLogger);
+    }
+
+    private static GitProperties gitProperties() {
+        final Logger logger = logger();
+        return GitProperties.newInstance(logger).orElseGet(() -> GitProperties.newBlankInstance(logger));
+    }
 
     @Test
     public void testSemanticSnapshotVersion() {
@@ -47,7 +55,8 @@ public class ProjectVersionTest {
         userProperties.setProperty(SITE.getPropertyName(), BOOL_STRING_TRUE);
 
         final CiOptionAccessor ciOpts = new CiOptionAccessor(
-            new LoggerSlf4jImpl(logger),
+            logger(),
+            gitProperties(),
             systemProperties,
             userProperties
         );
@@ -58,14 +67,14 @@ public class ProjectVersionTest {
         final Properties newProperties = ciOpts.mavenOptsInto(userProperties);
 
         final Optional<String> gitRefName = ciOpts.getOption(GIT_REF_NAME);
-        logger.info("{} [{}]", GIT_REF_NAME.getPropertyName(), gitRefName.orElse(null));
+        slf4jLogger.info("{} [{}]", GIT_REF_NAME.getPropertyName(), gitRefName.orElse(null));
 
-        logger.info("{} [{}]", PUBLISH_TO_REPO.getPropertyName(), ciOpts.getOption(PUBLISH_TO_REPO).orElse(null));
+        slf4jLogger.info("{} [{}]", PUBLISH_TO_REPO.getPropertyName(), ciOpts.getOption(PUBLISH_TO_REPO).orElse(null));
         assertTrue(ciOpts.getOption(PUBLISH_TO_REPO).map(Boolean::parseBoolean).orElse(FALSE));
 
         final String projectVersion = "2.0.1-SNAPSHOT";
         final Map.Entry<Boolean, RuntimeException> checkProjectVersionResult = ciOpts.checkProjectVersion(projectVersion);
-        logger.info("checkProjectVersion result: [{}]", checkProjectVersionResult);
+        slf4jLogger.info("checkProjectVersion result: [{}]", checkProjectVersionResult);
         assertTrue(checkProjectVersionResult.getKey());
 
         assertFalse(ciOpts.checkProjectVersion("2.0.1-feature1-SNAPSHOT").getKey());
@@ -83,7 +92,8 @@ public class ProjectVersionTest {
         userProperties.setProperty(SITE.getPropertyName(), BOOL_STRING_TRUE);
 
         final CiOptionAccessor ciOpts = new CiOptionAccessor(
-            new LoggerSlf4jImpl(logger),
+            logger(),
+            gitProperties(),
             systemProperties,
             userProperties
         );
@@ -94,14 +104,14 @@ public class ProjectVersionTest {
         final Properties newProperties = ciOpts.mavenOptsInto(userProperties);
 
         final Optional<String> gitRefName = ciOpts.getOption(GIT_REF_NAME);
-        logger.info("{} [{}]", GIT_REF_NAME.getPropertyName(), gitRefName.orElse(null));
+        slf4jLogger.info("{} [{}]", GIT_REF_NAME.getPropertyName(), gitRefName.orElse(null));
 
-        logger.info("{} [{}]", PUBLISH_TO_REPO.getPropertyName(), ciOpts.getOption(PUBLISH_TO_REPO).orElse(null));
+        slf4jLogger.info("{} [{}]", PUBLISH_TO_REPO.getPropertyName(), ciOpts.getOption(PUBLISH_TO_REPO).orElse(null));
         assertTrue(ciOpts.getOption(PUBLISH_TO_REPO).map(Boolean::parseBoolean).orElse(FALSE));
 
         final String projectVersion = "2.0.1-feature1-SNAPSHOT";
         final Map.Entry<Boolean, RuntimeException> checkProjectVersionResult = ciOpts.checkProjectVersion(projectVersion);
-        logger.info("checkProjectVersion result: [{}]", checkProjectVersionResult);
+        slf4jLogger.info("checkProjectVersion result: [{}]", checkProjectVersionResult);
         assertTrue(checkProjectVersionResult.getKey());
 
         assertFalse(ciOpts.checkProjectVersion("2.0.1-SNAPSHOT").getKey());

@@ -10,6 +10,7 @@ import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -42,10 +43,10 @@ public class GitProperties {
 
     private final Map<String, String> propertiesMap;
 
-    public GitProperties(final Logger logger) {
+    private GitProperties(final Logger logger, final Map<String, String> propertiesMap) {
         this.logger = logger;
 
-        this.propertiesMap = Collections.unmodifiableMap(gitPropertiesMap(logger));
+        this.propertiesMap = Collections.unmodifiableMap(propertiesMap);
     }
 
     public Optional<String> commitId() {
@@ -64,14 +65,23 @@ public class GitProperties {
         return notEmpty(value) ? Optional.of(value) : Optional.empty();
     }
 
-    public static Map<String, String> gitPropertiesMap(final Logger logger) {
-        final Map<String, String> map = new LinkedHashMap<>();
+    public static Optional<Map<String, String>> gitPropertiesMap(final Logger logger) {
         try {
+            final Map<String, String> map = new LinkedHashMap<>();
             addProperties(logger, map);
+            return Optional.of(map);
         } catch (final IOException ex) {
-            throw new IllegalStateException("Error while reading Git properties!", ex);
+            logger.warn("Exception on gitPropertiesMap.", ex);
+            return Optional.empty();
         }
-        return map;
+    }
+
+    public static Optional<GitProperties> newInstance(final Logger logger) {
+        return gitPropertiesMap(logger).map(propertiesMap -> new GitProperties(logger, propertiesMap));
+    }
+
+    public static GitProperties newBlankInstance(final Logger logger) {
+        return new GitProperties(logger, new HashMap<>());
     }
 
     private static void addProperties(final Logger logger, final Map<String, String> map) throws IOException {

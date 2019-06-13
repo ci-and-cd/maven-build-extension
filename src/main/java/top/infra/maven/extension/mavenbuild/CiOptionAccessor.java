@@ -41,6 +41,7 @@ import java.util.Arrays;
 import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.regex.Pattern;
@@ -58,11 +59,12 @@ public class CiOptionAccessor {
 
     public CiOptionAccessor(
         final Logger logger,
+        final GitProperties gitProperties,
         final Properties systemProperties,
         final Properties userProperties
     ) {
         this.logger = logger;
-        this.gitProperties = new GitProperties(logger);
+        this.gitProperties = gitProperties;
         this.systemProperties = systemProperties;
         this.userProperties = userProperties;
 
@@ -113,7 +115,7 @@ public class CiOptionAccessor {
         return result;
     }
 
-    public Map.Entry<Boolean, RuntimeException> checkProjectVersion(final String projectVersion) {
+    public Entry<Boolean, RuntimeException> checkProjectVersion(final String projectVersion) {
         final String gitRefName = this.getOption(GIT_REF_NAME).orElse("");
         final String msgInvalidVersion = String.format("Invalid version [%s] for ref [%s]", projectVersion, gitRefName);
         final boolean semanticSnapshotVersion = isSemanticSnapshotVersion(projectVersion); // no feature name in version
@@ -144,17 +146,21 @@ public class CiOptionAccessor {
     }
 
     public Properties ciOptsFromFile() {
-        final Properties result = new Properties();
+        final Properties properties = new Properties();
 
         this.getOption(CI_OPTS_FILE).ifPresent(ciOptsFile -> {
             try {
                 if (new File(ciOptsFile).exists()) {
-                    result.load(new FileInputStream(ciOptsFile));
-                } else if (this.downloadFromGitRepo(SRC_CI_OPTS_PROPERTIES, ciOptsFile)) {
-                    result.load(new FileInputStream(ciOptsFile));
+                    properties.load(new FileInputStream(ciOptsFile));
                 } else {
-                    final String errorMsg = String.format("Can not download %s", ciOptsFile);
-                    logger.warn(errorMsg);
+                    final Entry<Optional<String>, Optional<Integer>> result = this.downloadFromGitRepo(SRC_CI_OPTS_PROPERTIES, ciOptsFile);
+                    if (result.getValue().map(SupportFunction::is2xxStatus).orElse(FALSE)) {
+                        properties.load(new FileInputStream(ciOptsFile));
+                    } else {
+                        final String errorMsg = String.format("Can not download from [%s], to [%s], status [%s].",
+                            result.getKey().orElse(null), ciOptsFile, result.getValue().orElse(null));
+                        logger.warn(errorMsg);
+                    }
                 }
             } catch (final IOException ex) {
                 final String errorMsg = String.format("Can not load ci options file %s", ex.getMessage());
@@ -162,7 +168,7 @@ public class CiOptionAccessor {
             }
         });
 
-        return result;
+        return properties;
     }
 
     /**
@@ -205,8 +211,9 @@ public class CiOptionAccessor {
 
     private static final Pattern PATTERN_GITLAB_URL = Pattern.compile("^.+/api/v4/projects/[0-9]+/repository/.+$");
 
-    public boolean downloadFromGitRepo(final String sourceFile, final String targetFile) {
-        final boolean result;
+    public Entry<Optional<String>, Optional<Integer>> downloadFromGitRepo(final String sourceFile, final String targetFile) {
+        final String fromUrl;
+        final Optional<Integer> status;
 
         final Optional<String> repo = this.getOption(MAVEN_BUILD_OPTS_REPO);
         if (repo.isPresent()) {
@@ -217,40 +224,36 @@ public class CiOptionAccessor {
             gitAuthToken.ifPresent(s -> headers.put("PRIVATE-TOKEN", s));
 
             if (PATTERN_GITLAB_URL.matcher(repo.get()).matches()) {
-                final String fromUrl = repo.get() + sourceFile.replaceAll("/", "%2F") + "?ref=" + repoRef;
+                fromUrl = repo.get() + sourceFile.replaceAll("/", "%2F") + "?ref=" + repoRef;
                 final String saveToFile = targetFile + ".json";
-                final Optional<Integer> status = download(logger, fromUrl, saveToFile, headers);
-                if (status.map(value -> value >= 200 && value < 300).orElse(FALSE)) {
+                status = download(logger, fromUrl, saveToFile, headers);
+                if (status.map(SupportFunction::is2xxStatus).orElse(FALSE)) {
                     if (logger.isDebugEnabled()) {
                         logger.debug(String.format("decode %s", saveToFile));
                     }
                     // cat "${target_file}.json" | jq -r ".content" | base64 --decode | tee "${target_file}"
                     final JSONObject jsonFile = new JSONObject(readFile(Paths.get(saveToFile), UTF_8));
                     final String content = jsonFile.getString("content");
-                    result = !isEmpty(content)
-                        && writeFile(Paths.get(targetFile), Base64.getDecoder().decode(content), StandardOpenOption.SYNC);
+                    if (!isEmpty(content)) {
+                        writeFile(Paths.get(targetFile), Base64.getDecoder().decode(content), StandardOpenOption.SYNC);
+                    }
                 } else {
-                    if (logger.isErrorEnabled()) {
-                        logger.error(String.format("Can not download %s.", targetFile));
-                        logger.error(String.format("Please make sure you have permission to access resources and %s is set.",
+                    if (logger.isWarnEnabled()) {
+                        logger.warn(String.format("Can not download %s.", targetFile));
+                        logger.warn(String.format("Please make sure you have permission to access resources and %s is set.",
                             GIT_AUTH_TOKEN.getEnvVariableName()));
                     }
-                    result = false;
                 }
             } else {
-                final Optional<Integer> status = download(
-                    logger,
-                    repo.get() + "/raw/" + repoRef + "/" + sourceFile,
-                    targetFile,
-                    headers
-                );
-                result = status.map(value -> value >= 200 && value < 300).orElse(FALSE);
+                fromUrl = repo.get() + "/raw/" + repoRef + "/" + sourceFile;
+                status = download(logger, fromUrl, targetFile, headers);
             }
         } else {
-            result = false;
+            fromUrl = null;
+            status = Optional.empty();
         }
 
-        return result;
+        return new AbstractMap.SimpleImmutableEntry<>(Optional.ofNullable(fromUrl), status);
     }
 
     public Map<String, String> mavenExtraOpts() {

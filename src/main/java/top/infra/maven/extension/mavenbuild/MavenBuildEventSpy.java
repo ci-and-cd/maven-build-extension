@@ -30,7 +30,6 @@ import static top.infra.maven.extension.mavenbuild.SupportFunction.exec;
 import static top.infra.maven.extension.mavenbuild.SupportFunction.isEmpty;
 import static top.infra.maven.extension.mavenbuild.SupportFunction.notEmpty;
 import static top.infra.maven.extension.mavenbuild.SupportFunction.os;
-import static top.infra.maven.extension.mavenbuild.SupportFunction.stackTrace;
 import static top.infra.maven.extension.mavenbuild.SupportFunction.systemUserHome;
 
 import java.io.File;
@@ -139,7 +138,7 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
         try {
             this.onInit(context);
         } catch (final Exception ex) {
-            logger.error("Failed on init.", ex);
+            logger.error("Exception on init.", ex);
             System.exit(1);
         }
     }
@@ -218,7 +217,7 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
                 }
             }
         } catch (final Exception ex) {
-            logger.error(String.format("%s%n%s", ex.getMessage(), stackTrace(ex)));
+            logger.error(String.format("Exception on handling event [%s].", event), ex);
             System.exit(1);
         }
 
@@ -302,8 +301,10 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
                 travisCi.pullRequest().orElse(NA)));
         }
 
+        final GitProperties gitProperties = GitProperties.newInstance(logger).orElseGet(() -> GitProperties.newBlankInstance(logger));
         this.ciOpts = new CiOptionAccessor(
             logger,
+            gitProperties,
             systemProperties,
             userProperties
         );
@@ -362,8 +363,10 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
         final Optional<String> mavenSettingsFile = ciOpts.getOption(MAVEN_SETTINGS_FILE);
         mavenSettingsFile.ifPresent(target -> {
             if (!new File(target).exists()) {
-                if (!ciOpts.downloadFromGitRepo(SRC_MAVEN_SETTINGS_XML, target)) { // TODO ignore 404
-                    final String errorMsg = String.format("Can not download %s", target);
+                final Entry<Optional<String>, Optional<Integer>> result = ciOpts.downloadFromGitRepo(SRC_MAVEN_SETTINGS_XML, target);
+                if (!result.getValue().map(SupportFunction::is2xxStatus).orElse(FALSE)) { // TODO ignore 404
+                    final String errorMsg = String.format("Can not download from [%s], to [%s], status [%s].",
+                        result.getKey().orElse(null), target, result.getValue().orElse(null));
                     logger.error(errorMsg);
                     throw new RuntimeException(errorMsg);
                 }
@@ -371,8 +374,12 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
         });
 
         // settings-security.xml
-        if (!ciOpts.downloadFromGitRepo(SRC_MAVEN_SETTINGS_SECURITY_XML, homeDir + "/.m2/settings-security.xml")) {
-            logger.warn("settings-security.xml not found or error on download.");
+        final String settingsSecurityTarget = homeDir + "/.m2/settings-security.xml";
+        final Entry<Optional<String>, Optional<Integer>> result = ciOpts.downloadFromGitRepo(
+            SRC_MAVEN_SETTINGS_SECURITY_XML, settingsSecurityTarget);
+        if (!result.getValue().map(SupportFunction::is2xxStatus).orElse(FALSE)) {
+            logger.warn(String.format("settings-security.xml not found or error on download from [%s], to [%s], status [%s].",
+                result.getKey().orElse(null), settingsSecurityTarget, result.getValue().orElse(null)));
         }
         logger.info("<<<<<<<<<< ---------- run_mvn settings.xml and settings-security.xml ---------- <<<<<<<<<<");
 
@@ -384,8 +391,11 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
         logger.info(">>>>>>>>>> ---------- run_mvn toolchains.xml ---------- >>>>>>>>>>");
         final String os = os();
         final String toolchainsSource = "generic".equals(os) ? "src/main/maven/toolchains.xml" : "src/main/maven/toolchains-" + os + ".xml";
-        if (!ciOpts.downloadFromGitRepo(toolchainsSource, homeDir + "/.m2/toolchains.xml")) {
-            final String errorMsg = String.format("Can not download %s", toolchainsSource);
+        final String toolchainsTarget = homeDir + "/.m2/toolchains.xml";
+        final Entry<Optional<String>, Optional<Integer>> result = ciOpts.downloadFromGitRepo(toolchainsSource, toolchainsTarget);
+        if (!result.getValue().map(SupportFunction::is2xxStatus).orElse(FALSE)) {
+            final String errorMsg = String.format("Can not download from [%s], to [%s], status [%s].",
+                result.getKey().orElse(null), toolchainsTarget, result.getValue().orElse(null));
             logger.error(errorMsg);
             throw new RuntimeException(errorMsg);
         }
