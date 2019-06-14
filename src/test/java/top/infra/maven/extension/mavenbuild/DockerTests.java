@@ -1,6 +1,7 @@
 package top.infra.maven.extension.mavenbuild;
 
 import static org.junit.Assert.assertEquals;
+import static top.infra.maven.extension.mavenbuild.SupportFunction.lines;
 
 import java.util.List;
 
@@ -78,7 +79,7 @@ public class DockerTests {
 
     @Test
     public void testImagesToClean() {
-        final List<String> lines = Docker.lines(this.dockerImagesOutput);
+        final List<String> lines = lines(this.dockerImagesOutput);
         final List<String> imageIds = Docker.imagesToClean(lines);
 
         slf4jLogger.info("lines: {}", lines);

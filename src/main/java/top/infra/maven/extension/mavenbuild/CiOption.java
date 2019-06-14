@@ -31,6 +31,7 @@ import static top.infra.maven.extension.mavenbuild.SupportFunction.urlWithoutPat
 
 import java.io.File;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
@@ -376,8 +377,9 @@ public enum CiOption {
 
             final Optional<String> result;
             if (gpgExecutable.isPresent()) {
-                final Map.Entry<Integer, String> gpgVersion = exec(null, null, gpgExecutable.get(), "--batch=true", "--version");
-                if (gpgVersionGreater(gpgVersion.getValue(), "2.1")) {
+                final List<String> gpgVersion = Arrays.asList(gpgExecutable.get(), "--batch=true", "--version");
+                final Map.Entry<Integer, String> resultGpgVersion = exec(null, null, gpgVersion);
+                if (gpgVersionGreater(resultGpgVersion.getValue(), "2.1")) {
                     result = Optional.of(BOOL_STRING_TRUE);
                 } else {
                     result = Optional.empty();

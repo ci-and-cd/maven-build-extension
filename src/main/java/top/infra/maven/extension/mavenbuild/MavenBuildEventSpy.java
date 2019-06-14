@@ -2,6 +2,9 @@ package top.infra.maven.extension.mavenbuild;
 
 import static java.lang.Boolean.FALSE;
 import static top.infra.maven.extension.mavenbuild.CiOption.DOCKER;
+import static top.infra.maven.extension.mavenbuild.CiOption.DOCKER_REGISTRY;
+import static top.infra.maven.extension.mavenbuild.CiOption.DOCKER_REGISTRY_PASS;
+import static top.infra.maven.extension.mavenbuild.CiOption.DOCKER_REGISTRY_USER;
 import static top.infra.maven.extension.mavenbuild.CiOption.GITHUB_GLOBAL_REPOSITORYOWNER;
 import static top.infra.maven.extension.mavenbuild.CiOption.GIT_AUTH_TOKEN;
 import static top.infra.maven.extension.mavenbuild.CiOption.GIT_REF_NAME;
@@ -482,7 +485,16 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
         request.setGoals(this.editMavenGoals(projectInfo.getVersion(), ciOpts, request.getGoals(), publishToRepo));
 
         ciOpts.docker();
-        final Docker docker = new Docker(logger, ciOpts, homeDir);
+        final Docker docker = new Docker(
+            logger,
+            ciOpts.docker(),
+            ciOpts.dockerHost().orElse(null),
+            homeDir,
+            ciOpts.getOption(DOCKER_REGISTRY).orElse(null),
+            ciOpts.getOption(DOCKER_REGISTRY_PASS).orElse(null),
+            ciOpts.getOption(DOCKER_REGISTRY_USER).orElse(null)
+        );
+        docker.initDockerConfig();
         docker.cleanOldImages();
         docker.pullBaseImage();
     }

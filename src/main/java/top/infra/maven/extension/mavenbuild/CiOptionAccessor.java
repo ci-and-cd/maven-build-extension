@@ -2,7 +2,6 @@ package top.infra.maven.extension.mavenbuild;
 
 import static java.lang.Boolean.FALSE;
 import static java.lang.Boolean.parseBoolean;
-import static java.lang.Integer.parseInt;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static top.infra.maven.extension.mavenbuild.CiOption.CACHE_DIRECTORY;
 import static top.infra.maven.extension.mavenbuild.CiOption.CI_OPTS_FILE;
@@ -20,9 +19,11 @@ import static top.infra.maven.extension.mavenbuild.Constants.GIT_REF_NAME_DEVELO
 import static top.infra.maven.extension.mavenbuild.Constants.GIT_REF_NAME_MASTER;
 import static top.infra.maven.extension.mavenbuild.Constants.PUBLISH_CHANNEL_SNAPSHOT;
 import static top.infra.maven.extension.mavenbuild.Constants.SRC_CI_OPTS_PROPERTIES;
+import static top.infra.maven.extension.mavenbuild.Docker.dockerfiles;
 import static top.infra.maven.extension.mavenbuild.SupportFunction.download;
-import static top.infra.maven.extension.mavenbuild.SupportFunction.exec;
 import static top.infra.maven.extension.mavenbuild.SupportFunction.exists;
+import static top.infra.maven.extension.mavenbuild.SupportFunction.existsInPath;
+import static top.infra.maven.extension.mavenbuild.SupportFunction.find;
 import static top.infra.maven.extension.mavenbuild.SupportFunction.isEmpty;
 import static top.infra.maven.extension.mavenbuild.SupportFunction.isSemanticSnapshotVersion;
 import static top.infra.maven.extension.mavenbuild.SupportFunction.maskSecrets;
@@ -47,7 +48,6 @@ import java.util.Properties;
 import java.util.regex.Pattern;
 
 import org.json.JSONObject;
-import org.unix4j.Unix4j;
 
 public class CiOptionAccessor {
 
@@ -182,7 +182,7 @@ public class CiOptionAccessor {
         if (varValueOptional.isPresent()) {
             result = parseBoolean(varValueOptional.get());
         } else {
-            if (exec("type -p docker").getKey() == 0) {
+            if (existsInPath("docker")) {
                 // TODO Support named pipe (for windows).
                 // Unix sock file
                 // [[ -f /var/run/docker.sock ]] || [[ -L /var/run/docker.sock ]]
@@ -191,9 +191,8 @@ public class CiOptionAccessor {
                 // TCP
                 final boolean dockerHostVarPresent = this.dockerHost().isPresent();
                 // [[ -n "$(find . -name '*Docker*')" ]] || [[ -n "$(find . -name '*docker-compose*.yml')" ]]
-                final int dockerFilesCount = parseInt(Unix4j.find(".", "*Docker*").wc("-l").toStringResult());
-                final int dockerComposeFilesCount = parseInt(Unix4j.find(".", "*docker-compose*.yml").wc("-l").toStringResult());
-                final boolean dockerFilesFound = dockerFilesCount > 0 || dockerComposeFilesCount > 0;
+                final int dockerComposeFilesCount = find(".", "*docker-compose*.yml").size();
+                final boolean dockerFilesFound = !dockerfiles().isEmpty() || dockerComposeFilesCount > 0;
 
                 result = dockerFilesFound && (dockerSockFilePresent || dockerHostVarPresent);
             } else {

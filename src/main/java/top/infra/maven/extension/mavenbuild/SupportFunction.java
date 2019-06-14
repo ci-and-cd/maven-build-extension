@@ -22,7 +22,9 @@ import java.nio.file.StandardOpenOption;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.AbstractMap;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
@@ -68,12 +70,16 @@ public abstract class SupportFunction {
         return new String(hexChars);
     }
 
+    public static List<String> asList(final String[] array1, final String... array2) {
+        return Arrays.asList(concat(array1, array2));
+    }
+
     public static String[] concat(final String[] array1, final String... array2) {
         return Stream.of(array1, array2).flatMap(Stream::of).toArray(String[]::new);
         // return Stream.concat(Arrays.stream(array1), Arrays.stream(array2)).toArray(String[]::new);
     }
 
-    public static void copyFile(final String from, final String to) {
+    private static void copyFile(final String from, final String to) {
         try {
             Files.copy(Paths.get(from), Paths.get(to), StandardCopyOption.REPLACE_EXISTING);
         } catch (final IOException ex) {
@@ -151,7 +157,7 @@ public abstract class SupportFunction {
     public static Map.Entry<Integer, String> exec(
         final Map<String, String> environment,
         final String stdIn,
-        final String... command
+        final List<String> command
     ) {
         final ProcessBuilder processBuilder = new ProcessBuilder(command);
         if (environment != null) {
@@ -181,6 +187,24 @@ public abstract class SupportFunction {
             Thread.currentThread().interrupt();
             return new AbstractMap.SimpleImmutableEntry<>(-1, "");
         }
+    }
+
+    /**
+     * Check existence of a program in the path.
+     * see: https://stackoverflow.com/questions/934191/how-to-check-existence-of-a-program-in-the-path/23539220
+     *
+     * @param exec executable name
+     * @return exec exists
+     */
+    static boolean existsInPath(final String exec) {
+        // return exec(String.format("type -p %s", exec)).getKey() == 0;
+        return Stream.of(System.getenv("PATH").split(Pattern.quote(File.pathSeparator)))
+            .map(Paths::get)
+            .anyMatch(path -> path.resolve(exec).toFile().exists());
+    }
+
+    static List<String> find(final String path, final String name) {
+        return org.unix4j.Unix4j.find(path, name).toStringList();
     }
 
     /**
@@ -224,6 +248,13 @@ public abstract class SupportFunction {
 
     static boolean isSemanticSnapshotVersion(final String version) {
         return version != null && PATTERN_SEMANTIC_VERSION_SNAPSHOT.matcher(version).matches();
+    }
+
+    static List<String> lines(final String cmdOutput) {
+        return Arrays.stream(("" + cmdOutput).split("\\r?\\n"))
+            .map(line -> line.replaceAll("\\s+", " "))
+            .filter(SupportFunction::isNotEmpty)
+            .collect(Collectors.toList());
     }
 
     /**
