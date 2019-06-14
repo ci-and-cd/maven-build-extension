@@ -23,7 +23,6 @@ public class Docker {
     private static final Pattern PATTERN_FILE_WITH_EXT = Pattern.compile(".+/.+\\..+");
 
     private final Logger logger;
-    private final boolean enabled;
     private final Map<String, String> environment;
     private final String homeDir;
     private final String registry;
@@ -32,7 +31,6 @@ public class Docker {
 
     public Docker(
         final Logger logger,
-        final boolean enabled,
         final String dockerHost,
         final String homeDir,
         final String registry,
@@ -40,7 +38,6 @@ public class Docker {
         final String registryUser
     ) {
         this.logger = logger;
-        this.enabled = enabled;
         this.environment = environment(dockerHost, registry);
         this.homeDir = homeDir;
 
@@ -50,63 +47,57 @@ public class Docker {
     }
 
     public void cleanOldImages() {
-        if (this.enabled) {
-            final Map.Entry<Integer, String> dockerImages = this.docker("images");
+        final Map.Entry<Integer, String> dockerImages = this.docker("images");
+
+        if (logger.isInfoEnabled()) {
+            logger.info(String.format("Found dockerImages %s %s", dockerImages.getKey(), dockerImages.getValue()));
+        }
+
+        if (dockerImages.getKey() == 0) {
+            final List<String> imageIds = imagesToClean(lines(dockerImages.getValue()));
 
             if (logger.isInfoEnabled()) {
-                logger.info(String.format("Found dockerImages %s %s", dockerImages.getKey(), dockerImages.getValue()));
+                logger.info(String.format("Found imageIds %s", imageIds));
             }
 
-            if (dockerImages.getKey() == 0) {
-                final List<String> imageIds = imagesToClean(lines(dockerImages.getValue()));
-
-                if (logger.isInfoEnabled()) {
-                    logger.info(String.format("Found imageIds %s", imageIds));
+            imageIds.forEach(imageId -> {
+                logger.info(String.format("Delete old image %s", imageId));
+                final Map.Entry<Integer, String> dockerRmi = this.docker("rmi", imageId);
+                if (dockerRmi.getKey() != 0) {
+                    logger.warn(String.format("Error on remove image %s", imageId));
                 }
-
-                imageIds.forEach(imageId -> {
-                    logger.info(String.format("Delete old image %s", imageId));
-                    final Map.Entry<Integer, String> dockerRmi = this.docker("rmi", imageId);
-                    if (dockerRmi.getKey() != 0) {
-                        logger.warn(String.format("Error on remove image %s", imageId));
-                    }
-                });
-            }
+            });
         }
     }
 
     public void initDockerConfig() {
-        if (this.enabled) {
-            this.docker("version");
+        this.docker("version");
 
-            // TODO config docker log rotation
-            final File dockerConfigDir = new File(this.homeDir + ".docker");
-            if (!dockerConfigDir.exists()) {
-                dockerConfigDir.mkdirs();
-            }
-
-            this.dockerLogin();
+        // TODO config docker log rotation
+        final File dockerConfigDir = new File(this.homeDir + ".docker");
+        if (!dockerConfigDir.exists()) {
+            dockerConfigDir.mkdirs();
         }
+
+        this.dockerLogin();
     }
 
     public void pullBaseImage() {
-        if (this.enabled) {
-            logger.info(">>>>>>>>>> ---------- pull_base_image ---------- >>>>>>>>>>");
-            final List<String> dockerfiles = dockerfiles();
+        logger.info(">>>>>>>>>> ---------- pull_base_image ---------- >>>>>>>>>>");
+        final List<String> dockerfiles = dockerfiles();
 
-            if (logger.isInfoEnabled()) {
-                logger.info(String.format("Found dockerfiles %s", dockerfiles));
-            }
-
-            final List<String> baseImages = baseImages(dockerfiles);
-
-            if (logger.isInfoEnabled()) {
-                logger.info(String.format("Found baseImages %s", baseImages));
-            }
-
-            baseImages.forEach(image -> this.docker("pull", image));
-            logger.info("<<<<<<<<<< ---------- pull_base_image ---------- <<<<<<<<<<");
+        if (logger.isInfoEnabled()) {
+            logger.info(String.format("Found dockerfiles %s", dockerfiles));
         }
+
+        final List<String> baseImages = baseImages(dockerfiles);
+
+        if (logger.isInfoEnabled()) {
+            logger.info(String.format("Found baseImages %s", baseImages));
+        }
+
+        baseImages.forEach(image -> this.docker("pull", image));
+        logger.info("<<<<<<<<<< ---------- pull_base_image ---------- <<<<<<<<<<");
     }
 
     private Map.Entry<Integer, String> docker(final String... options) {

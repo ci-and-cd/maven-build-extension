@@ -68,6 +68,7 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
 
     private static final String GOAL_CLEAN = "clean";
     private static final String GOAL_DEPLOY = "deploy";
+    private static final String GOAL_INSTALL = "install";
 
     private static final String NA = "N/A";
     private static final Pattern PATTERN_CI_ENV_VARS = Pattern.compile("^env\\.CI_.+");
@@ -177,6 +178,7 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
                         this.resolver.setProjectBuildingRequest(projectBuildingRequest);
 
                         this.onMavenExecutionRequest(request, this.homeDir, this.ciOpts);
+                        this.prepareDocker(request, this.homeDir, this.ciOpts);
                     } finally {
                         if (repositorySystemSessionNull) {
                             projectBuildingRequest.setRepositorySession(null);
@@ -455,9 +457,9 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
         if (logger.isInfoEnabled()) {
             logger.info(">>>>>>>>>> ---------- check project version ---------- >>>>>>>>>>");
         }
-        final Entry<Boolean, RuntimeException> projectVersionValid = ciOpts.checkProjectVersion(projectInfo.getVersion());
+        final Entry<Boolean, RuntimeException> resultCheckProjectVersion = ciOpts.checkProjectVersion(projectInfo.getVersion());
         final String gitRefName = ciOpts.getOption(GIT_REF_NAME).orElse("");
-        if (projectVersionValid.getKey()) {
+        if (resultCheckProjectVersion.getKey()) {
             if (logger.isInfoEnabled()) {
                 logger.info(String.format("Valid version [%s] for ref [%s].", projectInfo.getVersion(), gitRefName));
             }
@@ -466,7 +468,7 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
             logger.warn("You should use versions like 1.0.0-SNAPSHOT develop branch");
             logger.warn("You should use versions like 1.0.0-feature-SNAPSHOT or 1.0.0-branch-SNAPSHOT on feature branches");
             logger.warn("You should use versions like 1.0.0 without '-SNAPSHOT' suffix on releases");
-            final RuntimeException ex = projectVersionValid.getValue();
+            final RuntimeException ex = resultCheckProjectVersion.getValue();
             if (ex == null) {
                 if (logger.isWarnEnabled()) {
                     logger.warn(String.format("Invalid version [%s] for ref [%s]", projectInfo.getVersion(), gitRefName));
@@ -481,22 +483,8 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
         }
 
         final Boolean publishToRepo = ciOpts.getOption(PUBLISH_TO_REPO).map(Boolean::parseBoolean).orElse(FALSE)
-            && projectVersionValid.getKey();
+            && resultCheckProjectVersion.getKey();
         request.setGoals(this.editMavenGoals(projectInfo.getVersion(), ciOpts, request.getGoals(), publishToRepo));
-
-        ciOpts.docker();
-        final Docker docker = new Docker(
-            logger,
-            ciOpts.docker(),
-            ciOpts.dockerHost().orElse(null),
-            homeDir,
-            ciOpts.getOption(DOCKER_REGISTRY).orElse(null),
-            ciOpts.getOption(DOCKER_REGISTRY_PASS).orElse(null),
-            ciOpts.getOption(DOCKER_REGISTRY_USER).orElse(null)
-        );
-        docker.initDockerConfig();
-        docker.cleanOldImages();
-        docker.pullBaseImage();
     }
 
     private void checkGitAuthToken(final CiOptionAccessor ciOpts) {
@@ -646,7 +634,7 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
                             SITE.getEnvVariableName(), site.toString()));
                     }
                 }
-            } else if (goal.endsWith(GOAL_CLEAN) || goal.endsWith("install")) {
+            } else if (goal.endsWith(GOAL_CLEAN) || goal.endsWith(GOAL_INSTALL)) {
                 // goals need to alter
                 if (mvnDeployPublishSegregation) {
                     // maven deploy and publish segregation
@@ -658,7 +646,7 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
                             logger.info(String.format(msgReplaceGoal, goal, GOAL_CLEAN + " " + wagonGoal,
                                 MVN_DEPLOY_PUBLISH_SEGREGATION.getEnvVariableName(), mvnDeployPublishSegregation.toString()));
                         }
-                    } else if (goal.endsWith("install")) {
+                    } else if (goal.endsWith(GOAL_INSTALL)) {
                         resultGoals.add(GOAL_DEPLOY);
                         if (docker) {
                             final String dockerBuildGoal = "dockerfile:build";
@@ -703,6 +691,40 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
             logger.info("<<<<<<<<<< ---------- run_mvn alter_mvn ---------- <<<<<<<<<<");
         }
         return resultGoals;
+    }
+
+    private void prepareDocker(
+        final MavenExecutionRequest request,
+        final String homeDir,
+        final CiOptionAccessor ciOpts
+    ) {
+        final List<String> requestedGoals = request.getGoals();
+
+        final boolean dockerEnabled = ciOpts.docker()
+            && requestedGoals
+            .stream()
+            .filter(goal -> !goal.contains("site"))
+            .anyMatch(goal ->
+                goal.endsWith("build")
+                    || goal.endsWith(GOAL_DEPLOY)
+                    || goal.endsWith("push")
+                    || goal.equals(GOAL_INSTALL)
+                    || goal.equals("package")
+            );
+
+        if (dockerEnabled) {
+            final Docker docker = new Docker(
+                logger,
+                ciOpts.dockerHost().orElse(null),
+                homeDir,
+                ciOpts.getOption(DOCKER_REGISTRY).orElse(null),
+                ciOpts.getOption(DOCKER_REGISTRY_PASS).orElse(null),
+                ciOpts.getOption(DOCKER_REGISTRY_USER).orElse(null)
+            );
+            docker.initDockerConfig();
+            docker.cleanOldImages();
+            docker.pullBaseImage();
+        }
     }
 
     private static List<String> classPathEntries(
