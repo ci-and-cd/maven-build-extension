@@ -1,7 +1,6 @@
 package top.infra.maven.extension.mavenbuild;
 
 import static java.lang.Boolean.FALSE;
-import static java.nio.charset.StandardCharsets.UTF_8;
 import static top.infra.maven.extension.mavenbuild.CiOption.CACHE_DIRECTORY;
 import static top.infra.maven.extension.mavenbuild.CiOption.CI_OPTS_FILE;
 import static top.infra.maven.extension.mavenbuild.CiOption.GIT_AUTH_TOKEN;
@@ -14,35 +13,26 @@ import static top.infra.maven.extension.mavenbuild.CiOption.PUBLISH_CHANNEL;
 import static top.infra.maven.extension.mavenbuild.CiOption.systemPropertyName;
 import static top.infra.maven.extension.mavenbuild.Constants.BRANCH_PREFIX_FEATURE;
 import static top.infra.maven.extension.mavenbuild.Constants.GIT_REF_NAME_DEVELOP;
-import static top.infra.maven.extension.mavenbuild.Constants.GIT_REF_NAME_MASTER;
 import static top.infra.maven.extension.mavenbuild.Constants.PUBLISH_CHANNEL_SNAPSHOT;
 import static top.infra.maven.extension.mavenbuild.Constants.SRC_CI_OPTS_PROPERTIES;
-import static top.infra.maven.extension.mavenbuild.SupportFunction.download;
 import static top.infra.maven.extension.mavenbuild.SupportFunction.exists;
 import static top.infra.maven.extension.mavenbuild.SupportFunction.isEmpty;
 import static top.infra.maven.extension.mavenbuild.SupportFunction.isSemanticSnapshotVersion;
 import static top.infra.maven.extension.mavenbuild.SupportFunction.maskSecrets;
-import static top.infra.maven.extension.mavenbuild.SupportFunction.readFile;
 import static top.infra.maven.extension.mavenbuild.SupportFunction.systemJavaIoTmp;
-import static top.infra.maven.extension.mavenbuild.SupportFunction.writeFile;
 
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.nio.file.StandardOpenOption;
 import java.util.AbstractMap;
 import java.util.Arrays;
-import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.Properties;
-import java.util.regex.Pattern;
-
-import org.json.JSONObject;
 
 public class CiOptionAccessor {
 
@@ -116,6 +106,15 @@ public class CiOptionAccessor {
         return result;
     }
 
+    public GitRepository gitRepository() {
+        return new GitRepository(
+            logger,
+            this.getOption(MAVEN_BUILD_OPTS_REPO).orElse(null),
+            this.getOption(MAVEN_BUILD_OPTS_REPO_REF).orElse(null),
+            this.getOption(GIT_AUTH_TOKEN).orElse(null)
+        );
+    }
+
     public Entry<Boolean, RuntimeException> checkProjectVersion(final String projectVersion) {
         final String gitRefName = this.getOption(GIT_REF_NAME).orElse("");
         final String msgInvalidVersion = String.format("Invalid version [%s] for ref [%s]", projectVersion, gitRefName);
@@ -154,7 +153,8 @@ public class CiOptionAccessor {
                 if (new File(ciOptsFile).exists()) {
                     properties.load(new FileInputStream(ciOptsFile));
                 } else {
-                    final Entry<Optional<String>, Optional<Integer>> result = this.downloadFromGitRepo(SRC_CI_OPTS_PROPERTIES, ciOptsFile);
+                    final Entry<Optional<String>, Optional<Integer>> result = this.gitRepository()
+                        .download(SRC_CI_OPTS_PROPERTIES, ciOptsFile);
                     if (result.getValue().map(SupportFunction::is2xxStatus).orElse(FALSE)) {
                         properties.load(new FileInputStream(ciOptsFile));
                     } else {
@@ -170,53 +170,6 @@ public class CiOptionAccessor {
         });
 
         return properties;
-    }
-
-    private static final Pattern PATTERN_GITLAB_URL = Pattern.compile("^.+/api/v4/projects/[0-9]+/repository/.+$");
-
-    public Entry<Optional<String>, Optional<Integer>> downloadFromGitRepo(final String sourceFile, final String targetFile) {
-        final String fromUrl;
-        final Optional<Integer> status;
-
-        final Optional<String> repo = this.getOption(MAVEN_BUILD_OPTS_REPO);
-        if (repo.isPresent()) {
-            final String repoRef = this.getOption(MAVEN_BUILD_OPTS_REPO_REF).orElse(GIT_REF_NAME_MASTER);
-
-            final Optional<String> gitAuthToken = this.getOption(GIT_AUTH_TOKEN);
-            final Map<String, String> headers = new LinkedHashMap<>();
-            gitAuthToken.ifPresent(s -> headers.put("PRIVATE-TOKEN", s));
-
-            if (PATTERN_GITLAB_URL.matcher(repo.get()).matches()) {
-                fromUrl = repo.get() + sourceFile.replaceAll("/", "%2F") + "?ref=" + repoRef;
-                final String saveToFile = targetFile + ".json";
-                status = download(logger, fromUrl, saveToFile, headers);
-                if (status.map(SupportFunction::is2xxStatus).orElse(FALSE)) {
-                    if (logger.isDebugEnabled()) {
-                        logger.debug(String.format("decode %s", saveToFile));
-                    }
-                    // cat "${target_file}.json" | jq -r ".content" | base64 --decode | tee "${target_file}"
-                    final JSONObject jsonFile = new JSONObject(readFile(Paths.get(saveToFile), UTF_8));
-                    final String content = jsonFile.getString("content");
-                    if (!isEmpty(content)) {
-                        writeFile(Paths.get(targetFile), Base64.getDecoder().decode(content), StandardOpenOption.SYNC);
-                    }
-                } else {
-                    if (logger.isWarnEnabled()) {
-                        logger.warn(String.format("Can not download %s.", targetFile));
-                        logger.warn(String.format("Please make sure you have permission to access resources and %s is set.",
-                            GIT_AUTH_TOKEN.getEnvVariableName()));
-                    }
-                }
-            } else {
-                fromUrl = repo.get() + "/raw/" + repoRef + "/" + sourceFile;
-                status = download(logger, fromUrl, targetFile, headers);
-            }
-        } else {
-            fromUrl = null;
-            status = Optional.empty();
-        }
-
-        return new AbstractMap.SimpleImmutableEntry<>(Optional.ofNullable(fromUrl), status);
     }
 
     public Map<String, String> mavenExtraOpts() {

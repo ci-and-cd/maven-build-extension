@@ -20,15 +20,15 @@ import static top.infra.maven.extension.mavenbuild.CiOption.PUBLISH_TO_REPO;
 import static top.infra.maven.extension.mavenbuild.CiOption.SITE;
 import static top.infra.maven.extension.mavenbuild.Constants.GIT_REF_NAME_DEVELOP;
 import static top.infra.maven.extension.mavenbuild.Constants.INFRASTRUCTURE_OPENSOURCE;
-import static top.infra.maven.extension.mavenbuild.Constants.SRC_MAVEN_SETTINGS_SECURITY_XML;
-import static top.infra.maven.extension.mavenbuild.Constants.SRC_MAVEN_SETTINGS_XML;
 import static top.infra.maven.extension.mavenbuild.Constants.USER_PROPERTY_SETTINGS_LOCALREPOSITORY;
 import static top.infra.maven.extension.mavenbuild.Docker.dockerHost;
+import static top.infra.maven.extension.mavenbuild.GitRepository.settingsSecurityXml;
 import static top.infra.maven.extension.mavenbuild.MavenProjectInfo.newProjectInfoByBuildProject;
 import static top.infra.maven.extension.mavenbuild.MavenProjectInfo.newProjectInfoByReadPom;
 import static top.infra.maven.extension.mavenbuild.SupportFunction.isEmpty;
-import static top.infra.maven.extension.mavenbuild.SupportFunction.os;
 import static top.infra.maven.extension.mavenbuild.SupportFunction.systemUserHome;
+
+import cn.home1.tools.maven.MavenSettingsSecurity;
 
 import java.io.File;
 import java.net.URL;
@@ -39,7 +39,9 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import javax.inject.Inject;
 import javax.inject.Named;
@@ -51,10 +53,16 @@ import org.apache.maven.internal.aether.DefaultRepositorySystemSessionFactory;
 import org.apache.maven.project.ProjectBuilder;
 import org.apache.maven.project.ProjectBuildingRequest;
 import org.apache.maven.rtinfo.RuntimeInformation;
+import org.apache.maven.settings.Server;
 import org.apache.maven.settings.building.SettingsBuildingRequest;
 import org.apache.maven.settings.building.SettingsBuildingResult;
+import org.apache.maven.settings.crypto.DefaultSettingsDecryptionRequest;
+import org.apache.maven.settings.crypto.SettingsDecrypter;
+import org.apache.maven.settings.crypto.SettingsDecryptionRequest;
+import org.apache.maven.settings.crypto.SettingsDecryptionResult;
 import org.apache.maven.toolchain.building.ToolchainsBuildingRequest;
 import org.eclipse.aether.RepositorySystemSession;
+import org.unix4j.Unix4j;
 
 import top.infra.maven.extension.mavenbuild.model.ProjectBuilderActivatorModelResolver;
 
@@ -88,6 +96,8 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
 
     private final ProjectBuilderActivatorModelResolver resolver;
 
+    private final SettingsDecrypter settingsDecrypter;
+
     private String settingsLocalRepository;
 
     private CiOptionAccessor ciOpts;
@@ -110,7 +120,8 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
         final RuntimeInformation runtime,
         final ProjectBuilder projectBuilder,
         final DefaultRepositorySystemSessionFactory repositorySessionFactory,
-        final ProjectBuilderActivatorModelResolver resolver
+        final ProjectBuilderActivatorModelResolver resolver,
+        final SettingsDecrypter settingsDecrypter
     ) {
         this.homeDir = systemUserHome();
         this.logger = new LoggerPlexusImpl(logger);
@@ -118,6 +129,7 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
         this.projectBuilder = projectBuilder;
         this.repositorySessionFactory = repositorySessionFactory;
         this.resolver = resolver;
+        this.settingsDecrypter = settingsDecrypter;
 
         this.settingsLocalRepository = null;
         this.ciOpts = null;
@@ -157,6 +169,15 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
                     }
                     result.getEffectiveSettings().setLocalRepository(this.settingsLocalRepository);
                 }
+
+                // for (final Server server : result.getEffectiveSettings().getServers()) {
+                //     final SettingsDecryptionRequest decryptionRequest = new DefaultSettingsDecryptionRequest(server);
+                //     final SettingsDecryptionResult decryptionResult = this.settingsDecrypter.decrypt(decryptionRequest);
+                //     final Server decryptedServer = decryptionResult.getServer();
+                //     if (decryptedServer != null && " ".equals(decryptedServer.getPassword())) {
+                //         logger.info(String.format("server [%s] has a default blank password [ ]", decryptedServer.getId()));
+                //     }
+                // }
             } else if (event instanceof ToolchainsBuildingRequest) {
                 final ToolchainsBuildingRequest request = (ToolchainsBuildingRequest) event;
 
@@ -186,8 +207,8 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
                         }
 
                         // To make profile activation conditions work
+                        SupportFunction.merge(request.getSystemProperties(), projectBuildingRequest.getSystemProperties());
                         SupportFunction.merge(request.getUserProperties(), projectBuildingRequest.getUserProperties());
-                        SupportFunction.merge(request.getUserProperties(), projectBuildingRequest.getSystemProperties());
 
                         if (logger.isInfoEnabled()) {
                             logger.info("     >>>>> projectBuildingRequest (ProfileActivationContext) systemProperties >>>>>");
@@ -346,53 +367,54 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
             logger.info("<<<<<<<<<< ---------- set options (update userProperties) ---------- <<<<<<<<<<");
         }
 
-        this.mavenSettingsPathname = this.downloadMavenSettingsFile(this.homeDir, this.ciOpts).orElse(null);
-        this.downloadMavenToolchainFile(this.homeDir, this.ciOpts);
+        this.mavenSettingsPathname = this.ciOpts.getOption(MAVEN_SETTINGS_FILE).orElse(null);
+        final GitRepository gitRepository = this.ciOpts.gitRepository();
+        gitRepository.downloadMavenSettingsFile(this.homeDir, this.mavenSettingsPathname);
+        gitRepository.downloadMavenToolchainFile(this.homeDir);
+
+        final Properties absentVarsInSettingsXml = absentVarsInSettingsXml(
+            logger, homeDir, this.mavenSettingsPathname, systemProperties);
+        SupportFunction.merge(absentVarsInSettingsXml, systemProperties);
     }
 
-    Optional<String> downloadMavenSettingsFile(final String homeDir, final CiOptionAccessor ciOpts) {
-        // settings.xml
-        logger.info(">>>>>>>>>> ---------- run_mvn settings.xml and settings-security.xml ---------- >>>>>>>>>>");
-        final Optional<String> mavenSettingsFile = ciOpts.getOption(MAVEN_SETTINGS_FILE);
-        mavenSettingsFile.ifPresent(target -> {
-            if (!new File(target).exists()) {
-                final Entry<Optional<String>, Optional<Integer>> result = ciOpts.downloadFromGitRepo(SRC_MAVEN_SETTINGS_XML, target);
-                if (!result.getValue().map(SupportFunction::is2xxStatus).orElse(FALSE)) { // TODO ignore 404
-                    final String errorMsg = String.format("Can not download from [%s], to [%s], status [%s].",
-                        result.getKey().orElse(null), target, result.getValue().orElse(null));
-                    logger.error(errorMsg);
-                    throw new RuntimeException(errorMsg);
+    static Properties absentVarsInSettingsXml(
+        final Logger logger,
+        final String homeDir,
+        final String mavenSettingsPathname,
+        final Properties systemProperties
+    ) {
+        final Properties result = new Properties();
+
+        // Fix 'Failed to decrypt passphrase for server foo: org.sonatype.plexus.components.cipher.PlexusCipherException...'
+        final Pattern patternEnvVar = Pattern.compile("\\$\\{env\\..+?\\}");
+        final List<String> envVars = SupportFunction.lines(Unix4j.cat(mavenSettingsPathname).toStringResult())
+            .stream()
+            .flatMap(line -> {
+                final Matcher matcher = patternEnvVar.matcher(line);
+                final List<String> matches = new LinkedList<>();
+                while (matcher.find()) {
+                    matches.add(matcher.group(0));
                 }
-            }
-        });
+                return matches.stream();
+            })
+            .distinct()
+            .map(line -> line.substring(2, line.length() - 1))
+            .collect(Collectors.toList());
 
-        // settings-security.xml
-        final String settingsSecurityTarget = homeDir + "/.m2/settings-security.xml";
-        final Entry<Optional<String>, Optional<Integer>> result = ciOpts.downloadFromGitRepo(
-            SRC_MAVEN_SETTINGS_SECURITY_XML, settingsSecurityTarget);
-        if (!result.getValue().map(SupportFunction::is2xxStatus).orElse(FALSE)) {
-            logger.warn(String.format("settings-security.xml not found or error on download from [%s], to [%s], status [%s].",
-                result.getKey().orElse(null), settingsSecurityTarget, result.getValue().orElse(null)));
+        if (!envVars.isEmpty()) {
+            final MavenSettingsSecurity settingsSecurity = new MavenSettingsSecurity(settingsSecurityXml(homeDir), false);
+            final String defaultPassword = settingsSecurity.encodeText(" ");
+
+            envVars.forEach(envVar -> {
+                if (!systemProperties.containsKey(envVar)) {
+                    logger.warn(String.format(
+                        "Please set a value for env variable [%s] (in settings.xml), to avoid passphrase decrypt error.", envVar));
+                    result.setProperty(envVar, defaultPassword);
+                }
+            });
         }
-        logger.info("<<<<<<<<<< ---------- run_mvn settings.xml and settings-security.xml ---------- <<<<<<<<<<");
 
-        return mavenSettingsFile;
-    }
-
-    void downloadMavenToolchainFile(final String homeDir, final CiOptionAccessor ciOpts) {
-        // toolchains.xml
-        logger.info(">>>>>>>>>> ---------- run_mvn toolchains.xml ---------- >>>>>>>>>>");
-        final String os = os();
-        final String toolchainsSource = "generic".equals(os) ? "src/main/maven/toolchains.xml" : "src/main/maven/toolchains-" + os + ".xml";
-        final String toolchainsTarget = homeDir + "/.m2/toolchains.xml";
-        final Entry<Optional<String>, Optional<Integer>> result = ciOpts.downloadFromGitRepo(toolchainsSource, toolchainsTarget);
-        if (!result.getValue().map(SupportFunction::is2xxStatus).orElse(FALSE)) {
-            final String errorMsg = String.format("Can not download from [%s], to [%s], status [%s].",
-                result.getKey().orElse(null), toolchainsTarget, result.getValue().orElse(null));
-            logger.error(errorMsg);
-            throw new RuntimeException(errorMsg);
-        }
-        logger.info("<<<<<<<<<< ---------- run_mvn toolchains.xml ---------- <<<<<<<<<<");
+        return result;
     }
 
     private void onSettingsBuildingRequest(
@@ -413,6 +435,7 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
                 logger.info(String.format("Use userSettingsFile [%s] instead of [%s]",
                     this.mavenSettingsPathname, request.getUserSettingsFile()));
             }
+
             request.setUserSettingsFile(new File(this.mavenSettingsPathname));
         }
     }

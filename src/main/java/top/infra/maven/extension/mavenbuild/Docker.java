@@ -51,8 +51,8 @@ public class Docker {
     public void cleanOldImages() {
         final Map.Entry<Integer, String> dockerImages = this.docker("images");
 
-        if (logger.isInfoEnabled()) {
-            logger.info(String.format("Found dockerImages %s %s", dockerImages.getKey(), dockerImages.getValue()));
+        if (logger.isDebugEnabled()) {
+            logger.debug(String.format("Found dockerImages %s %s", dockerImages.getKey(), dockerImages.getValue()));
         }
 
         if (dockerImages.getKey() == 0) {
