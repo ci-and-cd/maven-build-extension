@@ -23,6 +23,7 @@ import static top.infra.maven.extension.mavenbuild.Constants.INFRASTRUCTURE_OPEN
 import static top.infra.maven.extension.mavenbuild.Constants.SRC_MAVEN_SETTINGS_SECURITY_XML;
 import static top.infra.maven.extension.mavenbuild.Constants.SRC_MAVEN_SETTINGS_XML;
 import static top.infra.maven.extension.mavenbuild.Constants.USER_PROPERTY_SETTINGS_LOCALREPOSITORY;
+import static top.infra.maven.extension.mavenbuild.Docker.dockerHost;
 import static top.infra.maven.extension.mavenbuild.MavenProjectInfo.newProjectInfoByBuildProject;
 import static top.infra.maven.extension.mavenbuild.MavenProjectInfo.newProjectInfoByReadPom;
 import static top.infra.maven.extension.mavenbuild.SupportFunction.isEmpty;
@@ -177,8 +178,8 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
                     try {
                         this.resolver.setProjectBuildingRequest(projectBuildingRequest);
 
-                        this.onMavenExecutionRequest(request, this.homeDir, this.ciOpts);
-                        this.prepareDocker(request, this.homeDir, this.ciOpts);
+                        final List<String> goals = this.onMavenExecutionRequest(request, this.homeDir, this.ciOpts);
+                        this.prepareDocker(goals, this.homeDir, this.ciOpts);
                     } finally {
                         if (repositorySystemSessionNull) {
                             projectBuildingRequest.setRepositorySession(null);
@@ -426,7 +427,7 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
         }
     }
 
-    private void onMavenExecutionRequest(
+    private List<String> onMavenExecutionRequest(
         final MavenExecutionRequest request,
         final String homeDir,
         final CiOptionAccessor ciOpts
@@ -484,7 +485,9 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
 
         final Boolean publishToRepo = ciOpts.getOption(PUBLISH_TO_REPO).map(Boolean::parseBoolean).orElse(FALSE)
             && resultCheckProjectVersion.getKey();
-        request.setGoals(this.editMavenGoals(projectInfo.getVersion(), ciOpts, request.getGoals(), publishToRepo));
+        final List<String> goals = this.editMavenGoals(projectInfo.getVersion(), ciOpts, request.getGoals(), publishToRepo);
+        request.setGoals(goals);
+        return goals;
     }
 
     private void checkGitAuthToken(final CiOptionAccessor ciOpts) {
@@ -694,14 +697,12 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
     }
 
     private void prepareDocker(
-        final MavenExecutionRequest request,
+        final List<String> goals,
         final String homeDir,
         final CiOptionAccessor ciOpts
     ) {
-        final List<String> requestedGoals = request.getGoals();
-
-        final boolean dockerEnabled = ciOpts.docker()
-            && requestedGoals
+        final boolean dockerEnabled = ciOpts.getOption(DOCKER).map(Boolean::parseBoolean).orElse(FALSE)
+            && goals
             .stream()
             .filter(goal -> !goal.contains("site"))
             .anyMatch(goal ->
@@ -715,7 +716,7 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
         if (dockerEnabled) {
             final Docker docker = new Docker(
                 logger,
-                ciOpts.dockerHost().orElse(null),
+                dockerHost(ciOpts.getSystemProperties()).orElse(null),
                 homeDir,
                 ciOpts.getOption(DOCKER_REGISTRY).orElse(null),
                 ciOpts.getOption(DOCKER_REGISTRY_PASS).orElse(null),

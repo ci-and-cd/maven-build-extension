@@ -18,9 +18,13 @@ import static top.infra.maven.extension.mavenbuild.Constants.PUBLISH_CHANNEL_REL
 import static top.infra.maven.extension.mavenbuild.Constants.PUBLISH_CHANNEL_SNAPSHOT;
 import static top.infra.maven.extension.mavenbuild.Constants.SRC_CI_OPTS_PROPERTIES;
 import static top.infra.maven.extension.mavenbuild.Constants.SRC_MAVEN_SETTINGS_XML;
+import static top.infra.maven.extension.mavenbuild.Docker.dockerHost;
+import static top.infra.maven.extension.mavenbuild.Docker.dockerfiles;
 import static top.infra.maven.extension.mavenbuild.Gpg.gpgVersionGreater;
 import static top.infra.maven.extension.mavenbuild.SupportFunction.domainOrHostFromUrl;
 import static top.infra.maven.extension.mavenbuild.SupportFunction.exec;
+import static top.infra.maven.extension.mavenbuild.SupportFunction.existsInPath;
+import static top.infra.maven.extension.mavenbuild.SupportFunction.find;
 import static top.infra.maven.extension.mavenbuild.SupportFunction.gitRepoSlugFromUrl;
 import static top.infra.maven.extension.mavenbuild.SupportFunction.isEmpty;
 import static top.infra.maven.extension.mavenbuild.SupportFunction.systemJavaIoTmp;
@@ -166,7 +170,38 @@ public enum CiOption {
     // CI_SCRIPT("ci.script"),
     DEPENDENCYCHECK("dependency-check", BOOL_STRING_FALSE),
 
-    DOCKER("docker"),
+    /**
+     * Docker enabled.
+     */
+    DOCKER("docker") {
+        @Override
+        protected Optional<String> calculateValue(
+            final GitProperties gitProperties,
+            final Properties systemProperties,
+            final Properties userProperties
+        ) {
+            final boolean result;
+
+            if (existsInPath("docker")) {
+                // TODO Support named pipe (for windows).
+                // Unix sock file
+                // [[ -f /var/run/docker.sock ]] || [[ -L /var/run/docker.sock ]]
+                final String dockerSockFile = "/var/run/docker.sock";
+                final boolean dockerSockFilePresent = new File(dockerSockFile).exists();
+                // TCP
+                final boolean envDockerHostPresent = dockerHost(systemProperties).isPresent();
+                // [[ -n "$(find . -name '*Docker*')" ]] || [[ -n "$(find . -name '*docker-compose*.yml')" ]]
+                final int dockerComposeFilesCount = find(".", "*docker-compose*.yml").size();
+                final boolean dockerFilesFound = !dockerfiles().isEmpty() || dockerComposeFilesCount > 0;
+
+                result = dockerFilesFound && (dockerSockFilePresent || envDockerHostPresent);
+            } else {
+                result = false;
+            }
+
+            return Optional.of(result ? BOOL_STRING_TRUE : BOOL_STRING_FALSE);
+        }
+    },
     DOCKERFILE_USEMAVENSETTINGSFORAUTH("dockerfile.useMavenSettingsForAuth", BOOL_STRING_FALSE),
     DOCKER_IMAGE_PREFIX("docker.image.prefix"),
 
@@ -180,10 +215,10 @@ public enum CiOption {
             final Properties systemProperties,
             final Properties userProperties
         ) {
-            final Optional<String> dockerRegistryUrlOptional = DOCKER_REGISTRY_URL
-                .getValue(gitProperties, systemProperties, userProperties);
-
-            return dockerRegistryUrlOptional.flatMap(SupportFunction::domainOrHostFromUrl);
+            final Optional<String> dockerRegistryUrl = DOCKER_REGISTRY_URL.getValue(gitProperties, systemProperties, userProperties);
+            return dockerRegistryUrl
+                .flatMap(SupportFunction::domainOrHostFromUrl)
+                .flatMap(value -> Optional.ofNullable(value.endsWith("docker.io") ? null : value));
         }
 
         @Override
@@ -192,7 +227,8 @@ public enum CiOption {
             final Properties systemProperties,
             final Properties userProperties
         ) {
-            return super.getValue(gitProperties, systemProperties, userProperties).map(value -> value.endsWith("docker.io") ? null : value);
+            return super.getValue(gitProperties, systemProperties, userProperties)
+                .map(value -> value.endsWith("docker.io") ? null : value);
         }
     },
     DOCKER_REGISTRY_PASS("docker.registry.pass"),
@@ -546,7 +582,7 @@ public enum CiOption {
             return result;
         }
     },
-    MVN_DEPLOY_PUBLISH_SEGREGATION("mvn.deploy.publish.segregation", BOOL_STRING_FALSE),
+    MVN_DEPLOY_PUBLISH_SEGREGATION("mvn.deploy.publish.segregation"),
     NEXUS3("nexus3"),
 
     OPENSOURCE_GIT_AUTH_TOKEN("opensource.git.auth.token") {

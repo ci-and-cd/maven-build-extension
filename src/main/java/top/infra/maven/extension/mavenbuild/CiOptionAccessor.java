@@ -1,11 +1,9 @@
 package top.infra.maven.extension.mavenbuild;
 
 import static java.lang.Boolean.FALSE;
-import static java.lang.Boolean.parseBoolean;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static top.infra.maven.extension.mavenbuild.CiOption.CACHE_DIRECTORY;
 import static top.infra.maven.extension.mavenbuild.CiOption.CI_OPTS_FILE;
-import static top.infra.maven.extension.mavenbuild.CiOption.DOCKER;
 import static top.infra.maven.extension.mavenbuild.CiOption.GIT_AUTH_TOKEN;
 import static top.infra.maven.extension.mavenbuild.CiOption.GIT_REF_NAME;
 import static top.infra.maven.extension.mavenbuild.CiOption.MAVEN_BUILD_OPTS_REPO;
@@ -19,11 +17,8 @@ import static top.infra.maven.extension.mavenbuild.Constants.GIT_REF_NAME_DEVELO
 import static top.infra.maven.extension.mavenbuild.Constants.GIT_REF_NAME_MASTER;
 import static top.infra.maven.extension.mavenbuild.Constants.PUBLISH_CHANNEL_SNAPSHOT;
 import static top.infra.maven.extension.mavenbuild.Constants.SRC_CI_OPTS_PROPERTIES;
-import static top.infra.maven.extension.mavenbuild.Docker.dockerfiles;
 import static top.infra.maven.extension.mavenbuild.SupportFunction.download;
 import static top.infra.maven.extension.mavenbuild.SupportFunction.exists;
-import static top.infra.maven.extension.mavenbuild.SupportFunction.existsInPath;
-import static top.infra.maven.extension.mavenbuild.SupportFunction.find;
 import static top.infra.maven.extension.mavenbuild.SupportFunction.isEmpty;
 import static top.infra.maven.extension.mavenbuild.SupportFunction.isSemanticSnapshotVersion;
 import static top.infra.maven.extension.mavenbuild.SupportFunction.maskSecrets;
@@ -54,6 +49,7 @@ public class CiOptionAccessor {
     private final Logger logger;
 
     private final GitProperties gitProperties;
+
     private final Properties systemProperties;
     private final Properties userProperties;
 
@@ -75,6 +71,10 @@ public class CiOptionAccessor {
         return ciOption.getValue(this.gitProperties, this.systemProperties, this.userProperties);
     }
 
+    public Properties getSystemProperties() {
+        return this.systemProperties;
+    }
+
     private Optional<String> setOption(final CiOption ciOption, final Properties properties) {
         return ciOption.setProperties(this.gitProperties, this.systemProperties, this.userProperties, properties);
     }
@@ -86,6 +86,7 @@ public class CiOptionAccessor {
         this.systemProperties.setProperty(key.getSystemPropertyName(), value);
     }
 
+    @Deprecated
     private void setUserProperty(final CiOption key, final String value) {
         if (logger.isInfoEnabled()) {
             logger.info(String.format("set %s: %s", key.getPropertyName(), value));
@@ -171,43 +172,6 @@ public class CiOptionAccessor {
         return properties;
     }
 
-    /**
-     * Docker enabled.
-     *
-     * @return docker enabled
-     */
-    public boolean docker() {
-        final Boolean result;
-        final Optional<String> varValueOptional = this.getOption(DOCKER);
-        if (varValueOptional.isPresent()) {
-            result = parseBoolean(varValueOptional.get());
-        } else {
-            if (existsInPath("docker")) {
-                // TODO Support named pipe (for windows).
-                // Unix sock file
-                // [[ -f /var/run/docker.sock ]] || [[ -L /var/run/docker.sock ]]
-                final String dockerSockFile = "/var/run/docker.sock";
-                final boolean dockerSockFilePresent = new File(dockerSockFile).exists();
-                // TCP
-                final boolean dockerHostVarPresent = this.dockerHost().isPresent();
-                // [[ -n "$(find . -name '*Docker*')" ]] || [[ -n "$(find . -name '*docker-compose*.yml')" ]]
-                final int dockerComposeFilesCount = find(".", "*docker-compose*.yml").size();
-                final boolean dockerFilesFound = !dockerfiles().isEmpty() || dockerComposeFilesCount > 0;
-
-                result = dockerFilesFound && (dockerSockFilePresent || dockerHostVarPresent);
-            } else {
-                result = FALSE;
-            }
-
-            this.setUserProperty(DOCKER, result.toString());
-        }
-        return result;
-    }
-
-    public Optional<String> dockerHost() {
-        return Optional.ofNullable(this.systemProperties.getProperty("env.DOCKER_HOST"));
-    }
-
     private static final Pattern PATTERN_GITLAB_URL = Pattern.compile("^.+/api/v4/projects/[0-9]+/repository/.+$");
 
     public Entry<Optional<String>, Optional<Integer>> downloadFromGitRepo(final String sourceFile, final String targetFile) {
@@ -275,7 +239,7 @@ public class CiOptionAccessor {
             Arrays.stream(CiOption.values()).sorted().forEach(ciOption -> {
                 final Optional<String> result = this.setOption(ciOption, newProperties);
                 if (logger.isInfoEnabled()) {
-                    logger.info(maskSecrets(String.format("setOption %s=%s", ciOption.name(), result.orElse(""))));
+                    logger.info(maskSecrets(String.format("setOption %s=%s", ciOption.getEnvVariableName(), result.orElse(""))));
                 }
             });
 

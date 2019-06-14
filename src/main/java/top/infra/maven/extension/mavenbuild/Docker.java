@@ -12,6 +12,8 @@ import java.nio.file.Paths;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Properties;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -152,6 +154,10 @@ public class Docker {
             .filter(line -> !line.contains("/target/classes/"))
             .filter(line -> !PATTERN_FILE_WITH_EXT.matcher(line).matches())
             .collect(Collectors.toList());
+    }
+
+    public static Optional<String> dockerHost(final Properties systemProperties) {
+        return Optional.ofNullable(systemProperties.getProperty("env.DOCKER_HOST"));
     }
 
     static Map<String, String> environment(final String dockerHost, final String registry) {

@@ -2,6 +2,7 @@ package top.infra.maven.extension.mavenbuild;
 
 import static java.lang.Boolean.TRUE;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static top.infra.maven.extension.mavenbuild.CiOption.DOCKER_REGISTRY;
 import static top.infra.maven.extension.mavenbuild.CiOption.DOCKER_REGISTRY_URL;
@@ -55,13 +56,14 @@ public class CiOptionTests {
         //     ciOpts.setSystemProperty(GITHUB_GLOBAL_REPOSITORYOWNER, githubSiteRepoOwner));
 
         final Properties newProperties = ciOpts.mavenOptsInto(userProperties);
-        ciOpts.docker();
 
         slf4jLogger.info("{} {}", DOCKER_REGISTRY_URL.getPropertyName(), ciOpts.getOption(DOCKER_REGISTRY_URL).orElse(null));
         slf4jLogger.info("{} {}", DOCKER_REGISTRY.getPropertyName(), ciOpts.getOption(DOCKER_REGISTRY).orElse(null));
         assertEquals("https://docker.io/v2/", ciOpts.getOption(DOCKER_REGISTRY_URL).orElse(null));
         // assertEquals("docker.io", ciOpts.getOption(DOCKER_REGISTRY).orElse(null));
         assertNull(ciOpts.getOption(DOCKER_REGISTRY).orElse(null));
+        assertNull(newProperties.getProperty(DOCKER_REGISTRY.getPropertyName()));
+        assertFalse(newProperties.containsKey(DOCKER_REGISTRY.getPropertyName()));
     }
 
     @Test
@@ -112,7 +114,6 @@ public class CiOptionTests {
         assertEquals(TRUE.toString(), ciOpts.getOption(SITE).orElse(null));
 
         ciOpts.mavenOptsInto(userProperties);
-        ciOpts.docker();
 
         slf4jLogger.info("site {}", ciOpts.getOption(SITE).orElse(null));
         assertEquals(TRUE.toString(), ciOpts.getOption(SITE).orElse(null));
@@ -143,7 +144,6 @@ public class CiOptionTests {
         ciOpts.updateSystemProperties(loadedProperties);
 
         final Properties newProperties = ciOpts.mavenOptsInto(userProperties);
-        ciOpts.docker();
 
         slf4jLogger.info("{} {}", SONAR_HOST_URL.getEnvVariableName(), ciOpts.getOption(SONAR_HOST_URL).orElse(null));
         slf4jLogger.info("{} {}", SONAR_HOST_URL.getPropertyName(), userProperties.getProperty(SONAR_HOST_URL.getPropertyName()));
