@@ -12,6 +12,7 @@ import java.nio.file.Paths;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.regex.Pattern;
@@ -29,6 +30,7 @@ public class Docker {
     private final String homeDir;
     private final String registry;
     private final String registryPass;
+    private final String registryUrl;
     private final String registryUser;
 
     public Docker(
@@ -37,6 +39,7 @@ public class Docker {
         final String homeDir,
         final String registry,
         final String registryPass,
+        final String registryUrl,
         final String registryUser
     ) {
         this.logger = logger;
@@ -45,11 +48,12 @@ public class Docker {
 
         this.registry = registry;
         this.registryPass = registryPass;
+        this.registryUrl = registryUrl;
         this.registryUser = registryUser;
     }
 
     public void cleanOldImages() {
-        final Map.Entry<Integer, String> dockerImages = this.docker("images");
+        final Entry<Integer, String> dockerImages = this.docker("images");
 
         if (logger.isDebugEnabled()) {
             logger.debug(String.format("Found dockerImages %s %s", dockerImages.getKey(), dockerImages.getValue()));
@@ -64,7 +68,7 @@ public class Docker {
 
             imageIds.forEach(imageId -> {
                 logger.info(String.format("Delete old image %s", imageId));
-                final Map.Entry<Integer, String> dockerRmi = this.docker("rmi", imageId);
+                final Entry<Integer, String> dockerRmi = this.docker("rmi", imageId);
                 if (dockerRmi.getKey() != 0) {
                     logger.warn(String.format("Error on remove image %s", imageId));
                 }
@@ -102,23 +106,33 @@ public class Docker {
         logger.info("<<<<<<<<<< ---------- pull_base_image ---------- <<<<<<<<<<");
     }
 
-    private Map.Entry<Integer, String> docker(final String... options) {
+    private Entry<Integer, String> docker(final String... options) {
         return SupportFunction.exec(this.environment, null, dockerCommand(options));
     }
 
     private void dockerLogin() {
-        if (isNotEmpty(this.registry) && isNotEmpty(this.registryPass) && isNotEmpty(this.registryUser)) {
-            if (this.registry.startsWith("https://")) {
-                logger.info(String.format("docker logging into secure registry %s", this.registry));
-            } else {
-                logger.info(String.format("docker logging into insecure registry %s", this.registry));
-            }
-
-            final List<String> command = dockerCommand("login", "--password-stdin", "-u=" + this.registryUser, this.registry);
-            SupportFunction.exec(this.environment, this.registryPass, command);
-            logger.info("docker login done");
+        if (isNotEmpty(this.registry)) {
+            this.dockerLogin(this.registry);
         } else {
-            logger.info("skip docker login");
+            this.dockerLogin(this.registryUrl);
+        }
+    }
+
+    private void dockerLogin(final String toRegistry) {
+        if (isNotEmpty(this.registryPass) && isNotEmpty(this.registryUser)) {
+            if (isNotEmpty(toRegistry)) {
+                if (toRegistry.startsWith("https://")) {
+                    logger.info(String.format("docker logging into secure registry %s", toRegistry));
+                } else {
+                    logger.info(String.format("docker logging into insecure registry %s", toRegistry));
+                }
+
+                final List<String> command = dockerCommand("login", "--password-stdin", "-u=" + this.registryUser, toRegistry);
+                final Entry<Integer, String> resultDockerLogin = SupportFunction.exec(this.environment, this.registryPass, command);
+                logger.info(String.format("docker login [%s] result [%s]", toRegistry, resultDockerLogin.getKey()));
+            }
+        } else {
+            logger.info(String.format("skip docker login [%s]", toRegistry));
         }
     }
 

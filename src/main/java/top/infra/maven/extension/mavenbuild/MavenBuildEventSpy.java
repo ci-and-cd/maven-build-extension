@@ -4,6 +4,7 @@ import static java.lang.Boolean.FALSE;
 import static top.infra.maven.extension.mavenbuild.CiOption.DOCKER;
 import static top.infra.maven.extension.mavenbuild.CiOption.DOCKER_REGISTRY;
 import static top.infra.maven.extension.mavenbuild.CiOption.DOCKER_REGISTRY_PASS;
+import static top.infra.maven.extension.mavenbuild.CiOption.DOCKER_REGISTRY_URL;
 import static top.infra.maven.extension.mavenbuild.CiOption.DOCKER_REGISTRY_USER;
 import static top.infra.maven.extension.mavenbuild.CiOption.GITHUB_GLOBAL_REPOSITORYOWNER;
 import static top.infra.maven.extension.mavenbuild.CiOption.GIT_AUTH_TOKEN;
@@ -53,13 +54,9 @@ import org.apache.maven.internal.aether.DefaultRepositorySystemSessionFactory;
 import org.apache.maven.project.ProjectBuilder;
 import org.apache.maven.project.ProjectBuildingRequest;
 import org.apache.maven.rtinfo.RuntimeInformation;
-import org.apache.maven.settings.Server;
 import org.apache.maven.settings.building.SettingsBuildingRequest;
 import org.apache.maven.settings.building.SettingsBuildingResult;
-import org.apache.maven.settings.crypto.DefaultSettingsDecryptionRequest;
 import org.apache.maven.settings.crypto.SettingsDecrypter;
-import org.apache.maven.settings.crypto.SettingsDecryptionRequest;
-import org.apache.maven.settings.crypto.SettingsDecryptionResult;
 import org.apache.maven.toolchain.building.ToolchainsBuildingRequest;
 import org.eclipse.aether.RepositorySystemSession;
 import org.unix4j.Unix4j;
@@ -743,6 +740,7 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
                 homeDir,
                 ciOpts.getOption(DOCKER_REGISTRY).orElse(null),
                 ciOpts.getOption(DOCKER_REGISTRY_PASS).orElse(null),
+                ciOpts.getOption(DOCKER_REGISTRY_URL).orElse(null),
                 ciOpts.getOption(DOCKER_REGISTRY_USER).orElse(null)
             );
             docker.initDockerConfig();
