@@ -578,19 +578,19 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
                         // maven deploy and publish segregation
                         final String wagonGoal = "org.codehaus.mojo:wagon-maven-plugin:merge-maven-repos@merge-maven-repos-deploy";
                         resultGoals.add(wagonGoal);
-                        if (docker) {
-                            final String dockerPushGoal = "dockerfile:push";
-                            resultGoals.add(dockerPushGoal);
-                            if (logger.isInfoEnabled()) {
-                                logger.info(String.format(msgReplaceGoal, goal, wagonGoal + " " + dockerPushGoal,
-                                    MVN_DEPLOY_PUBLISH_SEGREGATION.getEnvVariableName(), mvnDeployPublishSegregation.toString()));
-                            }
-                        } else {
+                        // if (docker) {
+                        //     final String dockerPushGoal = "dockerfile:push";
+                        //     resultGoals.add(dockerPushGoal);
+                        //     if (logger.isInfoEnabled()) {
+                        //         logger.info(String.format(msgReplaceGoal, goal, wagonGoal + " " + dockerPushGoal,
+                        //             MVN_DEPLOY_PUBLISH_SEGREGATION.getEnvVariableName(), mvnDeployPublishSegregation.toString()));
+                        //     }
+                        // } else {
                             if (logger.isInfoEnabled()) {
                                 logger.info(String.format(msgReplaceGoal, goal, wagonGoal,
                                     MVN_DEPLOY_PUBLISH_SEGREGATION.getEnvVariableName(), mvnDeployPublishSegregation.toString()));
                             }
-                        }
+                        // }
                     } else {
                         resultGoals.add(goal);
                     }
@@ -623,20 +623,20 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
                         }
                     } else if (goal.endsWith(GOAL_INSTALL)) {
                         resultGoals.add(GOAL_DEPLOY);
-                        if (docker) {
-                            final String dockerBuildGoal = "dockerfile:build";
-                            resultGoals.add(dockerBuildGoal);
-                            if (logger.isInfoEnabled()) {
-                                logger.info(String.format(msgReplaceGoal, goal, GOAL_DEPLOY + " " + dockerBuildGoal,
-                                    DOCKER.getEnvVariableName(), docker.toString()));
-                            }
-                        } else {
+                        // if (docker) {
+                        //     final String dockerBuildGoal = "dockerfile:build";
+                        //     resultGoals.add(dockerBuildGoal);
+                        //     if (logger.isInfoEnabled()) {
+                        //         logger.info(String.format(msgReplaceGoal, goal, GOAL_DEPLOY + " " + dockerBuildGoal,
+                        //             DOCKER.getEnvVariableName(), docker.toString()));
+                        //     }
+                        // } else {
                             if (logger.isInfoEnabled()) {
                                 logger.info(String.format("onMavenExecutionRequest replace goal %s to %s (%s: %s)",
                                     goal, GOAL_DEPLOY,
                                     DOCKER.getEnvVariableName(), docker.toString()));
                             }
-                        }
+                        // }
                     }
                 } else {
                     resultGoals.add(goal);

@@ -1,7 +1,6 @@
 package top.infra.maven.extension.mavenbuild;
 
 import static java.lang.Boolean.FALSE;
-import static java.lang.Boolean.parseBoolean;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static top.infra.maven.extension.mavenbuild.Constants.BOOL_STRING_FALSE;
 import static top.infra.maven.extension.mavenbuild.Constants.BOOL_STRING_TRUE;
@@ -30,7 +29,6 @@ import static top.infra.maven.extension.mavenbuild.SupportFunction.isEmpty;
 import static top.infra.maven.extension.mavenbuild.SupportFunction.systemJavaIoTmp;
 import static top.infra.maven.extension.mavenbuild.SupportFunction.systemJavaVersion;
 import static top.infra.maven.extension.mavenbuild.SupportFunction.systemUserDir;
-import static top.infra.maven.extension.mavenbuild.SupportFunction.systemUserHome;
 import static top.infra.maven.extension.mavenbuild.SupportFunction.urlWithoutPath;
 
 import java.io.File;
@@ -95,39 +93,73 @@ public enum CiOption {
             return this.addtionalArgs(argLine, gitProperties, systemProperties, userProperties);
         }
     },
+    FAST("fast"), // TODO maven.site.deploy.skip, sonar.buildbreaker.skip
     FILE_ENCODING("file.encoding", UTF_8.name()),
     /**
      * Custom property.
      * maven.javadoc.skip and maven.source.skip
      */
-    MAVEN_ARTIFACTS_SKIP("maven.artifacts.skip", BOOL_STRING_FALSE) {
-        @Override
-        public Optional<String> setProperties(
-            final GitProperties gitProperties,
-            final Properties systemProperties,
-            final Properties userProperties,
-            final Properties properties
-        ) {
-            final Optional<String> result = super.setProperties(gitProperties, systemProperties, userProperties, properties);
-
-            result.ifPresent(value -> {
-                final boolean skip = parseBoolean(value);
-                if (skip || !userProperties.containsKey("maven.javadoc.skip")) {
-                    properties.setProperty("maven.javadoc.skip", value);
-                }
-                if (skip || !userProperties.containsKey("maven.source.skip")) {
-                    properties.setProperty("maven.source.skip", value);
-                }
-            });
-
-            return result;
-        }
-    },
+    MAVEN_ARTIFACTS_SKIP("maven.artifacts.skip", BOOL_STRING_FALSE),
     MAVEN_CLEAN_SKIP("maven.clean.skip", BOOL_STRING_TRUE),
     MAVEN_COMPILER_ENCODING("maven.compiler.encoding", UTF_8.name()),
-    MAVEN_INTEGRATIONTEST_SKIP("maven.integration-test.skip", BOOL_STRING_FALSE),
-    MAVEN_TEST_FAILURE_IGNORE("maven.test.failure.ignore", BOOL_STRING_FALSE),
-    MAVEN_TEST_SKIP("maven.test.skip", BOOL_STRING_FALSE),
+    MAVEN_INTEGRATIONTEST_SKIP("maven.integration-test.skip", BOOL_STRING_FALSE) {
+        @Override
+        protected Optional<String> calculateValue(
+            final GitProperties gitProperties,
+            final Properties systemProperties,
+            final Properties userProperties
+        ) {
+            return MAVEN_TESTS_SKIP.calculateValue(gitProperties, systemProperties, userProperties);
+        }
+    },
+
+    MAVEN_JAVADOC_SKIP("maven.javadoc.skip") {
+        @Override
+        protected Optional<String> calculateValue(
+            final GitProperties gitProperties,
+            final Properties systemProperties,
+            final Properties userProperties
+        ) {
+            final boolean artifactsSkip = MAVEN_ARTIFACTS_SKIP.getValue(gitProperties, systemProperties, userProperties)
+                .map(Boolean::parseBoolean).orElse(FALSE);
+            return Optional.of(FAST.getValue(gitProperties, systemProperties, userProperties)
+                .map(Boolean::parseBoolean)
+                .filter(fast -> fast || artifactsSkip)
+                .map(fast -> BOOL_STRING_TRUE)
+                .orElse(BOOL_STRING_FALSE));
+        }
+    },
+    MAVEN_SOURCE_SKIP("maven.source.skip") {
+        @Override
+        protected Optional<String> calculateValue(
+            final GitProperties gitProperties,
+            final Properties systemProperties,
+            final Properties userProperties
+        ) {
+            return MAVEN_JAVADOC_SKIP.calculateValue(gitProperties, systemProperties, userProperties);
+        }
+    },
+
+    MAVEN_TEST_FAILURE_IGNORE("maven.test.failure.ignore", BOOL_STRING_FALSE) {
+        @Override
+        protected Optional<String> calculateValue(
+            final GitProperties gitProperties,
+            final Properties systemProperties,
+            final Properties userProperties
+        ) {
+            return MAVEN_TESTS_SKIP.calculateValue(gitProperties, systemProperties, userProperties);
+        }
+    },
+    MAVEN_TEST_SKIP("maven.test.skip", BOOL_STRING_FALSE) {
+        @Override
+        protected Optional<String> calculateValue(
+            final GitProperties gitProperties,
+            final Properties systemProperties,
+            final Properties userProperties
+        ) {
+            return MAVEN_TESTS_SKIP.calculateValue(gitProperties, systemProperties, userProperties);
+        }
+    },
     PROJECT_BUILD_SOURCEENCODING("project.build.sourceEncoding", UTF_8.name()),
     PROJECT_REPORTING_OUTPUTENCODING("project.reporting.outputEncoding", UTF_8.name()),
     //
@@ -168,7 +200,20 @@ public enum CiOption {
     },
     // @Deprecated
     // CI_SCRIPT("ci.script"),
-    DEPENDENCYCHECK("dependency-check", BOOL_STRING_FALSE),
+    DEPENDENCYCHECK("dependency-check", BOOL_STRING_FALSE) {
+        @Override
+        protected Optional<String> calculateValue(
+            final GitProperties gitProperties,
+            final Properties systemProperties,
+            final Properties userProperties
+        ) {
+            return Optional.of(FAST.getValue(gitProperties, systemProperties, userProperties)
+                .map(Boolean::parseBoolean)
+                .filter(fast -> !fast)
+                .map(fast -> BOOL_STRING_TRUE)
+                .orElse(BOOL_STRING_FALSE));
+        }
+    },
 
     /**
      * Docker enabled.
@@ -491,7 +536,18 @@ public enum CiOption {
         }
     },
 
-    JACOCO("jacoco", BOOL_STRING_TRUE),
+    JACOCO("jacoco", BOOL_STRING_TRUE) {
+        @Override
+        protected Optional<String> calculateValue(
+            final GitProperties gitProperties,
+            final Properties systemProperties,
+            final Properties userProperties
+        ) {
+            return Optional.of(MAVEN_INTEGRATIONTEST_SKIP.calculateValue(gitProperties, systemProperties, userProperties)
+                .map(Boolean::parseBoolean).orElse(FALSE)
+                ? BOOL_STRING_FALSE : BOOL_STRING_TRUE);
+        }
+    },
     JAVA_ADDMODULES("java.addModules") {
         @Override
         protected Optional<String> calculateValue(
@@ -539,7 +595,16 @@ public enum CiOption {
                 : Optional.empty();
         }
     },
-    LINKXREF("linkXRef", BOOL_STRING_TRUE),
+    LINKXREF("linkXRef", BOOL_STRING_TRUE) {
+        @Override
+        protected Optional<String> calculateValue(
+            final GitProperties gitProperties,
+            final Properties systemProperties,
+            final Properties userProperties
+        ) {
+            return MAVEN_INTEGRATIONTEST_SKIP.calculateValue(gitProperties, systemProperties, userProperties);
+        }
+    },
     MAVEN_BUILD_OPTS_REPO("maven.build.opts.repo") {
         @Override
         protected Optional<String> calculateValue(
@@ -563,7 +628,16 @@ public enum CiOption {
     MAVEN_CENTRAL_USER("maven.central.user"),
     MAVEN_EXTRA_OPTS("maven.extra.opts"),
     MAVEN_OPTS("maven.opts"),
-    MAVEN_QUALITY_SKIP("maven.quality.skip", BOOL_STRING_FALSE),
+    MAVEN_QUALITY_SKIP("maven.quality.skip", BOOL_STRING_FALSE) {
+        @Override
+        protected Optional<String> calculateValue(
+            final GitProperties gitProperties,
+            final Properties systemProperties,
+            final Properties userProperties
+        ) {
+            return MAVEN_INTEGRATIONTEST_SKIP.calculateValue(gitProperties, systemProperties, userProperties);
+        }
+    },
     MAVEN_SETTINGS_FILE("maven.settings.file") {
         @Override
         protected Optional<String> calculateValue(
@@ -611,6 +685,16 @@ public enum CiOption {
             });
 
             return result;
+        }
+    },
+    MAVEN_TESTS_SKIP("maven.tests.skip") {
+        @Override
+        protected Optional<String> calculateValue(
+            final GitProperties gitProperties,
+            final Properties systemProperties,
+            final Properties userProperties
+        ) {
+            return FAST.getValue(gitProperties, systemProperties, userProperties);
         }
     },
     MVN_DEPLOY_PUBLISH_SEGREGATION("mvn.deploy.publish.segregation"),
@@ -663,7 +747,7 @@ public enum CiOption {
                 : Optional.empty();
         }
     },
-    OPENSOURCE_SONARQUBE_HOST_URL("opensource.sonarqube.host.url"),
+    OPENSOURCE_SONARQUBE_HOST_URL("opensource.sonarqube.host.url", "https://sonarqube.com"),
     /**
      * Determine current is origin (original) or forked.
      */
@@ -826,7 +910,16 @@ public enum CiOption {
             return result;
         }
     },
-    SONAR("sonar"),
+    SONAR("sonar") {
+        @Override
+        protected Optional<String> calculateValue(
+            final GitProperties gitProperties,
+            final Properties systemProperties,
+            final Properties userProperties
+        ) {
+            return MAVEN_INTEGRATIONTEST_SKIP.calculateValue(gitProperties, systemProperties, userProperties);
+        }
+    },
     SONAR_HOST_URL("sonar.host.url") {
         @Override
         protected Optional<String> calculateValue(
@@ -851,7 +944,7 @@ public enum CiOption {
                                 .getValue(gitProperties, systemProperties, userProperties).orElse(null);
                             break;
                         default:
-                            value = null;
+                            value = String.format("${%s.sonarqube.host.url}", infrastructure);
                             break;
                     }
                     return value;
@@ -916,9 +1009,10 @@ public enum CiOption {
         ) {
             final String commitId = gitProperties.commitId().map(value -> value.substring(0, 8)).orElse("unknown-commit");
 
-            final String prefix = systemUserHome() + "/.ci-and-cd/tmp";
+            // final String prefix = systemUserHome() + "/.ci-and-cd/local-deploy";
+            final String prefix = systemUserDir() + "/.mvn/wagonRepository";
 
-            return Optional.of(prefix + "/" + "local-deploy" + "/" + commitId);
+            return Optional.of(prefix + "/" + commitId);
         }
 
         @Override
@@ -935,8 +1029,55 @@ public enum CiOption {
             return result;
         }
     },
-    WAGON_MERGEMAVENREPOS_TARGET("wagon.merge-maven-repos.target", "${private.nexus3.repository}/maven-${publish.channel}s"),
-    WAGON_MERGEMAVENREPOS_TARGETID("wagon.merge-maven-repos.targetId", "private-nexus3-${publish.channel}s"),
+    WAGON_MERGEMAVENREPOS_TARGET("wagon.merge-maven-repos.target") {
+        @Override
+        protected Optional<String> calculateValue(
+            final GitProperties gitProperties,
+            final Properties systemProperties,
+            final Properties userProperties
+        ) {
+            final Optional<String> infrastructure = INFRASTRUCTURE.getValue(gitProperties, systemProperties, userProperties);
+            final boolean infraOpenSource = infrastructure.map(INFRASTRUCTURE_OPENSOURCE::equals).orElse(FALSE);
+
+            final Optional<String> publishChannel = PUBLISH_CHANNEL.getValue(gitProperties, systemProperties, userProperties);
+            final boolean publishRelease = publishChannel.map(PUBLISH_CHANNEL_RELEASE::equals).orElse(FALSE);
+
+            final String result;
+            if (infraOpenSource) {
+                if (publishRelease) {
+                    result = "https://oss.sonatype.org/service/local/staging/deploy/maven2";
+                } else {
+                    result = "https://oss.sonatype.org/content/repositories/snapshots";
+                }
+            } else {
+                result = infrastructure
+                    .map(value -> String.format("${%s.nexus3.repository}/maven-${publish.channel}s", value))
+                    .orElse(null);
+            }
+            return Optional.ofNullable(result);
+        }
+    },
+    WAGON_MERGEMAVENREPOS_TARGETID("wagon.merge-maven-repos.targetId") {
+        @Override
+        protected Optional<String> calculateValue(
+            final GitProperties gitProperties,
+            final Properties systemProperties,
+            final Properties userProperties
+        ) {
+            final Optional<String> infrastructure = INFRASTRUCTURE.getValue(gitProperties, systemProperties, userProperties);
+            final boolean infraOpenSource = infrastructure.map(INFRASTRUCTURE_OPENSOURCE::equals).orElse(FALSE);
+
+            final String result;
+            if (infraOpenSource) {
+                result = "OSSRH-${publish.channel}s";
+            } else {
+                result = infrastructure
+                    .map(value -> String.format("%s-nexus3-${publish.channel}s", value))
+                    .orElse(null);
+            }
+            return Optional.ofNullable(result);
+        }
+    },
     ;
 
     private final String defaultValue;
