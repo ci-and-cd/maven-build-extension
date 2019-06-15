@@ -235,6 +235,37 @@ public enum CiOption {
     DOCKER_REGISTRY_URL("docker.registry.url"),
     DOCKER_REGISTRY_USER("docker.registry.user"),
 
+    /**
+     * com.spotify:docker-maven-plugin
+     */
+    DOCKER_IMAGENAME("docker.imageName") {
+        @Override
+        protected Optional<String> calculateValue(
+            final GitProperties gitProperties,
+            final Properties systemProperties,
+            final Properties userProperties
+        ) {
+            return Optional.of(DOCKER_REGISTRY.getValue(gitProperties, systemProperties, userProperties)
+                .map(registry -> "${docker.registry}/${docker.image.prefix}${project.artifactId}")
+                .orElse("${docker.image.prefix}${project.artifactId}"));
+        }
+    },
+    /**
+     * com.spotify:dockerfile-maven-plugin
+     */
+    DOCKERFILE_REPOSITORY("dockerfile.repository") {
+        @Override
+        protected Optional<String> calculateValue(
+            final GitProperties gitProperties,
+            final Properties systemProperties,
+            final Properties userProperties
+        ) {
+            return Optional.of(DOCKER_REGISTRY.getValue(gitProperties, systemProperties, userProperties)
+                .map(registry -> "${docker.registry}/${docker.image.prefix}${project.artifactId}")
+                .orElse("${docker.image.prefix}${project.artifactId}"));
+        }
+    },
+
     // https://npm.taobao.org/mirrors/node/
     FRONTEND_NODEDOWNLOADROOT("frontend.nodeDownloadRoot", "https://nodejs.org/dist/"),
     // http://registry.npm.taobao.org/npm/-/

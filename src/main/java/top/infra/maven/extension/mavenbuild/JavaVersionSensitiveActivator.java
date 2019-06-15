@@ -44,6 +44,7 @@ public class JavaVersionSensitiveActivator implements ProfileActivator, CustomAc
 
     @Override
     public boolean isActive(final Profile profile, final ProfileActivationContext context, final ModelProblemCollector problems) {
+        // TODO cache result
         boolean result;
         if (!this.presentInConfig(profile, context, problems)) {
             if (logger.isInfoEnabled()) {
