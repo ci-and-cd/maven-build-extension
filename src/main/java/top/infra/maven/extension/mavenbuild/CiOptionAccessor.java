@@ -65,25 +65,6 @@ public class CiOptionAccessor {
         return this.systemProperties;
     }
 
-    private Optional<String> setOption(final CiOption ciOption, final Properties properties) {
-        return ciOption.setProperties(this.gitProperties, this.systemProperties, this.userProperties, properties);
-    }
-
-    public void setSystemProperty(final CiOption key, final String value) {
-        if (logger.isInfoEnabled()) {
-            logger.info(String.format("set %s: %s", key.getSystemPropertyName(), value));
-        }
-        this.systemProperties.setProperty(key.getSystemPropertyName(), value);
-    }
-
-    @Deprecated
-    private void setUserProperty(final CiOption key, final String value) {
-        if (logger.isInfoEnabled()) {
-            logger.info(String.format("set %s: %s", key.getPropertyName(), value));
-        }
-        this.userProperties.setProperty(key.getPropertyName(), value);
-    }
-
     public void updateSystemProperties(final Properties properties) {
         for (final String name : properties.stringPropertyNames()) {
             final String key = systemPropertyName(name);
@@ -92,18 +73,6 @@ public class CiOptionAccessor {
                 this.systemProperties.setProperty(key, value);
             }
         }
-    }
-
-    private String cacheDirectory() {
-        final String result = this.getOption(CACHE_DIRECTORY).orElse(systemJavaIoTmp());
-        if (!exists(Paths.get(result))) {
-            try {
-                Files.createDirectories(Paths.get(result));
-            } catch (final IOException ex) {
-                logger.error(String.format("Error create cacheDirectory '%s'. %s", result, ex.getMessage()));
-            }
-        }
-        return result;
     }
 
     public GitRepository gitRepository() {
@@ -203,6 +172,38 @@ public class CiOptionAccessor {
         SupportFunction.merge(newProperties, intoProperties);
 
         return newProperties;
+    }
+
+    private String cacheDirectory() {
+        final String result = this.getOption(CACHE_DIRECTORY).orElse(systemJavaIoTmp());
+        if (!exists(Paths.get(result))) {
+            try {
+                Files.createDirectories(Paths.get(result));
+            } catch (final IOException ex) {
+                logger.error(String.format("Error create cacheDirectory '%s'. %s", result, ex.getMessage()));
+            }
+        }
+        return result;
+    }
+
+    private Optional<String> setOption(final CiOption ciOption, final Properties properties) {
+        return ciOption.setProperties(this.gitProperties, this.systemProperties, this.userProperties, properties);
+    }
+
+    @Deprecated
+    private void setSystemProperty(final CiOption key, final String value) {
+        if (logger.isInfoEnabled()) {
+            logger.info(String.format("set %s: %s", key.getSystemPropertyName(), value));
+        }
+        this.systemProperties.setProperty(key.getSystemPropertyName(), value);
+    }
+
+    @Deprecated
+    private void setUserProperty(final CiOption key, final String value) {
+        if (logger.isInfoEnabled()) {
+            logger.info(String.format("set %s: %s", key.getPropertyName(), value));
+        }
+        this.userProperties.setProperty(key.getPropertyName(), value);
     }
 
     static Map<String, String> parseMavenUserProperties(final String options) {

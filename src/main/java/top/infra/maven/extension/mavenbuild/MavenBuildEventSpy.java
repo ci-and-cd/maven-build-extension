@@ -23,13 +23,11 @@ import static top.infra.maven.extension.mavenbuild.Constants.GIT_REF_NAME_DEVELO
 import static top.infra.maven.extension.mavenbuild.Constants.INFRASTRUCTURE_OPENSOURCE;
 import static top.infra.maven.extension.mavenbuild.Constants.USER_PROPERTY_SETTINGS_LOCALREPOSITORY;
 import static top.infra.maven.extension.mavenbuild.Docker.dockerHost;
-import static top.infra.maven.extension.mavenbuild.GitRepository.settingsSecurityXml;
 import static top.infra.maven.extension.mavenbuild.MavenProjectInfo.newProjectInfoByBuildProject;
 import static top.infra.maven.extension.mavenbuild.MavenProjectInfo.newProjectInfoByReadPom;
+import static top.infra.maven.extension.mavenbuild.MavenServerInterceptor.absentVarsInSettingsXml;
 import static top.infra.maven.extension.mavenbuild.SupportFunction.isEmpty;
 import static top.infra.maven.extension.mavenbuild.SupportFunction.systemUserHome;
-
-import cn.home1.tools.maven.MavenSettingsSecurity;
 
 import java.io.File;
 import java.net.URL;
@@ -40,9 +38,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.Properties;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 import javax.inject.Inject;
 import javax.inject.Named;
@@ -59,7 +55,6 @@ import org.apache.maven.settings.building.SettingsBuildingResult;
 import org.apache.maven.settings.crypto.SettingsDecrypter;
 import org.apache.maven.toolchain.building.ToolchainsBuildingRequest;
 import org.eclipse.aether.RepositorySystemSession;
-import org.unix4j.Unix4j;
 
 import top.infra.maven.extension.mavenbuild.model.ProjectBuilderActivatorModelResolver;
 
@@ -101,6 +96,8 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
 
     private String mavenSettingsPathname;
 
+    private MavenServerInterceptor mavenServerInterceptor;
+
     private String rootProjectPathname;
 
     /**
@@ -118,7 +115,8 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
         final ProjectBuilder projectBuilder,
         final DefaultRepositorySystemSessionFactory repositorySessionFactory,
         final ProjectBuilderActivatorModelResolver resolver,
-        final SettingsDecrypter settingsDecrypter
+        final SettingsDecrypter settingsDecrypter,
+        final MavenServerInterceptor mavenServerInterceptor
     ) {
         this.homeDir = systemUserHome();
         this.logger = new LoggerPlexusImpl(logger);
@@ -127,6 +125,7 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
         this.repositorySessionFactory = repositorySessionFactory;
         this.resolver = resolver;
         this.settingsDecrypter = settingsDecrypter;
+        this.mavenServerInterceptor = mavenServerInterceptor;
 
         this.settingsLocalRepository = null;
         this.ciOpts = null;
@@ -166,15 +165,6 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
                     }
                     result.getEffectiveSettings().setLocalRepository(this.settingsLocalRepository);
                 }
-
-                // for (final Server server : result.getEffectiveSettings().getServers()) {
-                //     final SettingsDecryptionRequest decryptionRequest = new DefaultSettingsDecryptionRequest(server);
-                //     final SettingsDecryptionResult decryptionResult = this.settingsDecrypter.decrypt(decryptionRequest);
-                //     final Server decryptedServer = decryptionResult.getServer();
-                //     if (decryptedServer != null && " ".equals(decryptedServer.getPassword())) {
-                //         logger.info(String.format("server [%s] has a default blank password [ ]", decryptedServer.getId()));
-                //     }
-                // }
             } else if (event instanceof ToolchainsBuildingRequest) {
                 final ToolchainsBuildingRequest request = (ToolchainsBuildingRequest) event;
 
@@ -190,8 +180,23 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
                     request.getUserProperties().setProperty(USER_PROPERTY_SETTINGS_LOCALREPOSITORY, this.settingsLocalRepository);
                 }
 
+                this.mavenServerInterceptor.checkServers(request.getServers());
+
                 final ProjectBuildingRequest projectBuildingRequest = request.getProjectBuildingRequest();
                 if (projectBuildingRequest != null) {
+                    // To make profile activation conditions work
+                    SupportFunction.merge(request.getSystemProperties(), projectBuildingRequest.getSystemProperties());
+                    SupportFunction.merge(request.getUserProperties(), projectBuildingRequest.getUserProperties());
+                    if (logger.isInfoEnabled()) {
+                        logger.info("     >>>>> projectBuildingRequest (ProfileActivationContext) systemProperties >>>>>");
+                        logger.info(SupportFunction.toString(projectBuildingRequest.getSystemProperties(), PATTERN_CI_ENV_VARS));
+                        logger.info("     <<<<< projectBuildingRequest (ProfileActivationContext) systemProperties <<<<<");
+
+                        logger.info("     >>>>> projectBuildingRequest (ProfileActivationContext) userProperties >>>>>");
+                        logger.info(SupportFunction.toString(projectBuildingRequest.getUserProperties(), null));
+                        logger.info("     <<<<< projectBuildingRequest (ProfileActivationContext) userProperties <<<<<");
+                    }
+
                     final boolean repositorySystemSessionNull = this.createRepositorySystemSessionIfAbsent(request);
                     try {
                         this.resolver.setProjectBuildingRequest(projectBuildingRequest);
@@ -201,20 +206,6 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
                     } finally {
                         if (repositorySystemSessionNull) {
                             projectBuildingRequest.setRepositorySession(null);
-                        }
-
-                        // To make profile activation conditions work
-                        SupportFunction.merge(request.getSystemProperties(), projectBuildingRequest.getSystemProperties());
-                        SupportFunction.merge(request.getUserProperties(), projectBuildingRequest.getUserProperties());
-
-                        if (logger.isInfoEnabled()) {
-                            logger.info("     >>>>> projectBuildingRequest (ProfileActivationContext) systemProperties >>>>>");
-                            logger.info(SupportFunction.toString(projectBuildingRequest.getSystemProperties(), PATTERN_CI_ENV_VARS));
-                            logger.info("     <<<<< projectBuildingRequest (ProfileActivationContext) systemProperties <<<<<");
-
-                            logger.info("     >>>>> projectBuildingRequest (ProfileActivationContext) userProperties >>>>>");
-                            logger.info(SupportFunction.toString(projectBuildingRequest.getUserProperties(), null));
-                            logger.info("     <<<<< projectBuildingRequest (ProfileActivationContext) userProperties <<<<<");
                         }
                     }
                 } else {
@@ -241,6 +232,8 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
         }
 
         final Map<String, Object> contextData = context.getData();
+        final Properties systemProperties = (Properties) contextData.get("systemProperties");
+        final Properties userProperties = (Properties) contextData.get("userProperties");
 
         if (logger.isInfoEnabled()) {
             contextData.keySet().stream().sorted().forEach(k -> {
@@ -253,9 +246,6 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
                 }
             });
         }
-
-        final Properties systemProperties = (Properties) contextData.get("systemProperties");
-        final Properties userProperties = (Properties) contextData.get("userProperties");
 
         if (logger.isInfoEnabled()) {
             classPathEntries(logger, ClassLoader.getSystemClassLoader()).forEach(entry ->
@@ -340,8 +330,9 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
         }
 
         // github site options
-        ciOpts.getOption(GITHUB_GLOBAL_REPOSITORYOWNER).ifPresent(githubSiteRepoOwner ->
-            ciOpts.setSystemProperty(GITHUB_GLOBAL_REPOSITORYOWNER, githubSiteRepoOwner));
+
+        ciOpts.getOption(GITHUB_GLOBAL_REPOSITORYOWNER).ifPresent(owner ->
+            systemProperties.setProperty(GITHUB_GLOBAL_REPOSITORYOWNER.getSystemPropertyName(), owner));
         logger.info("<<<<<<<<<< ---------- load options from file ---------- <<<<<<<<<<");
 
         // maven options
@@ -367,51 +358,12 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
         this.mavenSettingsPathname = this.ciOpts.getOption(MAVEN_SETTINGS_FILE).orElse(null);
         final GitRepository gitRepository = this.ciOpts.gitRepository();
         gitRepository.downloadMavenSettingsFile(this.homeDir, this.mavenSettingsPathname);
-        gitRepository.downloadMavenToolchainFile(this.homeDir);
 
-        final Properties absentVarsInSettingsXml = absentVarsInSettingsXml(
-            logger, homeDir, this.mavenSettingsPathname, systemProperties);
+        this.mavenServerInterceptor.setHomeDir(this.homeDir);
+        final Properties absentVarsInSettingsXml = absentVarsInSettingsXml(logger, this.mavenSettingsPathname, systemProperties);
         SupportFunction.merge(absentVarsInSettingsXml, systemProperties);
-    }
 
-    static Properties absentVarsInSettingsXml(
-        final Logger logger,
-        final String homeDir,
-        final String mavenSettingsPathname,
-        final Properties systemProperties
-    ) {
-        final Properties result = new Properties();
-
-        // Fix 'Failed to decrypt passphrase for server foo: org.sonatype.plexus.components.cipher.PlexusCipherException...'
-        final Pattern patternEnvVar = Pattern.compile("\\$\\{env\\..+?\\}");
-        final List<String> envVars = SupportFunction.lines(Unix4j.cat(mavenSettingsPathname).toStringResult())
-            .stream()
-            .flatMap(line -> {
-                final Matcher matcher = patternEnvVar.matcher(line);
-                final List<String> matches = new LinkedList<>();
-                while (matcher.find()) {
-                    matches.add(matcher.group(0));
-                }
-                return matches.stream();
-            })
-            .distinct()
-            .map(line -> line.substring(2, line.length() - 1))
-            .collect(Collectors.toList());
-
-        if (!envVars.isEmpty()) {
-            final MavenSettingsSecurity settingsSecurity = new MavenSettingsSecurity(settingsSecurityXml(homeDir), false);
-            final String defaultPassword = settingsSecurity.encodeText(" ");
-
-            envVars.forEach(envVar -> {
-                if (!systemProperties.containsKey(envVar)) {
-                    logger.warn(String.format(
-                        "Please set a value for env variable [%s] (in settings.xml), to avoid passphrase decrypt error.", envVar));
-                    result.setProperty(envVar, defaultPassword);
-                }
-            });
-        }
-
-        return result;
+        gitRepository.downloadMavenToolchainFile(this.homeDir);
     }
 
     private void onSettingsBuildingRequest(
