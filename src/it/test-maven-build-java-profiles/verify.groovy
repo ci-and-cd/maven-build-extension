@@ -16,3 +16,8 @@ asssertMagicFileExists('/target/parent-java-8-profile2.md')
 asssertMagicFileExists('/target/parent-profile-sonar.md')
 asssertMagicFileExists('/build-docker/target/build-docker-java8-profile1.md')
 asssertMagicFileExists('/build-docker/target/build-docker-java-8-profile2.md')
+
+asssertMagicFileExists('target/run-on-multi-module-root-only.md')
+asssertMagicFileNotExists('/build-docker/target/run-on-multi-module-root-only.md')
+asssertMagicFileExists('target/run-on-multi-module-root-and-sub-modules.md')
+asssertMagicFileExists('/build-docker/target/run-on-multi-module-root-and-sub-modules.md')

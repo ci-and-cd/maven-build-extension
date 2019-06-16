@@ -2,12 +2,8 @@ package top.infra.maven.extension.mavenbuild;
 
 import static java.lang.Boolean.FALSE;
 import static top.infra.maven.extension.mavenbuild.CiOption.INFRASTRUCTURE;
-import static top.infra.maven.extension.mavenbuild.SupportFunction.profileId;
-import static top.infra.maven.extension.mavenbuild.SupportFunction.projectName;
 import static top.infra.maven.extension.mavenbuild.SupportFunction.toProperties;
 
-import java.util.LinkedHashMap;
-import java.util.Map;
 import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -18,97 +14,46 @@ import org.apache.maven.model.Model;
 import org.apache.maven.model.Profile;
 import org.apache.maven.model.building.ModelProblemCollector;
 import org.apache.maven.model.profile.ProfileActivationContext;
-import org.apache.maven.model.profile.activation.ProfileActivator;
 import org.codehaus.plexus.component.annotations.Component;
+import org.codehaus.plexus.logging.Logger;
 
-import top.infra.maven.extension.mavenbuild.model.ActivatorModelResolver;
 import top.infra.maven.extension.mavenbuild.model.ProjectBuilderActivatorModelResolver;
 
 @Component(role = CustomActivator.class, hint = "InfrastructureActivator")
-public class InfrastructureActivator implements ProfileActivator, CustomActivator {
+public class InfrastructureActivator extends AbstractCustomActivator {
 
     private static final Pattern PATTERN_INFRASTRUCTURE_PROFILE = Pattern.compile(".*infrastructure_(\\w+)[-]?.*");
 
-    protected final Logger logger;
-
     private final GitProperties gitProperties;
-
-    private final Map<String, Boolean> profileMemento;
-
-    private final ActivatorModelResolver resolver;
 
     private CiOptionAccessor ciOpts;
 
     @Inject
     public InfrastructureActivator(
-        final org.codehaus.plexus.logging.Logger logger,
-        final GitPropertiesBean gitProperties,
-        final ProjectBuilderActivatorModelResolver resolver
+        final Logger logger,
+        final ProjectBuilderActivatorModelResolver resolver,
+        final GitPropertiesBean gitProperties
     ) {
-        this.logger = new LoggerPlexusImpl(logger);
-
+        super(logger, resolver);
         this.gitProperties = gitProperties;
-        this.profileMemento = new LinkedHashMap<>();
-        this.resolver = resolver;
     }
 
     @Override
-    public boolean isActive(
-        final Profile profile,
-        final ProfileActivationContext context,
-        final ModelProblemCollector problems
-    ) {
-        final Boolean result;
-
-        final Boolean found = this.profileMemento.get(profile.toString());
-
-        if (found == null) {
-            if (!this.presentInConfig(profile, context, problems)) {
-                if (logger.isDebugEnabled()) {
-                    logger.debug(String.format("InfrastructureActivator profile '%s' not presentInConfig", profileId(profile)));
-                }
-
-                result = false;
-            } else {
-                // Required project.
-                final Optional<Model> project = this.resolver.resolveModel(profile, context);
-                if (project.isPresent()) {
-                    result = this.isActiveByProfileName(profile, context);
-                } else {
-                    // reportProblem("Failed to resolve model", new Exception("Invalid Project"), profile, context, problems);
-                    result = false;
-                }
-
-                this.profileMemento.put(profile.toString(), result);
-            }
-
-            if (result && logger.isInfoEnabled()) {
-                logger.info(String.format("InfrastructureActivator project='%s' profile='%s' result='true'",
-                    projectName(context), profileId(profile)));
-            } else if (!result && logger.isDebugEnabled()) {
-                logger.debug(String.format("InfrastructureActivator project='%s' profile='%s' result='false'",
-                    projectName(context), profileId(profile)));
-            }
-        } else {
-            result = found;
-        }
-
-        return result;
+    protected boolean cacheResult() {
+        return true;
     }
 
     @Override
-    public boolean presentInConfig(
+    protected String getName() {
+        return "InfrastructureActivator";
+    }
+
+    @Override
+    protected boolean isActive(
+        final Model model,
         final Profile profile,
         final ProfileActivationContext context,
         final ModelProblemCollector problems
-    ) {
-        final Optional<Model> model = this.resolver.resolveModel(profile, context);
-        return model.isPresent();
-    }
-
-    protected boolean isActiveByProfileName(
-        final Profile profile,
-        final ProfileActivationContext context
     ) {
         if (this.ciOpts == null) {
             this.ciOpts = new CiOptionAccessor(

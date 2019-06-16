@@ -19,19 +19,21 @@ import static top.infra.maven.extension.mavenbuild.CiOption.MVN_DEPLOY_PUBLISH_S
 import static top.infra.maven.extension.mavenbuild.CiOption.ORIGIN_REPO;
 import static top.infra.maven.extension.mavenbuild.CiOption.PUBLISH_TO_REPO;
 import static top.infra.maven.extension.mavenbuild.CiOption.SITE;
+import static top.infra.maven.extension.mavenbuild.Constants.BOOL_STRING_FALSE;
+import static top.infra.maven.extension.mavenbuild.Constants.BOOL_STRING_TRUE;
 import static top.infra.maven.extension.mavenbuild.Constants.GIT_REF_NAME_DEVELOP;
 import static top.infra.maven.extension.mavenbuild.Constants.INFRASTRUCTURE_OPENSOURCE;
 import static top.infra.maven.extension.mavenbuild.Constants.USER_PROPERTY_SETTINGS_LOCALREPOSITORY;
 import static top.infra.maven.extension.mavenbuild.Docker.dockerHost;
-import static top.infra.maven.extension.mavenbuild.MavenProjectInfo.newProjectInfoByBuildProject;
-import static top.infra.maven.extension.mavenbuild.MavenProjectInfo.newProjectInfoByReadPom;
 import static top.infra.maven.extension.mavenbuild.MavenServerInterceptor.absentVarsInSettingsXml;
 import static top.infra.maven.extension.mavenbuild.SupportFunction.isEmpty;
+import static top.infra.maven.extension.mavenbuild.SupportFunction.isNotEmpty;
 import static top.infra.maven.extension.mavenbuild.SupportFunction.systemUserHome;
 
 import java.io.File;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.util.AbstractMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -46,15 +48,11 @@ import javax.inject.Singleton;
 
 import org.apache.maven.eventspy.AbstractEventSpy;
 import org.apache.maven.execution.MavenExecutionRequest;
-import org.apache.maven.internal.aether.DefaultRepositorySystemSessionFactory;
-import org.apache.maven.project.ProjectBuilder;
 import org.apache.maven.project.ProjectBuildingRequest;
-import org.apache.maven.rtinfo.RuntimeInformation;
 import org.apache.maven.settings.building.SettingsBuildingRequest;
 import org.apache.maven.settings.building.SettingsBuildingResult;
 import org.apache.maven.settings.crypto.SettingsDecrypter;
 import org.apache.maven.toolchain.building.ToolchainsBuildingRequest;
-import org.eclipse.aether.RepositorySystemSession;
 
 import top.infra.maven.extension.mavenbuild.model.ProjectBuilderActivatorModelResolver;
 
@@ -70,6 +68,7 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
     private static final String GOAL_CLEAN = "clean";
     private static final String GOAL_DEPLOY = "deploy";
     private static final String GOAL_INSTALL = "install";
+    private static final String GOAL_PACKAGE = "package";
 
     private static final String NA = "N/A";
     private static final Pattern PATTERN_CI_ENV_VARS = Pattern.compile("^env\\.CI_.+");
@@ -78,13 +77,7 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
 
     private final String homeDir;
 
-    // @org.codehaus.plexus.component.annotations.Requirement
-    private final RuntimeInformation runtime;
-
-    // @org.codehaus.plexus.component.annotations.Requirement
-    private final ProjectBuilder projectBuilder;
-
-    private final DefaultRepositorySystemSessionFactory repositorySessionFactory;
+    private final MavenProjectInfoBean projectInfoBean;
 
     private final ProjectBuilderActivatorModelResolver resolver;
 
@@ -103,32 +96,26 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
     /**
      * Constructor.
      *
-     * @param logger                   inject logger {@link org.codehaus.plexus.logging.Logger}
-     * @param runtime                  inject RuntimeInformation of maven-core
-     * @param projectBuilder           inject ProjectBuilder of maven-core
-     * @param repositorySessionFactory inject DefaultRepositorySystemSessionFactory of maven-core
-     * @param settingsDecrypter        settingsDecrypter
-     * @param mavenServerInterceptor   mavenServerInterceptor
-     * @param resolver                 resolver
+     * @param logger                 inject logger {@link org.codehaus.plexus.logging.Logger}
+     * @param resolver               resolver
+     * @param settingsDecrypter      settingsDecrypter
+     * @param mavenServerInterceptor mavenServerInterceptor
+     * @param projectInfoBean        inject projectInfoBean
      */
     @Inject
     public MavenBuildEventSpy(
         final org.codehaus.plexus.logging.Logger logger,
-        final RuntimeInformation runtime,
-        final ProjectBuilder projectBuilder,
-        final DefaultRepositorySystemSessionFactory repositorySessionFactory,
+        final ProjectBuilderActivatorModelResolver resolver,
         final SettingsDecrypter settingsDecrypter,
         final MavenServerInterceptor mavenServerInterceptor,
-        final ProjectBuilderActivatorModelResolver resolver
+        final MavenProjectInfoBean projectInfoBean
     ) {
         this.homeDir = systemUserHome();
         this.logger = new LoggerPlexusImpl(logger);
-        this.runtime = runtime;
-        this.projectBuilder = projectBuilder;
-        this.repositorySessionFactory = repositorySessionFactory;
         this.resolver = resolver;
         this.settingsDecrypter = settingsDecrypter;
         this.mavenServerInterceptor = mavenServerInterceptor;
+        this.projectInfoBean = projectInfoBean;
 
         this.settingsLocalRepository = null;
         this.mavenSettingsPathname = null;
@@ -199,17 +186,13 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
                         logger.info("     <<<<< projectBuildingRequest (ProfileActivationContext) userProperties <<<<<");
                     }
 
-                    final boolean repositorySystemSessionNull = this.createRepositorySystemSessionIfAbsent(request);
-                    try {
-                        this.resolver.setProjectBuildingRequest(projectBuildingRequest);
+                    this.resolver.setProjectBuildingRequest(projectBuildingRequest);
 
-                        final List<String> goals = this.onMavenExecutionRequest(request, this.homeDir, this.ciOpts);
-                        this.prepareDocker(goals, this.homeDir, this.ciOpts);
-                    } finally {
-                        if (repositorySystemSessionNull) {
-                            projectBuildingRequest.setRepositorySession(null);
-                        }
-                    }
+                    final Entry<List<String>, Properties> goalsAndProps = this.onMavenExecutionRequest(request, this.homeDir, this.ciOpts);
+                    request.setGoals(goalsAndProps.getKey());
+                    SupportFunction.merge(goalsAndProps.getValue(), request.getUserProperties());
+                    SupportFunction.merge(goalsAndProps.getValue(), projectBuildingRequest.getUserProperties());
+                    this.prepareDocker(goalsAndProps.getKey(), this.homeDir, this.ciOpts);
                 } else {
                     if (logger.isInfoEnabled()) {
                         logger.info(String.format("onEvent MavenExecutionRequest %s but projectBuildingRequest is null.", request));
@@ -286,7 +269,7 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
             final String javaVersion = runtimeImplVersion != null ? runtimeImplVersion : System.getProperty("java.runtime.version");
 
             logger.info(String.format("Java version [%s]", javaVersion));
-            logger.info(String.format("Maven version [%s]", this.runtime.getMavenVersion()));
+            logger.info(String.format("Maven version [%s]", this.projectInfoBean.getMavenVersion()));
 
             final GitlabCiVariables gitlabCi = new GitlabCiVariables(systemProperties);
             logger.info(String.format(
@@ -401,7 +384,7 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
         }
     }
 
-    private List<String> onMavenExecutionRequest(
+    private Entry<List<String>, Properties> onMavenExecutionRequest(
         final MavenExecutionRequest request,
         final String homeDir,
         final CiOptionAccessor ciOpts
@@ -418,10 +401,7 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
             logger.info(">>>>>>>>>> ---------- resolve project version ---------- >>>>>>>>>>");
         }
         // Options are not calculated and merged into projectBuildingRequest this time.
-        final File pomFile = request.getPom();
-        final ProjectBuildingRequest projectBuildingRequest = request.getProjectBuildingRequest();
-        final MavenProjectInfo projectInfo = newProjectInfoByReadPom(logger, pomFile)
-            .orElseGet(() -> newProjectInfoByBuildProject(logger, this.projectBuilder, pomFile, projectBuildingRequest));
+        final MavenProjectInfo projectInfo = this.projectInfoBean.getMavenProjectInfo(request);
         if (logger.isInfoEnabled()) {
             logger.info(projectInfo.toString());
         }
@@ -459,9 +439,7 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
 
         final Boolean publishToRepo = ciOpts.getOption(PUBLISH_TO_REPO).map(Boolean::parseBoolean).orElse(FALSE)
             && resultCheckProjectVersion.getKey();
-        final List<String> goals = this.editMavenGoals(projectInfo.getVersion(), ciOpts, request.getGoals(), publishToRepo);
-        request.setGoals(goals);
-        return goals;
+        return this.editMavenGoals(ciOpts, request.getGoals(), publishToRepo);
     }
 
     private void checkGitAuthToken(final CiOptionAccessor ciOpts) {
@@ -483,47 +461,6 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
             }
         }
         logger.info("<<<<<<<<<< ---------- check GIT_AUTH_TOKEN ---------- <<<<<<<<<<");
-    }
-
-    /**
-     * Create repositorySystemSession if absent.
-     *
-     * @param request mavenExecutionRequest
-     * @return repositorySystemSessionNull
-     */
-    private boolean createRepositorySystemSessionIfAbsent(final MavenExecutionRequest request) {
-        /*
-        RepositorySystemSession may be null, e.g. maven 3.6.0's MavenExecutionRequest.projectBuildingRequest.repositorySession
-        java.lang.NullPointerException
-        at org.apache.maven.RepositoryUtils.getWorkspace(RepositoryUtils.java:375)
-        at org.apache.maven.plugin.DefaultPluginArtifactsCache$CacheKey.<init>(DefaultPluginArtifactsCache.java:70)
-        at org.apache.maven.plugin.DefaultPluginArtifactsCache.createKey(DefaultPluginArtifactsCache.java:135)
-        at org.apache.maven.plugin.internal.DefaultMavenPluginManager.setupExtensionsRealm(DefaultMavenPluginManager.java:824)
-        at org.apache.maven.project.DefaultProjectBuildingHelper.createProjectRealm(DefaultProjectBuildingHelper.java:197)
-        at org.apache.maven.project.DefaultModelBuildingListener.buildExtensionsAssembled(DefaultModelBuildingListener.java:101)
-        at org.apache.maven.model.building.ModelBuildingEventCatapult$1.fire(ModelBuildingEventCatapult.java:44)
-        at org.apache.maven.model.building.DefaultModelBuilder.fireEvent(DefaultModelBuilder.java:1360)
-        at org.apache.maven.model.building.DefaultModelBuilder.build(DefaultModelBuilder.java:452)
-        at org.apache.maven.model.building.DefaultModelBuilder.build(DefaultModelBuilder.java:432)
-        at org.apache.maven.project.DefaultProjectBuilder.build(DefaultProjectBuilder.java:616)
-        at org.apache.maven.project.DefaultProjectBuilder.build(DefaultProjectBuilder.java:385)
-        ...
-         */
-        final ProjectBuildingRequest projectBuildingRequest = request.getProjectBuildingRequest();
-        final boolean repositorySystemSessionNull;
-        if (projectBuildingRequest != null) {
-            repositorySystemSessionNull = projectBuildingRequest.getRepositorySession() == null;
-            if (repositorySystemSessionNull) {
-                if (logger.isInfoEnabled()) {
-                    logger.info(String.format("repositorySystemSession not found in %s", projectBuildingRequest));
-                }
-                final RepositorySystemSession repositorySystemSession = this.repositorySessionFactory.newRepositorySession(request);
-                projectBuildingRequest.setRepositorySession(repositorySystemSession);
-            }
-        } else {
-            repositorySystemSessionNull = true;
-        }
-        return repositorySystemSessionNull;
     }
 
     private void decryptFiles(
@@ -552,8 +489,24 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
         logger.info("    <<<<<<<<<< ---------- decrypt files and handle keys ---------- <<<<<<<<<<");
     }
 
-    private List<String> editMavenGoals(
-        final String projectVersion,
+    private static final String PROP_MVN_DEPLOY_PUBLISH_SEGREGATION_GOAL = "mvn.deploy.publish.segregation.goal";
+    private static final String PROP_MVN_DEPLOY_PUBLISH_SEGREGATION_GOAL_DEPLOY = "mvn.deploy.publish.segregation.goal.deploy";
+    private static final String PROP_MVN_DEPLOY_PUBLISH_SEGREGATION_GOAL_INSTALL = "mvn.deploy.publish.segregation.goal.install";
+    private static final String PROP_MVN_DEPLOY_PUBLISH_SEGREGATION_GOAL_PACKAGE = "mvn.deploy.publish.segregation.goal.package";
+
+    private static boolean isSiteGoal(final String goal) {
+        return isNotEmpty(goal) && goal.contains("site");
+    }
+
+    private static boolean isDeployGoal(final String goal) {
+        return isNotEmpty(goal) && goal.endsWith(GOAL_DEPLOY) && !isSiteGoal(goal);
+    }
+
+    private static boolean isInstallGoal(final String goal) {
+        return isNotEmpty(goal) && !isDeployGoal(goal) && !isSiteGoal(goal) && goal.endsWith(GOAL_INSTALL);
+    }
+
+    private Entry<List<String>, Properties> editMavenGoals(
         final CiOptionAccessor ciOpts,
         final List<String> requestedGoals,
         final Boolean publishToRepo
@@ -562,47 +515,28 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
             logger.info(">>>>>>>>>> ---------- run_mvn alter_mvn ---------- >>>>>>>>>>");
             logger.info(String.format("onMavenExecutionRequest requested goals: %s", String.join(" ", requestedGoals)));
         }
-        // requestedGoals.remove("dependency:resolve");
+
+        final Properties additionalProperties = new Properties();
 
         final String msgReplaceGoal = "onMavenExecutionRequest replace goal %s to %s (%s: %s)";
 
-        final Boolean docker = ciOpts.getOption(DOCKER).map(Boolean::parseBoolean).orElse(FALSE);
         final Boolean mvnDeployPublishSegregation = ciOpts.getOption(MVN_DEPLOY_PUBLISH_SEGREGATION)
             .map(Boolean::parseBoolean).orElse(FALSE);
         final Boolean site = ciOpts.getOption(SITE).map(Boolean::parseBoolean).orElse(FALSE);
 
         final List<String> resultGoals = new LinkedList<>();
         for (final String goal : requestedGoals) {
-            if (goal.endsWith(GOAL_DEPLOY) && !goal.contains("site")) {
-                // deploy, site-deploy, push (docker)
+            if (isDeployGoal(goal)) {
+                // deploy, site-deploy
                 if (publishToRepo) {
-                    if (mvnDeployPublishSegregation) {
-                        // maven deploy and publish segregation
-                        final String wagonGoal = "org.codehaus.mojo:wagon-maven-plugin:merge-maven-repos@merge-maven-repos-deploy";
-                        resultGoals.add(wagonGoal);
-                        // if (docker) {
-                        //     final String dockerPushGoal = "dockerfile:push";
-                        //     resultGoals.add(dockerPushGoal);
-                        //     if (logger.isInfoEnabled()) {
-                        //         logger.info(String.format(msgReplaceGoal, goal, wagonGoal + " " + dockerPushGoal,
-                        //             MVN_DEPLOY_PUBLISH_SEGREGATION.getEnvVariableName(), mvnDeployPublishSegregation.toString()));
-                        //     }
-                        // } else {
-                        if (logger.isInfoEnabled()) {
-                            logger.info(String.format(msgReplaceGoal, goal, wagonGoal,
-                                MVN_DEPLOY_PUBLISH_SEGREGATION.getEnvVariableName(), mvnDeployPublishSegregation.toString()));
-                        }
-                        // }
-                    } else {
-                        resultGoals.add(goal);
-                    }
+                    resultGoals.add(goal);
                 } else {
                     if (logger.isInfoEnabled()) {
                         logger.info(String.format("onMavenExecutionRequest skip goal %s (%s: %s)",
                             goal, PUBLISH_TO_REPO.getEnvVariableName(), publishToRepo.toString()));
                     }
                 }
-            } else if (goal.contains("site")) {
+            } else if (isSiteGoal(goal)) {
                 if (site) {
                     resultGoals.add(goal);
                 } else {
@@ -611,10 +545,9 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
                             SITE.getEnvVariableName(), site.toString()));
                     }
                 }
-            } else if (goal.endsWith(GOAL_CLEAN) || goal.endsWith(GOAL_INSTALL)) {
+            } else if (goal.endsWith(GOAL_CLEAN) || isInstallGoal(goal)) {
                 // goals need to alter
                 if (mvnDeployPublishSegregation) {
-                    // maven deploy and publish segregation
                     if (goal.endsWith(GOAL_CLEAN)) {
                         resultGoals.add(GOAL_CLEAN);
                         final String wagonGoal = "org.apache.maven.plugins:maven-antrun-plugin:run@local-deploy-model-path-clean";
@@ -623,22 +556,13 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
                             logger.info(String.format(msgReplaceGoal, goal, GOAL_CLEAN + " " + wagonGoal,
                                 MVN_DEPLOY_PUBLISH_SEGREGATION.getEnvVariableName(), mvnDeployPublishSegregation.toString()));
                         }
-                    } else if (goal.endsWith(GOAL_INSTALL)) {
+                    } else if (isInstallGoal(goal)) {
                         resultGoals.add(GOAL_DEPLOY); // deploy artifacts into -DaltDeploymentRepository=wagonRepository
-                        // if (docker) {
-                        //     final String dockerBuildGoal = "dockerfile:build";
-                        //     resultGoals.add(dockerBuildGoal);
-                        //     if (logger.isInfoEnabled()) {
-                        //         logger.info(String.format(msgReplaceGoal, goal, GOAL_DEPLOY + " " + dockerBuildGoal,
-                        //             DOCKER.getEnvVariableName(), docker.toString()));
-                        //     }
-                        // } else {
                         if (logger.isInfoEnabled()) {
                             logger.info(String.format("onMavenExecutionRequest replace goal %s to %s (%s: %s)",
                                 goal, GOAL_DEPLOY,
-                                DOCKER.getEnvVariableName(), docker.toString()));
+                                MVN_DEPLOY_PUBLISH_SEGREGATION.getEnvVariableName(), mvnDeployPublishSegregation.toString()));
                         }
-                        // }
                     }
                 } else {
                     resultGoals.add(goal);
@@ -663,11 +587,37 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
             }
         }
 
+        additionalProperties.setProperty(PROP_MVN_DEPLOY_PUBLISH_SEGREGATION_GOAL_DEPLOY, BOOL_STRING_FALSE);
+        additionalProperties.setProperty(PROP_MVN_DEPLOY_PUBLISH_SEGREGATION_GOAL_INSTALL, BOOL_STRING_FALSE);
+        additionalProperties.setProperty(PROP_MVN_DEPLOY_PUBLISH_SEGREGATION_GOAL_PACKAGE, BOOL_STRING_FALSE);
+        if (mvnDeployPublishSegregation) {
+            if (resultGoals.contains(GOAL_PACKAGE)) {
+                additionalProperties.setProperty(PROP_MVN_DEPLOY_PUBLISH_SEGREGATION_GOAL_PACKAGE, BOOL_STRING_TRUE);
+                additionalProperties.setProperty(PROP_MVN_DEPLOY_PUBLISH_SEGREGATION_GOAL, GOAL_PACKAGE);
+            }
+
+            final Optional<String> requestedInstallGoal = requestedGoals.stream().filter(MavenBuildEventSpy::isInstallGoal).findAny();
+            if (requestedInstallGoal.isPresent() && resultGoals.contains(GOAL_DEPLOY)) {
+                additionalProperties.setProperty(PROP_MVN_DEPLOY_PUBLISH_SEGREGATION_GOAL_INSTALL, BOOL_STRING_TRUE);
+                additionalProperties.setProperty(PROP_MVN_DEPLOY_PUBLISH_SEGREGATION_GOAL_PACKAGE, BOOL_STRING_TRUE);
+                additionalProperties.setProperty(PROP_MVN_DEPLOY_PUBLISH_SEGREGATION_GOAL, GOAL_INSTALL);
+            }
+
+            final Optional<String> requestedDeployGoal = requestedGoals.stream().filter(MavenBuildEventSpy::isDeployGoal).findAny();
+            if (requestedDeployGoal.isPresent() && publishToRepo) {
+                additionalProperties.setProperty(PROP_MVN_DEPLOY_PUBLISH_SEGREGATION_GOAL_DEPLOY, BOOL_STRING_TRUE);
+                additionalProperties.setProperty(PROP_MVN_DEPLOY_PUBLISH_SEGREGATION_GOAL, GOAL_DEPLOY);
+            }
+        }
+
         if (logger.isInfoEnabled()) {
             logger.info(String.format("onMavenExecutionRequest result goals: %s", String.join(" ", resultGoals)));
+            logger.info(">>>>>>>>>> ---------- onMavenExecutionRequest additionalProperties ---------- >>>>>>>>>>");
+            logger.info(SupportFunction.toString(additionalProperties, null));
+            logger.info("<<<<<<<<<< ---------- onMavenExecutionRequest additionalProperties ---------- <<<<<<<<<<");
             logger.info("<<<<<<<<<< ---------- run_mvn alter_mvn ---------- <<<<<<<<<<");
         }
-        return resultGoals;
+        return new AbstractMap.SimpleImmutableEntry<>(resultGoals, additionalProperties);
     }
 
     private void prepareDocker(
@@ -684,7 +634,7 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
                     || goal.endsWith(GOAL_DEPLOY)
                     || goal.endsWith("push")
                     || goal.equals(GOAL_INSTALL)
-                    || goal.equals("package")
+                    || goal.equals(GOAL_PACKAGE)
             );
 
         if (dockerEnabled) {
