@@ -6,13 +6,15 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
+import org.apache.maven.model.Activation;
 import org.apache.maven.model.Profile;
 import org.apache.maven.model.building.ModelProblemCollector;
 import org.apache.maven.model.profile.DefaultProfileSelector;
 import org.apache.maven.model.profile.ProfileActivationContext;
 import org.apache.maven.model.profile.ProfileSelector;
-import org.apache.maven.model.profile.activation.ProfileActivator;
 import org.codehaus.plexus.component.annotations.Component;
 import org.codehaus.plexus.component.annotations.Requirement;
 import org.codehaus.plexus.logging.Logger;
@@ -30,15 +32,12 @@ public class MavenBuildProfileSelector extends DefaultProfileSelector {
     @Requirement
     protected Logger logger;
 
-    @Requirement(role = CustomActivator.class, hint = "JavaVersionSensitiveActivator")
-    private JavaVersionSensitiveActivator javaVersionSensitiveActivator;
-
     /**
      * Collect only custom activators.
      * Note: keep field name different from super.
      */
     @Requirement(role = CustomActivator.class)
-    protected List<ProfileActivator> customActivators = new ArrayList<>();
+    protected List<CustomActivator> customActivators = new ArrayList<>();
 
     /**
      * Profiles activated by custom and default activators.
@@ -49,19 +48,24 @@ public class MavenBuildProfileSelector extends DefaultProfileSelector {
         final ProfileActivationContext context,
         final ModelProblemCollector problems
     ) {
-        final List<Profile> defaultActiveProfiles = super.getActiveProfiles(profiles, context, problems);
-        defaultActiveProfiles.removeIf(p -> javaVersionSensitiveActivator.isJavaVersionSensitive(p));
+        final List<Profile> defaultActiveAll = super.getActiveProfiles(profiles, context, problems);
 
-        final List<Profile> customActiveProfiles = new ArrayList<>(profiles.size());
-        for (final Profile profile : profiles) {
-            if (this.thisIsActive(profile, context, problems)) {
-                customActiveProfiles.add(profile);
-            }
-        }
+        final Set<String> defaultActiveSupported = supportedProfiles(defaultActiveAll, this.customActivators).stream()
+            .map(Profile::toString)
+            .collect(Collectors.toSet());
+
+        final List<Profile> defaultActiveNotSupported = defaultActiveAll.stream()
+            .filter(profile -> !defaultActiveSupported.contains(profile.toString()))
+            .collect(Collectors.toList());
+
+        final List<Profile> customActive = supportedProfiles(profiles, this.customActivators).stream()
+            .filter(profile -> defaultActiveSupported.contains(profile.toString()) || noAnyCondition(profile))
+            .filter(profile -> this.customActivators.stream().anyMatch(activator -> activator.isActive(profile, context, problems)))
+            .collect(Collectors.toList());
 
         final ArrayList<Profile> activeProfiles = new ArrayList<>();
-        activeProfiles.addAll(defaultActiveProfiles);
-        activeProfiles.addAll(customActiveProfiles);
+        activeProfiles.addAll(defaultActiveNotSupported);
+        activeProfiles.addAll(customActive);
 
         if (!activeProfiles.isEmpty()) {
             if (logger.isDebugEnabled()) {
@@ -87,30 +91,18 @@ public class MavenBuildProfileSelector extends DefaultProfileSelector {
         }
     }
 
-    /**
-     * Note: "AND" for custom activators. See super.
-     */
-    protected boolean thisIsActive(
-        final Profile profile,
-        final ProfileActivationContext context,
-        final ModelProblemCollector problems
-    ) {
-        boolean isActive = false;
+    static boolean noAnyCondition(final Profile profile) {
+        final Activation activation = profile.getActivation();
+        return activation == null
+            || (activation.getFile() == null
+            && activation.getJdk() == null
+            && activation.getOs() == null
+            && activation.getProperty() == null);
+    }
 
-        for (final ProfileActivator customActivator : this.customActivators) {
-            if (customActivator.presentInConfig(profile, context, problems)) {
-                // "OR"
-                isActive = true;
-            }
-        }
-
-        for (final ProfileActivator customActivator : this.customActivators) {
-            if (customActivator.presentInConfig(profile, context, problems)) {
-                // "AND"
-                isActive &= customActivator.isActive(profile, context, problems);
-            }
-        }
-
-        return isActive;
+    static List<Profile> supportedProfiles(final Collection<Profile> profiles, final Collection<CustomActivator> customActivators) {
+        return profiles.stream()
+            .filter(profile -> customActivators.stream().anyMatch(activator -> activator.supported(profile)))
+            .collect(Collectors.toList());
     }
 }

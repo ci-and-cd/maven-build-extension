@@ -1,9 +1,10 @@
 package top.infra.maven.extension.mavenbuild;
 
-import static top.infra.maven.extension.mavenbuild.SupportFunction.parseJavaVersion;
+import static java.lang.Boolean.FALSE;
+import static top.infra.maven.extension.mavenbuild.CiOption.INFRASTRUCTURE;
 import static top.infra.maven.extension.mavenbuild.SupportFunction.profileId;
-import static top.infra.maven.extension.mavenbuild.SupportFunction.projectContext;
 import static top.infra.maven.extension.mavenbuild.SupportFunction.projectName;
+import static top.infra.maven.extension.mavenbuild.SupportFunction.toProperties;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -23,28 +24,30 @@ import org.codehaus.plexus.component.annotations.Component;
 import top.infra.maven.extension.mavenbuild.model.ActivatorModelResolver;
 import top.infra.maven.extension.mavenbuild.model.ProjectBuilderActivatorModelResolver;
 
-@Component(role = CustomActivator.class, hint = "JavaVersionSensitiveActivator")
-public class JavaVersionSensitiveActivator implements ProfileActivator, CustomActivator {
+@Component(role = CustomActivator.class, hint = "InfrastructureActivator")
+public class InfrastructureActivator implements ProfileActivator, CustomActivator {
 
-    private static final Pattern PATTERN_JAVA_PROFILE = Pattern.compile(".*java[-]?(\\d+)[-]?.*");
+    private static final Pattern PATTERN_INFRASTRUCTURE_PROFILE = Pattern.compile(".*infrastructure_(\\w+)[-]?.*");
 
-    /**
-     * Logger provided by Maven runtime.
-     */
-    // @org.codehaus.plexus.component.annotations.Requirement
     protected final Logger logger;
+
+    private final GitProperties gitProperties;
 
     private final Map<String, Boolean> profileMemento;
 
     private final ActivatorModelResolver resolver;
 
+    private CiOptionAccessor ciOpts;
+
     @Inject
-    public JavaVersionSensitiveActivator(
+    public InfrastructureActivator(
         final org.codehaus.plexus.logging.Logger logger,
+        final GitPropertiesBean gitProperties,
         final ProjectBuilderActivatorModelResolver resolver
     ) {
         this.logger = new LoggerPlexusImpl(logger);
 
+        this.gitProperties = gitProperties;
         this.profileMemento = new LinkedHashMap<>();
         this.resolver = resolver;
     }
@@ -62,7 +65,7 @@ public class JavaVersionSensitiveActivator implements ProfileActivator, CustomAc
         if (found == null) {
             if (!this.presentInConfig(profile, context, problems)) {
                 if (logger.isDebugEnabled()) {
-                    logger.debug(String.format("JavaVersionSensitiveActivator profile '%s' not presentInConfig", profileId(profile)));
+                    logger.debug(String.format("InfrastructureActivator profile '%s' not presentInConfig", profileId(profile)));
                 }
 
                 result = false;
@@ -70,23 +73,22 @@ public class JavaVersionSensitiveActivator implements ProfileActivator, CustomAc
                 // Required project.
                 final Optional<Model> project = this.resolver.resolveModel(profile, context);
                 if (project.isPresent()) {
-                    final Map<String, Object> projectContext = projectContext(project.get(), context);
-                    result = this.isActiveByProfileName(profile, projectContext);
+                    result = this.isActiveByProfileName(profile, context);
                 } else {
                     // reportProblem("Failed to resolve model", new Exception("Invalid Project"), profile, context, problems);
                     result = false;
                 }
+
+                this.profileMemento.put(profile.toString(), result);
             }
 
             if (result && logger.isInfoEnabled()) {
-                logger.info(String.format("JavaVersionSensitiveActivator project='%s' profile='%s' result='true'",
+                logger.info(String.format("InfrastructureActivator project='%s' profile='%s' result='true'",
                     projectName(context), profileId(profile)));
             } else if (!result && logger.isDebugEnabled()) {
-                logger.debug(String.format("JavaVersionSensitiveActivator project='%s' profile='%s' result='false'",
+                logger.debug(String.format("InfrastructureActivator project='%s' profile='%s' result='false'",
                     projectName(context), profileId(profile)));
             }
-
-            this.profileMemento.put(profile.toString(), result);
         } else {
             result = found;
         }
@@ -106,35 +108,32 @@ public class JavaVersionSensitiveActivator implements ProfileActivator, CustomAc
 
     protected boolean isActiveByProfileName(
         final Profile profile,
-        final Map<String, Object> projectContext
+        final ProfileActivationContext context
     ) {
+        if (this.ciOpts == null) {
+            this.ciOpts = new CiOptionAccessor(
+                logger,
+                this.gitProperties,
+                toProperties(context.getSystemProperties()),
+                toProperties(context.getUserProperties())
+            );
+        }
+
         final boolean result;
         if (this.supported(profile)) {
-            final Optional<Integer> profileJavaVersion = profileJavaVersion(profile.getId());
+            final Optional<String> profileInfrastructure = profileInfrastructure(profile.getId());
             if (logger.isDebugEnabled()) {
-                logger.debug(String.format("found java %s related profile", profileJavaVersion.orElse(null)));
+                logger.debug(String.format("found infrastructure %s related profile", profileInfrastructure.orElse(null)));
             }
 
-            Optional<Integer> javaVersionForce;
-            try {
-                javaVersionForce = Optional.of(Integer.parseInt("" + projectContext.get("javaVersionForce")));
-            } catch (final Exception ex) {
-                javaVersionForce = Optional.empty();
-            }
+            final Optional<String> infrastructure = this.ciOpts.getOption(INFRASTRUCTURE);
 
-            final boolean javaVersionActive;
-            if (javaVersionForce.isPresent()) {
-                javaVersionActive = javaVersionForce.get().equals(profileJavaVersion.orElse(null));
-            } else {
-                final Optional<Integer> projectJavaVersion = parseJavaVersion("" + projectContext.get("java.version"));
-                javaVersionActive = projectJavaVersion
-                    .map(integer -> integer.equals(profileJavaVersion.orElse(null))).orElse(false);
-            }
-
-            result = javaVersionActive;
+            result = infrastructure
+                .map(value -> value.equals(profileInfrastructure.orElse(null)))
+                .orElse(FALSE);
         } else {
             if (logger.isDebugEnabled()) {
-                logger.debug("not java related profile");
+                logger.debug("not infrastructure related profile");
             }
 
             result = false;
@@ -145,19 +144,15 @@ public class JavaVersionSensitiveActivator implements ProfileActivator, CustomAc
 
     @Override
     public boolean supported(final Profile profile) {
-        return profileJavaVersion(profile.getId()).isPresent();
+        return profileInfrastructure(profile.getId()).isPresent();
     }
 
-    static boolean isJavaVersionRelatedProfile(final String id) {
-        return PATTERN_JAVA_PROFILE.matcher(id).matches();
-    }
+    static Optional<String> profileInfrastructure(final String id) {
+        final Optional<String> result;
 
-    static Optional<Integer> profileJavaVersion(final String id) {
-        final Optional<Integer> result;
-
-        final Matcher matcher = PATTERN_JAVA_PROFILE.matcher(id);
+        final Matcher matcher = PATTERN_INFRASTRUCTURE_PROFILE.matcher(id);
         if (matcher.matches()) {
-            result = Optional.of(Integer.parseInt(matcher.group(1)));
+            result = Optional.of(matcher.group(1));
         } else {
             result = Optional.empty();
         }

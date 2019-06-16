@@ -43,7 +43,7 @@ public class GitProperties {
 
     private final Map<String, String> propertiesMap;
 
-    private GitProperties(final Logger logger, final Map<String, String> propertiesMap) {
+    protected GitProperties(final Logger logger, final Map<String, String> propertiesMap) {
         this.logger = logger;
 
         this.propertiesMap = Collections.unmodifiableMap(propertiesMap);

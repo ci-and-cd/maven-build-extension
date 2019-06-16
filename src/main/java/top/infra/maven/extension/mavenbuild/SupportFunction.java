@@ -51,8 +51,6 @@ public abstract class SupportFunction {
 
     static final Pattern PATTERN_GIT_REPO_SLUG = Pattern.compile(".*[:/]([^/]+(/[^/.]+))(\\.git)?");
 
-    private static final Pattern PATTERN_JAVA_PROFILE = Pattern.compile(".*java[-]?(\\d+)[-]?.*");
-
     private static final Pattern PATTERN_SEMANTIC_VERSION_SNAPSHOT = Pattern.compile("^([0-9]+\\.){0,2}[0-9]+-SNAPSHOT$");
 
     private static final Pattern PATTERN_URL = Pattern.compile("^(.+://|git@)([^/\\:]+(:\\d+)?).*$");
@@ -242,10 +240,6 @@ public abstract class SupportFunction {
         return str != null && !str.isEmpty();
     }
 
-    public static boolean isJavaVersionRelatedProfile(final String id) {
-        return PATTERN_JAVA_PROFILE.matcher(id).matches();
-    }
-
     static boolean isSemanticSnapshotVersion(final String version) {
         return version != null && PATTERN_SEMANTIC_VERSION_SNAPSHOT.matcher(version).matches();
     }
@@ -337,19 +331,6 @@ public abstract class SupportFunction {
      */
     static String profileId(final Profile profile) {
         return profile == null || profile.getId() == null ? "" : profile.getId();
-    }
-
-    public static Optional<Integer> profileJavaVersion(final String id) {
-        final Optional<Integer> result;
-
-        final Matcher matcher = PATTERN_JAVA_PROFILE.matcher(id);
-        if (matcher.matches()) {
-            result = Optional.of(Integer.parseInt(matcher.group(1)));
-        } else {
-            result = Optional.empty();
-        }
-
-        return result;
     }
 
     /**

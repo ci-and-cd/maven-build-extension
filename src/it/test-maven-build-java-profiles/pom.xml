@@ -140,6 +140,59 @@
             </build>
         </profile>
 
+        <profile>
+            <id>infrastructure_opensource</id>
+            <properties>
+                <magic.file.parent-infrastructure_opensource>${project.basedir}/target/parent-infrastructure_opensource.md</magic.file.parent-infrastructure_opensource>
+            </properties>
+            <build>
+                <plugins>
+                    <plugin>
+                        <artifactId>maven-antrun-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <configuration>
+                                    <target name="magic-file-parent-infrastructure_opensource">
+                                        <echo file="${magic.file.parent-infrastructure_opensource}" append="false">${magic.file.parent-infrastructure_opensource}</echo>
+                                    </target>
+                                </configuration>
+                                <id>parent-infrastructure_opensource-magic-file</id>
+                                <goals><goal>run</goal></goals>
+                                <phase>validate</phase>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
+        <profile>
+            <id>infrastructure_opensource-nexus2-staging</id>
+            <activation><property><name>nexus2-staging</name><value>true</value></property></activation>
+            <properties>
+                <magic.file.parent-infrastructure_opensource-nexus2-staging>${project.basedir}/target/parent-infrastructure_opensource-nexus2-staging.md</magic.file.parent-infrastructure_opensource-nexus2-staging>
+            </properties>
+            <build>
+                <plugins>
+                    <plugin>
+                        <artifactId>maven-antrun-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <configuration>
+                                    <target name="magic-file-parent-infrastructure_opensource-nexus2-staging">
+                                        <echo file="${magic.file.parent-infrastructure_opensource-nexus2-staging}" append="false">${magic.file.parent-infrastructure_opensource-nexus2-staging}</echo>
+                                    </target>
+                                </configuration>
+                                <id>parent-infrastructure_opensource-nexus2-staging-magic-file</id>
+                                <goals><goal>run</goal></goals>
+                                <phase>validate</phase>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
         <!-- Produce marker file for integration test. -->
         <profile>
             <id>parent-java8-profile1</id>

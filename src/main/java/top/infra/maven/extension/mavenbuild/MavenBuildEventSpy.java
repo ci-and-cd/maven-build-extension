@@ -107,6 +107,9 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
      * @param runtime                  inject RuntimeInformation of maven-core
      * @param projectBuilder           inject ProjectBuilder of maven-core
      * @param repositorySessionFactory inject DefaultRepositorySystemSessionFactory of maven-core
+     * @param settingsDecrypter        settingsDecrypter
+     * @param mavenServerInterceptor   mavenServerInterceptor
+     * @param resolver                 resolver
      */
     @Inject
     public MavenBuildEventSpy(
@@ -114,9 +117,9 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
         final RuntimeInformation runtime,
         final ProjectBuilder projectBuilder,
         final DefaultRepositorySystemSessionFactory repositorySessionFactory,
-        final ProjectBuilderActivatorModelResolver resolver,
         final SettingsDecrypter settingsDecrypter,
-        final MavenServerInterceptor mavenServerInterceptor
+        final MavenServerInterceptor mavenServerInterceptor,
+        final ProjectBuilderActivatorModelResolver resolver
     ) {
         this.homeDir = systemUserHome();
         this.logger = new LoggerPlexusImpl(logger);
@@ -128,7 +131,6 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
         this.mavenServerInterceptor = mavenServerInterceptor;
 
         this.settingsLocalRepository = null;
-        this.ciOpts = null;
         this.mavenSettingsPathname = null;
         this.rootProjectPathname = null;
     }
@@ -586,10 +588,10 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
                         //             MVN_DEPLOY_PUBLISH_SEGREGATION.getEnvVariableName(), mvnDeployPublishSegregation.toString()));
                         //     }
                         // } else {
-                            if (logger.isInfoEnabled()) {
-                                logger.info(String.format(msgReplaceGoal, goal, wagonGoal,
-                                    MVN_DEPLOY_PUBLISH_SEGREGATION.getEnvVariableName(), mvnDeployPublishSegregation.toString()));
-                            }
+                        if (logger.isInfoEnabled()) {
+                            logger.info(String.format(msgReplaceGoal, goal, wagonGoal,
+                                MVN_DEPLOY_PUBLISH_SEGREGATION.getEnvVariableName(), mvnDeployPublishSegregation.toString()));
+                        }
                         // }
                     } else {
                         resultGoals.add(goal);
@@ -622,7 +624,7 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
                                 MVN_DEPLOY_PUBLISH_SEGREGATION.getEnvVariableName(), mvnDeployPublishSegregation.toString()));
                         }
                     } else if (goal.endsWith(GOAL_INSTALL)) {
-                        resultGoals.add(GOAL_DEPLOY);
+                        resultGoals.add(GOAL_DEPLOY); // deploy artifacts into -DaltDeploymentRepository=wagonRepository
                         // if (docker) {
                         //     final String dockerBuildGoal = "dockerfile:build";
                         //     resultGoals.add(dockerBuildGoal);
@@ -631,11 +633,11 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
                         //             DOCKER.getEnvVariableName(), docker.toString()));
                         //     }
                         // } else {
-                            if (logger.isInfoEnabled()) {
-                                logger.info(String.format("onMavenExecutionRequest replace goal %s to %s (%s: %s)",
-                                    goal, GOAL_DEPLOY,
-                                    DOCKER.getEnvVariableName(), docker.toString()));
-                            }
+                        if (logger.isInfoEnabled()) {
+                            logger.info(String.format("onMavenExecutionRequest replace goal %s to %s (%s: %s)",
+                                goal, GOAL_DEPLOY,
+                                DOCKER.getEnvVariableName(), docker.toString()));
+                        }
                         // }
                     }
                 } else {

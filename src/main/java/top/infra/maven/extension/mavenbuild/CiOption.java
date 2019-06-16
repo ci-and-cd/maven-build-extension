@@ -99,7 +99,16 @@ public enum CiOption {
      * Custom property.
      * maven.javadoc.skip and maven.source.skip
      */
-    MAVEN_ARTIFACTS_SKIP("maven.artifacts.skip", BOOL_STRING_FALSE),
+    MAVEN_ARTIFACTS_SKIP("maven.artifacts.skip", BOOL_STRING_FALSE) {
+        @Override
+        protected Optional<String> calculateValue(
+            final GitProperties gitProperties,
+            final Properties systemProperties,
+            final Properties userProperties
+        ) {
+            return FAST.getValue(gitProperties, systemProperties, userProperties);
+        }
+    },
     MAVEN_CLEAN_SKIP("maven.clean.skip", BOOL_STRING_TRUE),
     MAVEN_COMPILER_ENCODING("maven.compiler.encoding", UTF_8.name()),
     MAVEN_INTEGRATIONTEST_SKIP("maven.integration-test.skip", BOOL_STRING_FALSE) {
