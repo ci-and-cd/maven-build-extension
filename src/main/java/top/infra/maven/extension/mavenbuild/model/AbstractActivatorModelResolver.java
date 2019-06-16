@@ -27,6 +27,8 @@ public abstract class AbstractActivatorModelResolver implements ActivatorModelRe
      */
     private final Map<String, Model> profileMemento;
 
+    private final boolean verbose;
+
     protected AbstractActivatorModelResolver(
         final org.codehaus.plexus.logging.Logger logger,
         final ModelBuilder modelBuilder
@@ -34,6 +36,8 @@ public abstract class AbstractActivatorModelResolver implements ActivatorModelRe
         this.logger = logger;
         this.modelBuilder = modelBuilder;
         this.profileMemento = new LinkedHashMap<>();
+
+        this.verbose = logger.isDebugEnabled();
     }
 
     /**
@@ -48,20 +52,26 @@ public abstract class AbstractActivatorModelResolver implements ActivatorModelRe
         final File pomFile = this.projectPOM(context);
 
         if ("source".equals(profile.getSource())) {
-            // logger.debug(String.format("profile %s is from settings not pom", profile));
             this.registerMemento(profile, pomFile, null);
+            if (this.verbose) {
+                logger.info(String.format("profile [%s] source is 'source'.", profile));
+            }
             return Optional.empty();
         }
 
-        if (profile.getBuild() == null) {
-            // logger.debug(String.format("profile %s has a null build", profile));
-            this.registerMemento(profile, pomFile, null);
-            return Optional.empty();
-        }
+        // if (profile.getBuild() == null) {
+        //     this.registerMemento(profile, pomFile, null);
+        //     if (this.verbose) {
+        //         logger.info(String.format("build config not found for profile [%s].", profile));
+        //     }
+        //     return Optional.empty();
+        // }
 
         if (pomFile == null) {
-            // logger.debug(String.format("profile %s pomFile not found", profile));
             this.registerMemento(profile, null, null);
+            if (this.verbose) {
+                logger.info(String.format("pomFile not found for profile [%s].", profile));
+            }
             return Optional.empty();
         }
 
@@ -70,14 +80,14 @@ public abstract class AbstractActivatorModelResolver implements ActivatorModelRe
         if (this.hasMemento(profile, pomFile)) {
             modelFound = this.getMemento(profile, pomFile);
             doResolve = false;
-            // if (logger.isDebugEnabled()) {
-            //     logger.debug(String.format("resolveModel %s for profile %s false", pomFile.getPath(), profile));
-            // }
+            if (this.verbose) {
+                logger.info(String.format("resolveModel [%s] for profile [%s]. false", pomFile.getPath(), profile));
+            }
         } else {
             modelFound = null;
             doResolve = true;
-            if (logger.isDebugEnabled()) {
-                logger.debug(String.format("resolveModel %s for profile %s true", pomFile.getPath(), profile));
+            if (this.verbose) {
+                logger.info(String.format("resolveModel [%s] for profile [%s]. true", pomFile.getPath(), profile));
             }
         }
 
@@ -97,7 +107,10 @@ public abstract class AbstractActivatorModelResolver implements ActivatorModelRe
                 final ModelBuildingResult buildingResult = this.modelBuilder.build(buildingRequest);
                 return Optional.of(this.registerMemento(profile, pomFile, buildingResult.getEffectiveModel()));
             } catch (final Exception error) {
-                logger.error(String.format("model build error: %s", error.getMessage()), error);
+                logger.error(
+                    String.format("resolveModel [%s] model for profile [%s] error. %s", pomFile.getPath(), profile, error.getMessage()),
+                    error
+                );
                 return Optional.empty();
             }
         } else {

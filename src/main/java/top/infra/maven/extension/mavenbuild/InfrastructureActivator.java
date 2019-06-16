@@ -68,7 +68,8 @@ public class InfrastructureActivator extends AbstractCustomActivator {
         if (this.supported(profile)) {
             final Optional<String> profileInfrastructure = profileInfrastructure(profile.getId());
             if (logger.isDebugEnabled()) {
-                logger.debug(String.format("found infrastructure %s related profile", profileInfrastructure.orElse(null)));
+                logger.debug(String.format("check profile [%s] against infrastructure [%s]",
+                    profile.getId(), profileInfrastructure.orElse(null)));
             }
 
             final Optional<String> infrastructure = this.ciOpts.getOption(INFRASTRUCTURE);
@@ -78,7 +79,7 @@ public class InfrastructureActivator extends AbstractCustomActivator {
                 .orElse(FALSE);
         } else {
             if (logger.isDebugEnabled()) {
-                logger.debug("not infrastructure related profile");
+                logger.debug(String.format("profile [%s] is not infrastructure related", profile.getId()));
             }
 
             result = false;
