@@ -707,6 +707,20 @@ public enum CiOption {
         }
     },
     MVN_DEPLOY_PUBLISH_SEGREGATION("mvn.deploy.publish.segregation"),
+    NEXUS2_STAGING("nexus2.staging") {
+        @Override
+        public Optional<String> getValue(
+            final GitProperties gitProperties,
+            final Properties systemProperties,
+            final Properties userProperties
+        ) {
+            final Optional<String> publishChannel = PUBLISH_CHANNEL.getValue(gitProperties, systemProperties, userProperties);
+            final boolean publishSnapshot = publishChannel.map(PUBLISH_CHANNEL_SNAPSHOT::equals).orElse(FALSE);
+            return publishSnapshot
+                ? Optional.of(BOOL_STRING_FALSE)
+                : super.getValue(gitProperties, systemProperties, userProperties);
+        }
+    },
     NEXUS3("nexus3"),
 
     OPENSOURCE_GIT_AUTH_TOKEN("opensource.git.auth.token") {
@@ -1222,7 +1236,6 @@ public enum CiOption {
     ) {
         final Optional<String> result;
 
-        final String defaultVal = this.getDefaultValue().orElse(null);
         final Optional<String> foundInProperties = this.findInProperties(systemProperties, userProperties);
         if (foundInProperties.isPresent()) { // found in properties
             final Optional<String> got = this.getValue(gitProperties, systemProperties, userProperties);
@@ -1236,7 +1249,7 @@ public enum CiOption {
             result = foundInProperties;
         } else { // not found in properties
             final Optional<String> calculated = this.calculateValue(gitProperties, systemProperties, userProperties);
-            final String propertyValue = calculated.orElse(defaultVal);
+            final String propertyValue = calculated.orElseGet(() -> this.getDefaultValue().orElse(null));
             if (propertyValue != null) {
                 properties.setProperty(this.getPropertyName(), propertyValue);
             }
