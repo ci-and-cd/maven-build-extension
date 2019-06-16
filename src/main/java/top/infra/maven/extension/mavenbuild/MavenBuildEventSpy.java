@@ -14,6 +14,7 @@ import static top.infra.maven.extension.mavenbuild.CiOption.GPG_KEYID;
 import static top.infra.maven.extension.mavenbuild.CiOption.GPG_KEYNAME;
 import static top.infra.maven.extension.mavenbuild.CiOption.GPG_PASSPHRASE;
 import static top.infra.maven.extension.mavenbuild.CiOption.INFRASTRUCTURE;
+import static top.infra.maven.extension.mavenbuild.CiOption.MAVEN_INSTALL_SKIP;
 import static top.infra.maven.extension.mavenbuild.CiOption.MAVEN_SETTINGS_FILE;
 import static top.infra.maven.extension.mavenbuild.CiOption.MVN_DEPLOY_PUBLISH_SEGREGATION;
 import static top.infra.maven.extension.mavenbuild.CiOption.ORIGIN_REPO;
@@ -34,6 +35,9 @@ import java.io.File;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.AbstractMap;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -518,13 +522,11 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
 
         final Properties additionalProperties = new Properties();
 
-        final String msgReplaceGoal = "onMavenExecutionRequest replace goal %s to %s (%s: %s)";
-
         final Boolean mvnDeployPublishSegregation = ciOpts.getOption(MVN_DEPLOY_PUBLISH_SEGREGATION)
             .map(Boolean::parseBoolean).orElse(FALSE);
         final Boolean site = ciOpts.getOption(SITE).map(Boolean::parseBoolean).orElse(FALSE);
 
-        final List<String> resultGoals = new LinkedList<>();
+        final Collection<String> resultGoals = new LinkedHashSet<>();
         for (final String goal : requestedGoals) {
             if (isDeployGoal(goal)) {
                 // deploy, site-deploy
@@ -545,25 +547,24 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
                             SITE.getEnvVariableName(), site.toString()));
                     }
                 }
-            } else if (goal.endsWith(GOAL_CLEAN) || isInstallGoal(goal)) {
+            } else if (GOAL_PACKAGE.equals(goal) || isInstallGoal(goal)) {
                 // goals need to alter
                 if (mvnDeployPublishSegregation) {
-                    if (goal.endsWith(GOAL_CLEAN)) {
-                        resultGoals.add(GOAL_CLEAN);
-                        final String wagonGoal = "org.apache.maven.plugins:maven-antrun-plugin:run@local-deploy-model-path-clean";
-                        resultGoals.add(wagonGoal);
+                    if (GOAL_PACKAGE.equals(goal)) {
+                        resultGoals.add(GOAL_PACKAGE);
                         if (logger.isInfoEnabled()) {
-                            logger.info(String.format(msgReplaceGoal, goal, GOAL_CLEAN + " " + wagonGoal,
+                            logger.info(String.format("onMavenExecutionRequest add goal %s after %s (%s: %s)",
+                                GOAL_DEPLOY, goal,
                                 MVN_DEPLOY_PUBLISH_SEGREGATION.getEnvVariableName(), mvnDeployPublishSegregation.toString()));
                         }
-                    } else if (isInstallGoal(goal)) {
-                        resultGoals.add(GOAL_DEPLOY); // deploy artifacts into -DaltDeploymentRepository=wagonRepository
+                    } else {
                         if (logger.isInfoEnabled()) {
                             logger.info(String.format("onMavenExecutionRequest replace goal %s to %s (%s: %s)",
                                 goal, GOAL_DEPLOY,
                                 MVN_DEPLOY_PUBLISH_SEGREGATION.getEnvVariableName(), mvnDeployPublishSegregation.toString()));
                         }
                     }
+                    resultGoals.add(GOAL_DEPLOY); // deploy artifacts into -DaltDeploymentRepository=wagonRepository
                 } else {
                     resultGoals.add(goal);
                 }
@@ -591,6 +592,10 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
         additionalProperties.setProperty(PROP_MVN_DEPLOY_PUBLISH_SEGREGATION_GOAL_INSTALL, BOOL_STRING_FALSE);
         additionalProperties.setProperty(PROP_MVN_DEPLOY_PUBLISH_SEGREGATION_GOAL_PACKAGE, BOOL_STRING_FALSE);
         if (mvnDeployPublishSegregation) {
+            if (!requestedGoals.contains(GOAL_INSTALL) && !resultGoals.contains(GOAL_INSTALL)) {
+                additionalProperties.setProperty(MAVEN_INSTALL_SKIP.getPropertyName(), BOOL_STRING_TRUE);
+            }
+
             if (resultGoals.contains(GOAL_PACKAGE)) {
                 additionalProperties.setProperty(PROP_MVN_DEPLOY_PUBLISH_SEGREGATION_GOAL_PACKAGE, BOOL_STRING_TRUE);
                 additionalProperties.setProperty(PROP_MVN_DEPLOY_PUBLISH_SEGREGATION_GOAL, GOAL_PACKAGE);
@@ -617,7 +622,7 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
             logger.info("<<<<<<<<<< ---------- onMavenExecutionRequest additionalProperties ---------- <<<<<<<<<<");
             logger.info("<<<<<<<<<< ---------- run_mvn alter_mvn ---------- <<<<<<<<<<");
         }
-        return new AbstractMap.SimpleImmutableEntry<>(resultGoals, additionalProperties);
+        return new AbstractMap.SimpleImmutableEntry<>(new ArrayList<>(resultGoals), additionalProperties);
     }
 
     private void prepareDocker(

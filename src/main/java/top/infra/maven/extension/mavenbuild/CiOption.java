@@ -111,6 +111,7 @@ public enum CiOption {
     },
     MAVEN_CLEAN_SKIP("maven.clean.skip", BOOL_STRING_TRUE),
     MAVEN_COMPILER_ENCODING("maven.compiler.encoding", UTF_8.name()),
+    MAVEN_INSTALL_SKIP("maven.install.skip"),
     MAVEN_INTEGRATIONTEST_SKIP("maven.integration-test.skip", BOOL_STRING_FALSE) {
         @Override
         protected Optional<String> calculateValue(

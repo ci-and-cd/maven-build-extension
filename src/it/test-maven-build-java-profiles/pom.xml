@@ -279,12 +279,12 @@
         </profile>
 
         <profile>
-            <id>run-on-multi-module-root-only</id>
+            <id>run-on-multi_module_root_only</id>
             <activation>
                 <property><name>sonar</name><value>true</value></property>
             </activation>
             <properties>
-                <magic.file.run-on-multi-module-root-only>${project.basedir}/target/run-on-multi-module-root-only.md</magic.file.run-on-multi-module-root-only>
+                <magic.file.run-on-multi_module_root_only>${project.basedir}/target/run-on-multi_module_root_only.md</magic.file.run-on-multi_module_root_only>
             </properties>
             <build>
                 <plugins>
@@ -293,11 +293,11 @@
                         <executions>
                             <execution>
                                 <configuration>
-                                    <target name="magic-file-run-on-multi-module-root-only">
-                                        <echo file="${magic.file.run-on-multi-module-root-only}" append="false">root</echo>
+                                    <target name="magic-file-run-on-multi_module_root_only">
+                                        <echo file="${magic.file.run-on-multi_module_root_only}" append="false">root</echo>
                                     </target>
                                 </configuration>
-                                <id>run-on-multi-module-root-only-magic-file</id>
+                                <id>run-on-multi_module_root_only-magic-file</id>
                                 <goals><goal>run</goal></goals>
                                 <phase>validate</phase>
                             </execution>

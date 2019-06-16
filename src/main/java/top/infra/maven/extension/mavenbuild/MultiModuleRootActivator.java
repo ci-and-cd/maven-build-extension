@@ -65,6 +65,6 @@ public class MultiModuleRootActivator extends AbstractCustomActivator {
 
     @Override
     public boolean supported(final Profile profile) {
-        return profile.getId().contains("multi-module-root-only");
+        return profile.getId().contains("multi_module_root_only");
     }
 }
