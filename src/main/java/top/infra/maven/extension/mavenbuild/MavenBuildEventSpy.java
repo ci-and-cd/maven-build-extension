@@ -543,28 +543,30 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
                     resultGoals.add(goal);
                 } else {
                     if (logger.isInfoEnabled()) {
-                        logger.info(String.format("onMavenExecutionRequest skip goal %s (%s: %s)", goal,
-                            SITE.getEnvVariableName(), site.toString()));
+                        logger.info(String.format("onMavenExecutionRequest skip goal %s (%s: %s)",
+                            goal, SITE.getEnvVariableName(), site.toString()));
                     }
                 }
             } else if (GOAL_PACKAGE.equals(goal) || isInstallGoal(goal)) {
                 // goals need to alter
                 if (mvnDeployPublishSegregation) {
                     if (GOAL_PACKAGE.equals(goal)) {
-                        resultGoals.add(GOAL_PACKAGE);
+                        resultGoals.add(goal);
+                        resultGoals.add(GOAL_DEPLOY); // deploy artifacts into -DaltDeploymentRepository=wagonRepository
                         if (logger.isInfoEnabled()) {
                             logger.info(String.format("onMavenExecutionRequest add goal %s after %s (%s: %s)",
                                 GOAL_DEPLOY, goal,
                                 MVN_DEPLOY_PUBLISH_SEGREGATION.getEnvVariableName(), mvnDeployPublishSegregation.toString()));
                         }
                     } else {
+                        resultGoals.add(goal);
+                        resultGoals.add(GOAL_DEPLOY); // deploy artifacts into -DaltDeploymentRepository=wagonRepository
                         if (logger.isInfoEnabled()) {
-                            logger.info(String.format("onMavenExecutionRequest replace goal %s to %s (%s: %s)",
-                                goal, GOAL_DEPLOY,
+                            logger.info(String.format("onMavenExecutionRequest add goal %s after %s (%s: %s)",
+                                GOAL_DEPLOY, goal,
                                 MVN_DEPLOY_PUBLISH_SEGREGATION.getEnvVariableName(), mvnDeployPublishSegregation.toString()));
                         }
                     }
-                    resultGoals.add(GOAL_DEPLOY); // deploy artifacts into -DaltDeploymentRepository=wagonRepository
                 } else {
                     resultGoals.add(goal);
                 }

@@ -645,7 +645,7 @@ public enum CiOption {
             final Properties systemProperties,
             final Properties userProperties
         ) {
-            return MAVEN_INTEGRATIONTEST_SKIP.calculateValue(gitProperties, systemProperties, userProperties);
+            return FAST.getValue(gitProperties, systemProperties, userProperties);
         }
     },
     MAVEN_SETTINGS_FILE("maven.settings.file") {
@@ -801,6 +801,17 @@ public enum CiOption {
     PMD_RULESET_LOCATION("pmd.ruleset.location",
         "https://raw.githubusercontent.com/ci-and-cd/maven-build/master/src/main/pmd/pmd-ruleset-6.8.0.xml"),
 
+    PMD_SKIP("pmd.skip") {
+        @Override
+        protected Optional<String> calculateValue(
+            final GitProperties gitProperties,
+            final Properties systemProperties,
+            final Properties userProperties
+        ) {
+            return MAVEN_QUALITY_SKIP.calculateValue(gitProperties, systemProperties, userProperties);
+        }
+    },
+
     PRIVATE_GIT_AUTH_TOKEN("private.git.auth.token") {
         @Override
         protected Optional<String> calculateValue(
@@ -909,7 +920,16 @@ public enum CiOption {
             return Optional.of(result);
         }
     },
-    SITE("site", BOOL_STRING_FALSE),
+    SITE("site", BOOL_STRING_FALSE) {
+        @Override
+        protected Optional<String> calculateValue(
+            final GitProperties gitProperties,
+            final Properties systemProperties,
+            final Properties userProperties
+        ) {
+            return MAVEN_QUALITY_SKIP.calculateValue(gitProperties, systemProperties, userProperties);
+        }
+    },
     SITE_PATH("site.path", "${site.path.prefix}/${publish.channel}"),
     SITE_PATH_PREFIX("site.path.prefix") {
         @Override
@@ -1021,6 +1041,16 @@ public enum CiOption {
             return sonar
                 ? super.getValue(gitProperties, systemProperties, userProperties)
                 : Optional.empty();
+        }
+    },
+    SPOTBUGS_SKIP("spotbugs.skip") {
+        @Override
+        protected Optional<String> calculateValue(
+            final GitProperties gitProperties,
+            final Properties systemProperties,
+            final Properties userProperties
+        ) {
+            return MAVEN_QUALITY_SKIP.calculateValue(gitProperties, systemProperties, userProperties);
         }
     },
     WAGON_MERGEMAVENREPOS_ARTIFACTDIR("wagon.merge-maven-repos.artifactDir", "${project.groupId}/${project.artifactId}"),

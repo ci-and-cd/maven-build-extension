@@ -32,6 +32,7 @@ before_install:
     gpg2 --use-agent --batch=true --list-secret-keys;
     gpg2 --use-agent --batch=true --list-keys;
     printf 'trust\n5\ny\n' | gpg2 --use-agent --batch=true --command-fd 0 --edit-key ${CI_OPT_GPG_KEYNAME};
+  - export MAVEN_OPTS="${MAVEN_OPTS} -XX:TieredStopAtLevel=1 -XX:+UseParallelGC"
 branches:
   only:
     #- master # do nothing on master branch
@@ -64,7 +65,7 @@ script:
   - while sleep 9m; do echo "=====[ $SECONDS seconds still running ]====="; done &
   - export CI_OPT_SONAR=true;
   - export CI_OPT_SONAR_ORGANIZATION="home1-oss-github";
-  - ./mvnw -Dgpg.executable=gpg2 -Dgpg.loopback=true -s settings.xml clean install verify;
-    ./mvnw -Dgpg.executable=gpg2 -Dgpg.loopback=true -s settings.xml clean deploy;
+  - time ./mvnw -Dgpg.executable=gpg2 -Dgpg.loopback=true -s settings.xml clean install verify;
+    time ./mvnw -Dgpg.executable=gpg2 -Dgpg.loopback=true -s settings.xml clean deploy;
   - kill %1
 sudo: false

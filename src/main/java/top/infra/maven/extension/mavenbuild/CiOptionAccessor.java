@@ -36,6 +36,8 @@ import java.util.Properties;
 
 public class CiOptionAccessor {
 
+    private static final String PROP_MAVEN_MULTIMODULEPROJECTDIRECTORY = "maven.multiModuleProjectDirectory";
+
     private final Logger logger;
 
     private final GitProperties gitProperties;
@@ -53,6 +55,13 @@ public class CiOptionAccessor {
         this.gitProperties = gitProperties;
         this.systemProperties = systemProperties;
         this.userProperties = userProperties;
+
+        if (userProperties.getProperty(PROP_MAVEN_MULTIMODULEPROJECTDIRECTORY) == null) {
+            final String mavenMultiModuleProjectDirectory = systemProperties.getProperty(PROP_MAVEN_MULTIMODULEPROJECTDIRECTORY);
+            if (mavenMultiModuleProjectDirectory != null) {
+                userProperties.setProperty(PROP_MAVEN_MULTIMODULEPROJECTDIRECTORY, mavenMultiModuleProjectDirectory);
+            }
+        }
 
         this.cacheDirectory();
     }
