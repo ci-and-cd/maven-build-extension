@@ -93,8 +93,21 @@ public enum CiOption {
             return this.addtionalArgs(argLine, gitProperties, systemProperties, userProperties);
         }
     },
-    FAST("fast"), // TODO maven.site.deploy.skip, sonar.buildbreaker.skip
+    FAST("fast"), // TODO sonar.buildbreaker.skip
     FILE_ENCODING("file.encoding", UTF_8.name()),
+    GENERATEREPORTS("generateReports") {
+        @Override
+        protected Optional<String> calculateValue(
+            final GitProperties gitProperties,
+            final Properties systemProperties,
+            final Properties userProperties
+        ) {
+            return FAST.getValue(gitProperties, systemProperties, userProperties)
+                .map(Boolean::parseBoolean)
+                .filter(fast -> fast)
+                .map(fast -> BOOL_STRING_FALSE);
+        }
+    },
     /**
      * Custom property.
      * maven.javadoc.skip and maven.source.skip
@@ -137,6 +150,26 @@ public enum CiOption {
                 .filter(fast -> fast || artifactsSkip)
                 .map(fast -> BOOL_STRING_TRUE)
                 .orElse(BOOL_STRING_FALSE));
+        }
+    },
+    MAVEN_SITE_SKIP("maven.site.skip") {
+        @Override
+        protected Optional<String> calculateValue(
+            final GitProperties gitProperties,
+            final Properties systemProperties,
+            final Properties userProperties
+        ) {
+            return SITE.calculateValue(gitProperties, systemProperties, userProperties);
+        }
+    },
+    MAVEN_SITE_DEPLOY_SKIP("maven.site.deploy.skip") {
+        @Override
+        protected Optional<String> calculateValue(
+            final GitProperties gitProperties,
+            final Properties systemProperties,
+            final Properties userProperties
+        ) {
+            return MAVEN_SITE_SKIP.calculateValue(gitProperties, systemProperties, userProperties);
         }
     },
     MAVEN_SOURCE_SKIP("maven.source.skip") {
