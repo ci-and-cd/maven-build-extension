@@ -1188,10 +1188,17 @@ public enum CiOption {
         final Properties systemProperties,
         final Properties userProperties
     ) {
+        // systemProperty first
         final Optional<String> systemProperty = getOptionValue(this, systemProperties, CiOption::getSystemPropertyName);
         return systemProperty.isPresent()
             ? systemProperty
             : getOptionValue(this, userProperties, CiOption::getPropertyName);
+
+        // // userProperty first
+        // final Optional<String> userProperty = getOptionValue(this, userProperties, CiOption::getPropertyName);
+        // return userProperty.isPresent()
+        //     ? userProperty
+        //     : getOptionValue(this, systemProperties, CiOption::getSystemPropertyName);
     }
 
     /**

@@ -37,6 +37,7 @@ import java.net.URLClassLoader;
 import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.List;
@@ -69,7 +70,6 @@ import top.infra.maven.extension.mavenbuild.model.ProjectBuilderActivatorModelRe
 @Singleton
 public class MavenBuildEventSpy extends AbstractEventSpy {
 
-    private static final String GOAL_CLEAN = "clean";
     private static final String GOAL_DEPLOY = "deploy";
     private static final String GOAL_INSTALL = "install";
     private static final String GOAL_PACKAGE = "package";
@@ -193,7 +193,13 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
                     this.resolver.setProjectBuildingRequest(projectBuildingRequest);
 
                     final Entry<List<String>, Properties> goalsAndProps = this.onMavenExecutionRequest(request, this.homeDir, this.ciOpts);
-                    request.setGoals(goalsAndProps.getKey());
+                    if (goalsAndProps.getKey().isEmpty() && !request.getGoals().isEmpty()) {
+                        logger.warn(String.format("No goal to run, all goals requested (%s) were removed.", request.getGoals()));
+                        // request.setGoals(Collections.singletonList("help:active-profiles"));
+                        request.setGoals(Collections.singletonList("validate"));
+                    } else {
+                        request.setGoals(goalsAndProps.getKey());
+                    }
                     SupportFunction.merge(goalsAndProps.getValue(), request.getUserProperties());
                     SupportFunction.merge(goalsAndProps.getValue(), projectBuildingRequest.getUserProperties());
                     this.prepareDocker(goalsAndProps.getKey(), this.homeDir, this.ciOpts);
