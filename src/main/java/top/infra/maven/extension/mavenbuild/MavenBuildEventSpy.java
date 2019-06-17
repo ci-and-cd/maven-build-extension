@@ -2,10 +2,12 @@ package top.infra.maven.extension.mavenbuild;
 
 import static java.lang.Boolean.FALSE;
 import static top.infra.maven.extension.mavenbuild.CiOption.DOCKER;
+import static top.infra.maven.extension.mavenbuild.CiOption.DOCKERFILE_USEMAVENSETTINGSFORAUTH;
 import static top.infra.maven.extension.mavenbuild.CiOption.DOCKER_REGISTRY;
 import static top.infra.maven.extension.mavenbuild.CiOption.DOCKER_REGISTRY_PASS;
 import static top.infra.maven.extension.mavenbuild.CiOption.DOCKER_REGISTRY_URL;
 import static top.infra.maven.extension.mavenbuild.CiOption.DOCKER_REGISTRY_USER;
+import static top.infra.maven.extension.mavenbuild.CiOption.FAST;
 import static top.infra.maven.extension.mavenbuild.CiOption.GITHUB_GLOBAL_REPOSITORYOWNER;
 import static top.infra.maven.extension.mavenbuild.CiOption.GIT_AUTH_TOKEN;
 import static top.infra.maven.extension.mavenbuild.CiOption.GIT_REF_NAME;
@@ -653,9 +655,17 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
                 ciOpts.getOption(DOCKER_REGISTRY_URL).orElse(null),
                 ciOpts.getOption(DOCKER_REGISTRY_USER).orElse(null)
             );
+
             docker.initDockerConfig();
-            docker.cleanOldImages();
-            docker.pullBaseImage();
+
+            if (!ciOpts.getOption(DOCKERFILE_USEMAVENSETTINGSFORAUTH).map(Boolean::parseBoolean).orElse(FALSE)) {
+                docker.dockerLogin();
+            }
+
+            if (!ciOpts.getOption(FAST).map(Boolean::parseBoolean).orElse(FALSE)) {
+                docker.cleanOldImages();
+                docker.pullBaseImage();
+            }
         }
     }
 

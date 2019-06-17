@@ -19,7 +19,7 @@ Maven extension for github.com/ci-and-cd/maven-build
 ### Build this extension
 
 ```bash
-CI_OPT_NEXUS3="https://nexus3.infra.top" CI_OPT_SONAR="true" CI_OPT_SONAR_ORGANIZATION="home1-oss-github" ./mvnw -Dgpg.executable=gpg2 -Dgpg.loopback=true -s settings.xml clean install verify
+CI_OPT_NEXUS3="https://nexus3.infra.top" CI_OPT_SONAR="true" CI_OPT_SONAR_ORGANIZATION="home1-oss-github" ./mvnw -ntp -Dgpg.executable=gpg2 -Dgpg.loopback=true -s settings.xml clean install verify
 
 #CI_OPT_GITHUB_SITE_PUBLISH="true" CI_OPT_INFRASTRUCTURE=opensource CI_OPT_OPENSOURCE_GIT_AUTH_TOKEN="${CI_OPT_OPENSOURCE_GIT_AUTH_TOKEN}" CI_OPT_SITE="true" CI_OPT_GITHUB_GLOBAL_REPOSITORYOWNER="ci-and-cd" CI_OPT_SITE_PATH_PREFIX="maven-build-extension" ./mvnw -e -U clean install site site-deploy
 

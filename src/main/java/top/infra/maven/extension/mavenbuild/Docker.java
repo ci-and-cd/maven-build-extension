@@ -84,8 +84,6 @@ public class Docker {
         if (!dockerConfigDir.exists()) {
             dockerConfigDir.mkdirs();
         }
-
-        this.dockerLogin();
     }
 
     public void pullBaseImage() {
@@ -110,7 +108,7 @@ public class Docker {
         return SupportFunction.exec(this.environment, null, dockerCommand(options));
     }
 
-    private void dockerLogin() {
+    public void dockerLogin() {
         if (isNotEmpty(this.registry)) {
             this.dockerLogin(this.registry);
         } else {
