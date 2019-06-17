@@ -329,18 +329,11 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
             logger.info(">>>>>>>>>> ---------- set options (update userProperties) ---------- >>>>>>>>>>");
         }
 
-        final Properties newProperties = ciOpts.mavenOptsInto(userProperties);
+        final Properties newProperties = ciOpts.mergeCiOptsInto(userProperties);
 
         if (logger.isInfoEnabled()) {
             logger.info(SupportFunction.toString(systemProperties, PATTERN_CI_ENV_VARS));
             logger.info(SupportFunction.toString(userProperties, null));
-            final Properties mavenOpts = SupportFunction.toProperties(ciOpts.mavenOpts());
-            if (!mavenOpts.isEmpty()) {
-                logger.info("MAVEN_OPTS");
-                logger.info(SupportFunction.toString(mavenOpts, null));
-            } else {
-                logger.info("no MAVEN_OPTS present");
-            }
             logger.info("<<<<<<<<<< ---------- set options (update userProperties) ---------- <<<<<<<<<<");
         }
 

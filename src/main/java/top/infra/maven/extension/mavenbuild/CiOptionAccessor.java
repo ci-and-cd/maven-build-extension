@@ -7,8 +7,6 @@ import static top.infra.maven.extension.mavenbuild.CiOption.GIT_AUTH_TOKEN;
 import static top.infra.maven.extension.mavenbuild.CiOption.GIT_REF_NAME;
 import static top.infra.maven.extension.mavenbuild.CiOption.MAVEN_BUILD_OPTS_REPO;
 import static top.infra.maven.extension.mavenbuild.CiOption.MAVEN_BUILD_OPTS_REPO_REF;
-import static top.infra.maven.extension.mavenbuild.CiOption.MAVEN_EXTRA_OPTS;
-import static top.infra.maven.extension.mavenbuild.CiOption.MAVEN_OPTS;
 import static top.infra.maven.extension.mavenbuild.CiOption.PUBLISH_CHANNEL;
 import static top.infra.maven.extension.mavenbuild.CiOption.systemPropertyName;
 import static top.infra.maven.extension.mavenbuild.Constants.BRANCH_PREFIX_FEATURE;
@@ -28,8 +26,6 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.AbstractMap;
 import java.util.Arrays;
-import java.util.LinkedHashMap;
-import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.Properties;
@@ -150,33 +146,15 @@ public class CiOptionAccessor {
         return properties;
     }
 
-    public Map<String, String> mavenExtraOpts() {
-        final Optional<String> opts = this.getOption(MAVEN_EXTRA_OPTS);
-        return opts.map(CiOptionAccessor::parseMavenUserProperties).orElse(new LinkedHashMap<>());
-    }
-
-    public Map<String, String> mavenOpts() {
-        final Optional<String> opts = Optional.ofNullable(this.systemProperties.getProperty(MAVEN_OPTS.getSystemPropertyName()));
-        return opts.map(CiOptionAccessor::parseMavenUserProperties).orElse(new LinkedHashMap<>());
-    }
-
-    public Properties mavenOptsInto(final Properties intoProperties) {
+    public Properties mergeCiOptsInto(final Properties intoProperties) {
         final Properties newProperties = new Properties();
 
-        final Map<String, String> mavenOpts = this.mavenOpts();
-        if (!mavenOpts.isEmpty()) {
-            mavenOpts.forEach(newProperties::setProperty);
-        } else {
-            Arrays.stream(CiOption.values()).sorted().forEach(ciOption -> {
-                final Optional<String> result = this.setOption(ciOption, newProperties);
-                if (logger.isInfoEnabled()) {
-                    logger.info(maskSecrets(String.format("setOption %s=%s", ciOption.getEnvVariableName(), result.orElse(""))));
-                }
-            });
-
-            final Map<String, String> extraMavenOpts = this.mavenExtraOpts();
-            extraMavenOpts.forEach(newProperties::setProperty);
-        }
+        Arrays.stream(CiOption.values()).sorted().forEach(ciOption -> {
+            final Optional<String> result = this.setOption(ciOption, newProperties);
+            if (logger.isInfoEnabled()) {
+                logger.info(maskSecrets(String.format("setOption %s=%s", ciOption.getEnvVariableName(), result.orElse(""))));
+            }
+        });
 
         SupportFunction.merge(newProperties, intoProperties);
 
@@ -197,34 +175,5 @@ public class CiOptionAccessor {
 
     private Optional<String> setOption(final CiOption ciOption, final Properties properties) {
         return ciOption.setProperties(this.gitProperties, this.systemProperties, this.userProperties, properties);
-    }
-
-    @Deprecated
-    private void setSystemProperty(final CiOption key, final String value) {
-        if (logger.isInfoEnabled()) {
-            logger.info(String.format("set %s: %s", key.getSystemPropertyName(), value));
-        }
-        this.systemProperties.setProperty(key.getSystemPropertyName(), value);
-    }
-
-    @Deprecated
-    private void setUserProperty(final CiOption key, final String value) {
-        if (logger.isInfoEnabled()) {
-            logger.info(String.format("set %s: %s", key.getPropertyName(), value));
-        }
-        this.userProperties.setProperty(key.getPropertyName(), value);
-    }
-
-    static Map<String, String> parseMavenUserProperties(final String options) {
-        final Map<String, String> result = new LinkedHashMap<>();
-        Arrays
-            .stream(options.split("[ ]+"))
-            .filter(opt -> opt.startsWith("-D") && opt.contains("="))
-            .forEach(opt -> {
-                final String name = opt.split("=")[0].substring(2);
-                final String value = opt.substring(name.length() + 3);
-                result.put(name, value);
-            });
-        return result;
     }
 }

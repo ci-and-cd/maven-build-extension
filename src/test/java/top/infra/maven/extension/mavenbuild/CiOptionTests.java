@@ -55,7 +55,7 @@ public class CiOptionTests {
         // ciOpts.githubSiteRepoOwner().ifPresent(githubSiteRepoOwner ->
         //     ciOpts.setSystemProperty(GITHUB_GLOBAL_REPOSITORYOWNER, githubSiteRepoOwner));
 
-        final Properties newProperties = ciOpts.mavenOptsInto(userProperties);
+        final Properties newProperties = ciOpts.mergeCiOptsInto(userProperties);
 
         slf4jLogger.info("{} {}", DOCKER_REGISTRY_URL.getPropertyName(), ciOpts.getOption(DOCKER_REGISTRY_URL).orElse(null));
         slf4jLogger.info("{} {}", DOCKER_REGISTRY.getPropertyName(), ciOpts.getOption(DOCKER_REGISTRY).orElse(null));
@@ -113,7 +113,7 @@ public class CiOptionTests {
         slf4jLogger.info("site {}", ciOpts.getOption(SITE).orElse(null));
         assertEquals(TRUE.toString(), ciOpts.getOption(SITE).orElse(null));
 
-        ciOpts.mavenOptsInto(userProperties);
+        ciOpts.mergeCiOptsInto(userProperties);
 
         slf4jLogger.info("site {}", ciOpts.getOption(SITE).orElse(null));
         assertEquals(TRUE.toString(), ciOpts.getOption(SITE).orElse(null));
@@ -143,7 +143,7 @@ public class CiOptionTests {
         loadedProperties.setProperty(SONAR_HOST_URL.getEnvVariableName(), expectedSonarHostUrl);
         ciOpts.updateSystemProperties(loadedProperties);
 
-        final Properties newProperties = ciOpts.mavenOptsInto(userProperties);
+        final Properties newProperties = ciOpts.mergeCiOptsInto(userProperties);
 
         slf4jLogger.info("{} {}", SONAR_HOST_URL.getEnvVariableName(), ciOpts.getOption(SONAR_HOST_URL).orElse(null));
         slf4jLogger.info("{} {}", SONAR_HOST_URL.getPropertyName(), userProperties.getProperty(SONAR_HOST_URL.getPropertyName()));

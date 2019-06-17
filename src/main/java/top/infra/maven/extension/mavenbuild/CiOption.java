@@ -636,8 +636,6 @@ public enum CiOption {
     MAVEN_BUILD_OPTS_REPO_REF("maven.build.opts.repo.ref", GIT_REF_NAME_MASTER),
     MAVEN_CENTRAL_PASS("maven.central.pass"),
     MAVEN_CENTRAL_USER("maven.central.user"),
-    MAVEN_EXTRA_OPTS("maven.extra.opts"),
-    MAVEN_OPTS("maven.opts"),
     MAVEN_QUALITY_SKIP("maven.quality.skip", BOOL_STRING_FALSE) {
         @Override
         protected Optional<String> calculateValue(

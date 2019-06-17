@@ -10,7 +10,7 @@ import org.slf4j.LoggerFactory;
 
 public class DockerTests {
 
-    private static final org.slf4j.Logger slf4jLogger = LoggerFactory.getLogger(CiOptionTests.class);
+    private static final org.slf4j.Logger slf4jLogger = LoggerFactory.getLogger(DockerTests.class);
 
     private final String dockerImagesOutput = "" +
         "REPOSITORY                                 TAG                                                  IMAGE ID            CREATED             SIZE\n" +

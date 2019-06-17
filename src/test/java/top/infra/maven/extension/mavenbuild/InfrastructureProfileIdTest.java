@@ -11,7 +11,7 @@ import org.slf4j.LoggerFactory;
 
 public class InfrastructureProfileIdTest {
 
-    private static final org.slf4j.Logger slf4jLogger = LoggerFactory.getLogger(ProjectVersionTest.class);
+    private static final org.slf4j.Logger slf4jLogger = LoggerFactory.getLogger(InfrastructureProfileIdTest.class);
 
     @Test
     public void testInfrastructureProfileIds() {
