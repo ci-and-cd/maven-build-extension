@@ -43,7 +43,7 @@ public enum CiOption {
     /**
      * maven-failsafe-plugin and maven-surefire-plugin's configuration argLine.
      */
-    ARGLINE("argLine") {
+    ARGLINE("argLine", "") {
         private Optional<String> addtionalArgs(
             final String argLine,
             final GitProperties gitProperties,
@@ -54,6 +54,11 @@ public enum CiOption {
 
             final Optional<Integer> javaVersion = systemJavaVersion();
             if (javaVersion.map(version -> version >= 9).orElse(FALSE)) {
+                final String addExports = " --add-exports java.base/jdk.internal.loader=ALL-UNNAMED"
+                    + " --add-exports java.base/sun.security.ssl=ALL-UNNAMED"
+                    + " --add-opens java.base/jdk.internal.loader=ALL-UNNAMED"
+                    + " --add-opens java.base/sun.security.ssl=ALL-UNNAMED";
+
                 final Optional<String> addModules = JAVA_ADDMODULES.getValue(gitProperties, systemProperties, userProperties);
                 final Optional<String> argLineWithModules;
                 if (addModules.isPresent() && (argLine == null || !argLine.contains("--add-modules"))) {
@@ -63,7 +68,7 @@ public enum CiOption {
                 }
 
                 if (javaVersion.map(version -> version >= 11).orElse(FALSE)) {
-                    result = argLineWithModules.map(value -> "--illegal-access=permit " + value);
+                    result = Optional.of(addExports + " --illegal-access=permit " + argLineWithModules.orElse(""));
                 } else {
                     result = argLineWithModules;
                 }
