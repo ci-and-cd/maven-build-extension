@@ -188,6 +188,8 @@ public class RepositoryModelResolver implements ModelResolver {
 
             logger.debug("Downloading " + fileUrl);
 
+            // TODO remove okhttp
+
             final OkHttpClient client = new OkHttpClient();
             final Request request = new Request.Builder()
                 .url(fileUrl)

@@ -16,6 +16,7 @@ import static top.infra.maven.extension.mavenbuild.CiOption.GPG_KEYID;
 import static top.infra.maven.extension.mavenbuild.CiOption.GPG_KEYNAME;
 import static top.infra.maven.extension.mavenbuild.CiOption.GPG_PASSPHRASE;
 import static top.infra.maven.extension.mavenbuild.CiOption.INFRASTRUCTURE;
+import static top.infra.maven.extension.mavenbuild.CiOption.MAVEN_CLEAN_SKIP;
 import static top.infra.maven.extension.mavenbuild.CiOption.MAVEN_INSTALL_SKIP;
 import static top.infra.maven.extension.mavenbuild.CiOption.MAVEN_SETTINGS_FILE;
 import static top.infra.maven.extension.mavenbuild.CiOption.MVN_DEPLOY_PUBLISH_SEGREGATION;
@@ -594,6 +595,9 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
         additionalProperties.setProperty(PROP_MVN_DEPLOY_PUBLISH_SEGREGATION_GOAL_DEPLOY, BOOL_STRING_FALSE);
         additionalProperties.setProperty(PROP_MVN_DEPLOY_PUBLISH_SEGREGATION_GOAL_INSTALL, BOOL_STRING_FALSE);
         additionalProperties.setProperty(PROP_MVN_DEPLOY_PUBLISH_SEGREGATION_GOAL_PACKAGE, BOOL_STRING_FALSE);
+        if (requestedGoals.contains("clean")) {
+            additionalProperties.setProperty(MAVEN_CLEAN_SKIP.getPropertyName(), BOOL_STRING_FALSE);
+        }
         if (mvnDeployPublishSegregation) {
             if (!requestedGoals.contains(GOAL_INSTALL) && !resultGoals.contains(GOAL_INSTALL)) {
                 additionalProperties.setProperty(MAVEN_INSTALL_SKIP.getPropertyName(), BOOL_STRING_TRUE);

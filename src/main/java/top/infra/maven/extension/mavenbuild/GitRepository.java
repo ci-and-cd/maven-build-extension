@@ -99,11 +99,19 @@ public class GitRepository {
                 headers.put("PRIVATE-TOKEN", this.token);
             }
 
+            final Entry<Integer, Exception> statusOrException;
+            final boolean hasError;
+            final boolean is2xxStatus;
+
             if (PATTERN_GITLAB_URL.matcher(this.repo).matches()) {
                 fromUrl = this.repo + sourceFile.replaceAll("/", "%2F") + "?ref=" + this.repoRef;
                 final String saveToFile = targetFile + ".json";
-                status = SupportFunction.download(logger, fromUrl, saveToFile, headers);
-                if (status.map(SupportFunction::is2xxStatus).orElse(FALSE)) {
+                statusOrException = SupportFunction.download(logger, fromUrl, saveToFile, headers, 3);
+                hasError = statusOrException.getValue() != null;
+                status = Optional.ofNullable(statusOrException.getKey());
+
+                is2xxStatus = status.map(SupportFunction::is2xxStatus).orElse(FALSE);
+                if (is2xxStatus) {
                     if (logger.isDebugEnabled()) {
                         logger.debug(String.format("decode %s", saveToFile));
                     }
@@ -113,16 +121,26 @@ public class GitRepository {
                     if (!isEmpty(content)) {
                         writeFile(Paths.get(targetFile), Base64.getDecoder().decode(content), StandardOpenOption.SYNC);
                     }
-                } else {
-                    if (logger.isWarnEnabled()) {
-                        logger.warn(String.format("Can not download %s.", targetFile));
-                        logger.warn(String.format("Please make sure you have permission to access resources and %s is set.",
-                            GIT_AUTH_TOKEN.getEnvVariableName()));
-                    }
                 }
             } else {
                 fromUrl = this.repo + "/raw/" + this.repoRef + "/" + sourceFile;
-                status = SupportFunction.download(logger, fromUrl, targetFile, headers);
+                statusOrException = SupportFunction.download(logger, fromUrl, targetFile, headers, 3);
+                hasError = statusOrException.getValue() != null;
+                status = Optional.ofNullable(statusOrException.getKey());
+            }
+
+            if (hasError) {
+                if (statusOrException.getKey() == null) {
+                    logger.warn(String.format("Error download %s.", targetFile), statusOrException.getValue());
+                } else {
+                    if (logger.isWarnEnabled()) {
+                        logger.warn(String.format("Can not download %s.", targetFile));
+                        logger.warn(String.format(
+                            "Please make sure: 1. Resource exists 2. You have permission to access resources and %s is set.",
+                            GIT_AUTH_TOKEN.getEnvVariableName())
+                        );
+                    }
+                }
             }
         } else {
             fromUrl = null;

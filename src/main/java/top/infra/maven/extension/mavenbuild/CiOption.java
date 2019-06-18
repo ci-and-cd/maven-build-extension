@@ -93,8 +93,16 @@ public enum CiOption {
             return this.addtionalArgs(argLine, gitProperties, systemProperties, userProperties);
         }
     },
+
     FAST("fast"), // TODO sonar.buildbreaker.skip
-    FILE_ENCODING("file.encoding", UTF_8.name()),
+
+    // /**
+    //  * Got warning on maven-surefire-plugin's test goal.
+    //  * [WARNING] file.encoding cannot be set as system property, use &lt;argLine&gt;-Dfile.encoding=...&lt;/argLine&gt; instead
+    //  */
+    // @Deprecated
+    // FILE_ENCODING("file.encoding", UTF_8.name()),
+
     GENERATEREPORTS("generateReports") {
         @Override
         protected Optional<String> calculateValue(
@@ -193,7 +201,17 @@ public enum CiOption {
             return MAVEN_TESTS_SKIP.calculateValue(gitProperties, systemProperties, userProperties);
         }
     },
-    MAVEN_TEST_SKIP("maven.test.skip", BOOL_STRING_FALSE) {
+    /**
+     * Skip test-compile and skipTests.
+     */
+    MAVEN_TEST_SKIP("maven.test.skip"),
+    PROJECT_BUILD_SOURCEENCODING("project.build.sourceEncoding", UTF_8.name()),
+    PROJECT_REPORTING_OUTPUTENCODING("project.reporting.outputEncoding", UTF_8.name()),
+
+    /**
+     * Keep test-compile but do not run tests.
+     */
+    SKIPTESTS("skipTests") {
         @Override
         protected Optional<String> calculateValue(
             final GitProperties gitProperties,
@@ -203,8 +221,7 @@ public enum CiOption {
             return MAVEN_TESTS_SKIP.calculateValue(gitProperties, systemProperties, userProperties);
         }
     },
-    PROJECT_BUILD_SOURCEENCODING("project.build.sourceEncoding", UTF_8.name()),
-    PROJECT_REPORTING_OUTPUTENCODING("project.reporting.outputEncoding", UTF_8.name()),
+
     //
     CACHE_DIRECTORY("cache.directory") {
         @Override
@@ -579,16 +596,20 @@ public enum CiOption {
         }
     },
 
-    JACOCO("jacoco", BOOL_STRING_TRUE) {
+    /**
+     * Run jacoco if true, skip jacoco and enable cobertura if false, skip bothe jacoco and cobertura if absent.
+     */
+    JACOCO("jacoco") {
         @Override
         protected Optional<String> calculateValue(
             final GitProperties gitProperties,
             final Properties systemProperties,
             final Properties userProperties
         ) {
-            return Optional.of(MAVEN_INTEGRATIONTEST_SKIP.calculateValue(gitProperties, systemProperties, userProperties)
-                .map(Boolean::parseBoolean).orElse(FALSE)
-                ? BOOL_STRING_FALSE : BOOL_STRING_TRUE);
+            final boolean skip = MAVEN_INTEGRATIONTEST_SKIP.calculateValue(gitProperties, systemProperties, userProperties)
+                .map(Boolean::parseBoolean).orElse(FALSE);
+
+            return Optional.ofNullable(skip ? null : BOOL_STRING_TRUE);
         }
     },
     JAVA_ADDMODULES("java.addModules") {
