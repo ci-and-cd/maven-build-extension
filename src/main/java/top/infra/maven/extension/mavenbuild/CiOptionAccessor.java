@@ -1,6 +1,5 @@
 package top.infra.maven.extension.mavenbuild;
 
-import static java.lang.Boolean.FALSE;
 import static top.infra.maven.extension.mavenbuild.CiOption.CACHE_DIRECTORY;
 import static top.infra.maven.extension.mavenbuild.CiOption.CI_OPTS_FILE;
 import static top.infra.maven.extension.mavenbuild.CiOption.GIT_AUTH_TOKEN;
@@ -17,6 +16,7 @@ import static top.infra.maven.extension.mavenbuild.SupportFunction.exists;
 import static top.infra.maven.extension.mavenbuild.SupportFunction.isEmpty;
 import static top.infra.maven.extension.mavenbuild.SupportFunction.isSemanticSnapshotVersion;
 import static top.infra.maven.extension.mavenbuild.SupportFunction.maskSecrets;
+import static top.infra.maven.extension.mavenbuild.SupportFunction.newTuple;
 import static top.infra.maven.extension.mavenbuild.SupportFunction.systemJavaIoTmp;
 
 import java.io.File;
@@ -24,7 +24,6 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.AbstractMap;
 import java.util.Arrays;
 import java.util.Map.Entry;
 import java.util.Optional;
@@ -56,6 +55,9 @@ public class CiOptionAccessor {
             final String mavenMultiModuleProjectDirectory = systemProperties.getProperty(PROP_MAVEN_MULTIMODULEPROJECTDIRECTORY);
             if (mavenMultiModuleProjectDirectory != null) {
                 userProperties.setProperty(PROP_MAVEN_MULTIMODULEPROJECTDIRECTORY, mavenMultiModuleProjectDirectory);
+            } else {
+                logger.warn(String.format("System property %s not found", PROP_MAVEN_MULTIMODULEPROJECTDIRECTORY));
+                // TODO use user.dir
             }
         }
 
@@ -116,30 +118,23 @@ public class CiOptionAccessor {
             ex = result ? null : new IllegalArgumentException(msgInvalidVersion);
         }
 
-        return new AbstractMap.SimpleImmutableEntry<>(result, ex);
+        return newTuple(result, ex);
     }
 
     public Properties ciOptsFromFile() {
         final Properties properties = new Properties();
 
         this.getOption(CI_OPTS_FILE).ifPresent(ciOptsFile -> {
+            final boolean ciOptsFileExists = new File(ciOptsFile).exists();
+            if (!ciOptsFileExists) {
+                this.gitRepository().download(SRC_CI_OPTS_PROPERTIES, ciOptsFile, true);
+            }
             try {
-                if (new File(ciOptsFile).exists()) {
-                    properties.load(new FileInputStream(ciOptsFile));
-                } else {
-                    final Entry<Optional<String>, Optional<Integer>> result = this.gitRepository()
-                        .download(SRC_CI_OPTS_PROPERTIES, ciOptsFile);
-                    if (result.getValue().map(SupportFunction::is2xxStatus).orElse(FALSE)) {
-                        properties.load(new FileInputStream(ciOptsFile));
-                    } else {
-                        final String errorMsg = String.format("Can not download from [%s], to [%s], status [%s].",
-                            result.getKey().orElse(null), ciOptsFile, result.getValue().orElse(null));
-                        logger.warn(errorMsg);
-                    }
-                }
+                properties.load(new FileInputStream(ciOptsFile));
             } catch (final IOException ex) {
                 final String errorMsg = String.format("Can not load ci options file %s", ex.getMessage());
-                logger.warn(errorMsg);
+                logger.error(errorMsg);
+                throw new RuntimeException(errorMsg, ex); // TODO fix all new RuntimeException
             }
         });
 

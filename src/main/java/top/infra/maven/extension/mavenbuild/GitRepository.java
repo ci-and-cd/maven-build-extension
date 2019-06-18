@@ -8,6 +8,8 @@ import static top.infra.maven.extension.mavenbuild.Constants.SRC_MAVEN_SETTINGS_
 import static top.infra.maven.extension.mavenbuild.Constants.SRC_MAVEN_SETTINGS_XML;
 import static top.infra.maven.extension.mavenbuild.SupportFunction.isEmpty;
 import static top.infra.maven.extension.mavenbuild.SupportFunction.isNotEmpty;
+import static top.infra.maven.extension.mavenbuild.SupportFunction.newTuple;
+import static top.infra.maven.extension.mavenbuild.SupportFunction.newTupleOptional;
 import static top.infra.maven.extension.mavenbuild.SupportFunction.os;
 import static top.infra.maven.extension.mavenbuild.SupportFunction.readFile;
 import static top.infra.maven.extension.mavenbuild.SupportFunction.writeFile;
@@ -15,7 +17,6 @@ import static top.infra.maven.extension.mavenbuild.SupportFunction.writeFile;
 import java.io.File;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
-import java.util.AbstractMap;
 import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -51,25 +52,12 @@ public class GitRepository {
     public void downloadMavenSettingsFile(final String homeDir, final String settingsXml) {
         // settings.xml
         logger.info(">>>>>>>>>> ---------- run_mvn settings.xml and settings-security.xml ---------- >>>>>>>>>>");
-        if (isNotEmpty(settingsXml)) {
-            if (!new File(settingsXml).exists()) {
-                final Entry<Optional<String>, Optional<Integer>> result = this.download(SRC_MAVEN_SETTINGS_XML, settingsXml);
-                if (!result.getValue().map(SupportFunction::is2xxStatus).orElse(FALSE)) { // TODO ignore 404
-                    final String errorMsg = String.format("Can not download from [%s], to [%s], status [%s].",
-                        result.getKey().orElse(null), settingsXml, result.getValue().orElse(null));
-                    logger.error(errorMsg);
-                    throw new RuntimeException(errorMsg);
-                }
-            }
+        if (isNotEmpty(settingsXml) && !new File(settingsXml).exists()) {
+            this.download(SRC_MAVEN_SETTINGS_XML, settingsXml, true);
         }
 
         // settings-security.xml
-        final Entry<Optional<String>, Optional<Integer>> result = this.download(
-            SRC_MAVEN_SETTINGS_SECURITY_XML, settingsSecurityXml(homeDir));
-        if (!result.getValue().map(SupportFunction::is2xxStatus).orElse(FALSE)) {
-            logger.warn(String.format("settings-security.xml not found or error on download from [%s], to [%s], status [%s].",
-                result.getKey().orElse(null), settingsSecurityXml(homeDir), result.getValue().orElse(null)));
-        }
+        this.download(SRC_MAVEN_SETTINGS_SECURITY_XML, settingsSecurityXml(homeDir), false);
         logger.info("<<<<<<<<<< ---------- run_mvn settings.xml and settings-security.xml ---------- <<<<<<<<<<");
     }
 
@@ -79,19 +67,65 @@ public class GitRepository {
         final String os = os();
         final String toolchainsSource = "generic".equals(os) ? "src/main/maven/toolchains.xml" : "src/main/maven/toolchains-" + os + ".xml";
         final String toolchainsTarget = homeDir + "/.m2/toolchains.xml";
-        final Entry<Optional<String>, Optional<Integer>> result = this.download(toolchainsSource, toolchainsTarget);
-        if (!result.getValue().map(SupportFunction::is2xxStatus).orElse(FALSE)) {
-            final String errorMsg = String.format("Can not download from [%s], to [%s], status [%s].",
-                result.getKey().orElse(null), toolchainsTarget, result.getValue().orElse(null));
-            logger.error(errorMsg);
-            throw new RuntimeException(errorMsg);
-        }
+        this.download(toolchainsSource, toolchainsTarget, true);
         logger.info("<<<<<<<<<< ---------- run_mvn toolchains.xml ---------- <<<<<<<<<<");
     }
 
-    public Entry<Optional<String>, Optional<Integer>> download(final String sourceFile, final String targetFile) {
+    /**
+     * Download sourceFile from git repository.
+     * Throws RuntimeException on error.
+     *
+     * @param sourceFile       relative path in git repository
+     * @param targetFile       target local file
+     * @param reThrowException re-throw exception
+     */
+    public void download(
+        final String sourceFile,
+        final String targetFile,
+        final boolean reThrowException
+    ) {
+        final Entry<Optional<String>, Entry<Optional<Integer>, Optional<Exception>>> result = this.downloadAndDecode(
+            sourceFile, targetFile);
+
+        final Optional<Integer> status = result.getValue().getKey();
+        final Optional<Exception> error = result.getValue().getValue();
+        final boolean is2xxStatus = status.map(SupportFunction::is2xxStatus).orElse(FALSE);
+        final boolean is404Status = status.map(SupportFunction::is404Status).orElse(FALSE);
+
+        if (error.isPresent() || !is2xxStatus) {
+            if (!is404Status) {
+                final String errorMsg = String.format(
+                    "Download error. From [%s], to [%s], error [%s].",
+                    result.getKey().orElse(null),
+                    targetFile,
+                    error.map(Throwable::getMessage).orElseGet(() -> status.map(Object::toString).orElse(null))
+                );
+                if (reThrowException) {
+                    logger.error(errorMsg);
+                    throw new RuntimeException(errorMsg); // TODO fix all new RuntimeException
+                } else {
+                    logger.warn(errorMsg);
+                }
+            } else {
+                logger.warn(String.format("Resource [%s] not found.", result.getKey().orElse(null)));
+            }
+        }
+    }
+
+    /**
+     * Download sourceFile from git repository.
+     *
+     * @param sourceFile relative path in git repository
+     * @param targetFile target local file
+     * @return tuple(url, tuple ( status, exception))
+     */
+    private Entry<Optional<String>, Entry<Optional<Integer>, Optional<Exception>>> downloadAndDecode(
+        final String sourceFile,
+        final String targetFile
+    ) {
+        final Entry<Optional<Integer>, Optional<Exception>> statusOrException;
+
         final String fromUrl;
-        final Optional<Integer> status;
 
         if (isNotEmpty(this.repo)) {
             final Map<String, String> headers = new LinkedHashMap<>();
@@ -99,18 +133,14 @@ public class GitRepository {
                 headers.put("PRIVATE-TOKEN", this.token);
             }
 
-            final Entry<Integer, Exception> statusOrException;
-            final boolean hasError;
-            final boolean is2xxStatus;
-
+            final Optional<Integer> status;
             if (PATTERN_GITLAB_URL.matcher(this.repo).matches()) {
                 fromUrl = this.repo + sourceFile.replaceAll("/", "%2F") + "?ref=" + this.repoRef;
                 final String saveToFile = targetFile + ".json";
                 statusOrException = SupportFunction.download(logger, fromUrl, saveToFile, headers, 3);
-                hasError = statusOrException.getValue() != null;
-                status = Optional.ofNullable(statusOrException.getKey());
+                status = statusOrException.getKey();
 
-                is2xxStatus = status.map(SupportFunction::is2xxStatus).orElse(FALSE);
+                final boolean is2xxStatus = status.map(SupportFunction::is2xxStatus).orElse(FALSE);
                 if (is2xxStatus) {
                     if (logger.isDebugEnabled()) {
                         logger.debug(String.format("decode %s", saveToFile));
@@ -125,13 +155,13 @@ public class GitRepository {
             } else {
                 fromUrl = this.repo + "/raw/" + this.repoRef + "/" + sourceFile;
                 statusOrException = SupportFunction.download(logger, fromUrl, targetFile, headers, 3);
-                hasError = statusOrException.getValue() != null;
-                status = Optional.ofNullable(statusOrException.getKey());
+                status = statusOrException.getKey();
             }
 
+            final boolean hasError = statusOrException.getValue().isPresent();
             if (hasError) {
-                if (statusOrException.getKey() == null) {
-                    logger.warn(String.format("Error download %s.", targetFile), statusOrException.getValue());
+                if (status.isPresent()) {
+                    logger.warn(String.format("Error download %s.", targetFile), statusOrException.getValue().orElse(null));
                 } else {
                     if (logger.isWarnEnabled()) {
                         logger.warn(String.format("Can not download %s.", targetFile));
@@ -144,10 +174,10 @@ public class GitRepository {
             }
         } else {
             fromUrl = null;
-            status = Optional.empty();
+            statusOrException = newTupleOptional(null, null);
         }
 
-        return new AbstractMap.SimpleImmutableEntry<>(Optional.ofNullable(fromUrl), status);
+        return newTuple(Optional.ofNullable(fromUrl), statusOrException);
     }
 
     public static String settingsSecurityXml(final String homeDir) {

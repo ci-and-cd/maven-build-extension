@@ -167,7 +167,8 @@ public enum CiOption {
             final Properties systemProperties,
             final Properties userProperties
         ) {
-            return SITE.calculateValue(gitProperties, systemProperties, userProperties);
+            return Optional.ofNullable(SITE.getValue(gitProperties, systemProperties, userProperties)
+                .map(Boolean::parseBoolean).orElse(FALSE) ? null : BOOL_STRING_TRUE);
         }
     },
     MAVEN_SITE_DEPLOY_SKIP("maven.site.deploy.skip") {
@@ -260,7 +261,7 @@ public enum CiOption {
     },
     // @Deprecated
     // CI_SCRIPT("ci.script"),
-    DEPENDENCYCHECK("dependency-check", BOOL_STRING_FALSE) {
+    DEPENDENCYCHECK("dependency-check") {
         @Override
         protected Optional<String> calculateValue(
             final GitProperties gitProperties,
@@ -979,7 +980,9 @@ public enum CiOption {
             final Properties systemProperties,
             final Properties userProperties
         ) {
-            return MAVEN_QUALITY_SKIP.calculateValue(gitProperties, systemProperties, userProperties);
+            boolean qualitySkip = MAVEN_QUALITY_SKIP.getValue(gitProperties, systemProperties, userProperties)
+                .map(Boolean::parseBoolean).orElse(FALSE);
+            return Optional.ofNullable(qualitySkip ? BOOL_STRING_FALSE : null);
         }
     },
     SITE_PATH("site.path", "${site.path.prefix}/${publish.channel}"),
@@ -1013,7 +1016,8 @@ public enum CiOption {
             final Properties systemProperties,
             final Properties userProperties
         ) {
-            return MAVEN_INTEGRATIONTEST_SKIP.calculateValue(gitProperties, systemProperties, userProperties);
+            return Optional.ofNullable(FAST.getValue(gitProperties, systemProperties, userProperties)
+                .map(Boolean::parseBoolean).orElse(FALSE) ? null : BOOL_STRING_TRUE);
         }
     },
     SONAR_HOST_URL("sonar.host.url") {

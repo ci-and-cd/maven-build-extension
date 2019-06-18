@@ -98,7 +98,7 @@ public abstract class SupportFunction {
         return result;
     }
 
-    public static Entry<Integer, Exception> download(
+    public static Entry<Optional<Integer>, Optional<Exception>> download(
         final Logger logger,
         final String fromUrl,
         final String saveToFile,
@@ -171,26 +171,26 @@ public abstract class SupportFunction {
                             Files.createDirectories(Paths.get(saveToDir.toString()));
                         }
                     } catch (final IOException ex) {
-                        return new AbstractMap.SimpleImmutableEntry<>(lastStatus, ex);
+                        return newTupleOptional(lastStatus, ex);
                     }
 
                     try (final ReadableByteChannel rbc = Channels.newChannel(inputStream)) {
                         try (final FileOutputStream fos = new FileOutputStream(saveToFile)) {
                             fos.getChannel().transferFrom(rbc, 0, Long.MAX_VALUE);
                         }
-                        return new AbstractMap.SimpleImmutableEntry<>(lastStatus, null);
+                        return newTupleOptional(lastStatus, null);
                     } catch (final IOException ex) {
-                        return new AbstractMap.SimpleImmutableEntry<>(lastStatus, ex);
+                        return newTupleOptional(lastStatus, ex);
                     }
                 } else if (lastStatus != null && !is5xxStatus(lastStatus)) {
-                    return new AbstractMap.SimpleImmutableEntry<>(lastStatus, null);
+                    return newTupleOptional(lastStatus, null);
                 }
             } else if (lastStatus != null && lastStatus == 404) {
-                return new AbstractMap.SimpleImmutableEntry<>(lastStatus, null);
+                return newTupleOptional(lastStatus, null);
             }
         }
 
-        return new AbstractMap.SimpleImmutableEntry<>(lastStatus, lastException);
+        return newTupleOptional(lastStatus, lastException);
     }
 
     public static Entry<Integer, String> exec(final String command) {
@@ -198,7 +198,7 @@ public abstract class SupportFunction {
             final Process proc = Runtime.getRuntime().exec(command);
             return execResult(proc);
         } catch (final IOException ex) {
-            return new AbstractMap.SimpleImmutableEntry<>(-1, "");
+            return newTuple(-1, "");
         }
     }
 
@@ -221,7 +221,7 @@ public abstract class SupportFunction {
             }
             return execResult(proc);
         } catch (final IOException ex) {
-            return new AbstractMap.SimpleImmutableEntry<>(-1, "");
+            return newTuple(-1, "");
         }
     }
 
@@ -230,10 +230,10 @@ public abstract class SupportFunction {
             final String result = new BufferedReader(new InputStreamReader(proc.getInputStream()))
                 .lines()
                 .collect(Collectors.joining("\n"));
-            return new AbstractMap.SimpleImmutableEntry<>(proc.waitFor(), result);
+            return newTuple(proc.waitFor(), result);
         } catch (final InterruptedException ie) {
             Thread.currentThread().interrupt();
-            return new AbstractMap.SimpleImmutableEntry<>(-1, "");
+            return newTuple(-1, "");
         }
     }
 
@@ -280,6 +280,10 @@ public abstract class SupportFunction {
 
     public static boolean is2xxStatus(final Integer status) {
         return status != null && status >= 200 && status < 300;
+    }
+
+    public static boolean is404Status(final Integer status) {
+        return status != null && status == 404;
     }
 
     public static boolean is5xxStatus(final Integer status) {
@@ -337,6 +341,14 @@ public abstract class SupportFunction {
     public static Properties merge(final Properties properties, final Properties intoProperties) {
         properties.stringPropertyNames().forEach(name -> intoProperties.setProperty(name, properties.getProperty(name)));
         return intoProperties;
+    }
+
+    public static <F, S> Entry<F, S> newTuple(final F first, final S second) {
+        return new AbstractMap.SimpleImmutableEntry<>(first, second);
+    }
+
+    public static <F, S> Entry<Optional<F>, Optional<S>> newTupleOptional(final F first, final S second) {
+        return new AbstractMap.SimpleImmutableEntry<>(Optional.ofNullable(first), Optional.ofNullable(second));
     }
 
     public static boolean notEmpty(final String str) {

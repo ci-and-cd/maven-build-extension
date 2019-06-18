@@ -32,12 +32,12 @@ import static top.infra.maven.extension.mavenbuild.Docker.dockerHost;
 import static top.infra.maven.extension.mavenbuild.MavenServerInterceptor.absentVarsInSettingsXml;
 import static top.infra.maven.extension.mavenbuild.SupportFunction.isEmpty;
 import static top.infra.maven.extension.mavenbuild.SupportFunction.isNotEmpty;
+import static top.infra.maven.extension.mavenbuild.SupportFunction.newTuple;
 import static top.infra.maven.extension.mavenbuild.SupportFunction.systemUserHome;
 
 import java.io.File;
 import java.net.URL;
 import java.net.URLClassLoader;
-import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -629,7 +629,7 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
             logger.info("<<<<<<<<<< ---------- onMavenExecutionRequest additionalProperties ---------- <<<<<<<<<<");
             logger.info("<<<<<<<<<< ---------- run_mvn alter_mvn ---------- <<<<<<<<<<");
         }
-        return new AbstractMap.SimpleImmutableEntry<>(new ArrayList<>(resultGoals), additionalProperties);
+        return newTuple(new ArrayList<>(resultGoals), additionalProperties);
     }
 
     private void prepareDocker(
