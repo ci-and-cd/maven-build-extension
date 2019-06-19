@@ -30,7 +30,7 @@ public class GitlabCiVariables {
     }
 
     public Optional<String> projectUrl() {
-        return this.getEnvironmentVariable("env.CI_PROJECT_URL");
+        return this.ciProjectUrl();
     }
 
     /**

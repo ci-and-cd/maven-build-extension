@@ -6,6 +6,7 @@ import static java.util.regex.Pattern.DOTALL;
 import static java.util.regex.Pattern.MULTILINE;
 import static top.infra.maven.extension.mavenbuild.SupportFunction.concat;
 import static top.infra.maven.extension.mavenbuild.SupportFunction.exists;
+import static top.infra.maven.extension.mavenbuild.SupportFunction.isEmpty;
 import static top.infra.maven.extension.mavenbuild.SupportFunction.lines;
 import static top.infra.maven.extension.mavenbuild.SupportFunction.readFile;
 import static top.infra.maven.extension.mavenbuild.SupportFunction.stackTrace;
@@ -24,6 +25,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -82,21 +84,33 @@ public class Gpg {
         this.environment = Collections.unmodifiableMap(env);
     }
 
-    public void decryptFiles() {
-        // config gpg (version > 2.1)
-        this.configFile();
+    public void decryptAndImportKeys() {
+        final boolean encryptedKeysPresent = this.isFilePresent(CODESIGNING_ASC_ENC) || this.isFilePresent(CODESIGNING_ASC_GPG);
 
-        // decrypt gpg key
-        this.decryptKey();
+        if (encryptedKeysPresent) {
+            // config gpg (version > 2.1)
+            this.configFile();
+        }
 
-        this.importPublicKeys();
+        if (encryptedKeysPresent) {
+            this.gpgFindPrivateKey(this.keyName).ifPresent(privateKeyFound -> {
+                if (!isEmpty(this.passphrase) && !privateKeyFound) {
+                    // decrypt gpg key
+                    this.decryptKey();
+                }
 
-        this.importPrivateKeys();
+                if (!privateKeyFound) {
+                    this.importPublicKeys();
+
+                    this.importPrivateKeys();
+                }
+            });
+        }
     }
 
     public void configFile() {
         // use --batch=true to avoid 'gpg tty not a tty' error
-        final Entry<Integer, String> resultGpgVersion = this.exec(this.gpgBatch("--version"));
+        final Entry<Integer, String> resultGpgVersion = this.exec(this.cmdGpgBatch("--version"));
         logger.info(resultGpgVersion.getValue());
 
         final Path dotGnupg = Paths.get(homeDir, DOT_GNUPG);
@@ -153,82 +167,33 @@ public class Gpg {
     }
 
     public void decryptKey() {
-        final Entry<Integer, String> opensslVersion = this.exec(Arrays.asList("openssl", "version", "-a"));
-        logger.info(opensslVersion.getValue());
+        this.decryptByOpenSSL(CODESIGNING_ASC_ENC, CODESIGNING_ASC, this.passphrase);
 
-        if (exists(Paths.get(this.workingDir, CODESIGNING_ASC_ENC)) && this.passphrase != null) {
-            logger.info("decrypt private key");
-            // bad decrypt
-            // 140611360391616:error:06065064:digital envelope routines:EVP_DecryptFinal_ex:bad decrypt:../crypto/evp/evp_enc.c:536:
-            // see: https://stackoverflow.com/questions/34304570/how-to-resolve-the-evp-decryptfinal-ex-bad-decrypt-during-file-decryption
-            // openssl aes-256-cbc -k ${CI_OPT_GPG_PASSPHRASE} -in codesigning.asc.enc -out codesigning.asc -d -md md5
-            final Entry<Integer, String> resultOpensslDecrypt = this.exec(Arrays.asList(
-                "openssl", "aes-256-cbc",
-                "-k", this.passphrase,
-                "-in", CODESIGNING_ASC_ENC,
-                "-out", CODESIGNING_ASC,
-                "-d", "-md", "md5"));
-            logger.info(resultOpensslDecrypt.getValue());
-        }
 
-        if (exists(Paths.get(this.workingDir, CODESIGNING_ASC_GPG)) && this.passphrase != null) {
-            logger.info("decrypt private key");
-            // LC_CTYPE="UTF-8" echo ${CI_OPT_GPG_PASSPHRASE}
-            //   | ${gpg_cmd_batch_yes} --passphrase-fd 0 --cipher-algo AES256 -o codesigning.asc codesigning.asc.gpg
-            final List<String> gpgDecrypt = this.gpgBatchYes(
-                "--passphrase-fd", "0",
-                "--cipher-algo", "AES256",
-                "-o", CODESIGNING_ASC,
-                CODESIGNING_ASC_GPG);
-            final Entry<Integer, String> resultGpgDecrypt = this.exec(this.passphrase, gpgDecrypt);
-            logger.info(resultGpgDecrypt.getValue());
-        }
+        this.decryptByGpg(CODESIGNING_ASC_GPG, CODESIGNING_ASC, this.passphrase);
     }
 
     public void importPublicKeys() {
-        if (exists(Paths.get(this.workingDir, CODESIGNING_PUB))) {
-            logger.info("import public keys");
-            // ${gpg_cmd_batch_yes} --import codesigning.pub
-            final Entry<Integer, String> resultImportKey = this.exec(null, this.gpgBatchYes("--import", CODESIGNING_PUB));
-            logger.info(resultImportKey.getValue());
-
-            logger.info("list public keys");
-            // ${gpg_cmd_batch} --list-keys
-            final Entry<Integer, String> gpgListKeys = this.exec(null, this.gpgBatch("--list-keys"));
-            logger.info(gpgListKeys.getValue());
+        if (this.isFilePresent(CODESIGNING_PUB)) {
+            this.gpgImport(CODESIGNING_PUB, false);
+            this.gpgListKeys(false);
         }
     }
 
     public void importPrivateKeys() {
-        if (exists(Paths.get(this.workingDir, CODESIGNING_ASC))) {
+        if (this.isFilePresent(CODESIGNING_ASC)) {
             logger.info("import private keys");
             // some versions only can import public key from a keypair file, some can import key pair
-            if (exists(Paths.get(this.workingDir, CODESIGNING_PUB))) {
-                // ${gpg_cmd_batch_yes} --import codesigning.asc
-                final List<String> importKey = this.gpgBatchYes("--import", CODESIGNING_ASC);
-                final Entry<Integer, String> resultImportKey = this.exec(null, importKey);
-                logger.info(resultImportKey.getValue());
+            if (this.isFilePresent(CODESIGNING_PUB)) {
+                this.gpgImport(CODESIGNING_ASC, false);
             } else {
-                // $(${gpg_cmd} --list-secret-keys | { grep ${CI_OPT_GPG_KEYNAME} || true; }
-                final Entry<Integer, String> resultListSecKeys = this.exec(null, this.gpgBatch("--list-secret-keys"));
-                final List<String> secretKeyFound = lines(resultListSecKeys.getValue())
-                    .stream()
-                    .filter(line -> line.contains(this.keyName))
-                    .collect(Collectors.toList());
-                if (logger.isInfoEnabled()) {
-                    logger.info(String.format("find '%s'in '%s'. '%s' found", this.keyName, resultListSecKeys.getValue(), secretKeyFound));
-                }
+                this.gpgFindPrivateKey(this.keyName).ifPresent(privateKeyFound -> {
+                    if (!privateKeyFound) {
+                        this.gpgImport(CODESIGNING_ASC, true);
+                    }
+                });
 
-                if (secretKeyFound.isEmpty()) {
-                    // ${gpg_cmd_batch_yes} --fast-import codesigning.asc
-                    final List<String> fastImportKey = this.gpgBatchYes("--fast-import", CODESIGNING_ASC);
-                    final Entry<Integer, String> resultFastImportPrivateKey = this.exec(null, fastImportKey);
-                    logger.info(resultFastImportPrivateKey.getValue());
-                }
-
-                logger.info("list private keys");
-                // ${gpg_cmd_batch} --list-secret-keys
-                logger.info(this.exec(null, this.gpgBatch("--list-secret-keys")).getValue());
+                this.gpgListKeys(true);
 
                 //   issue: You need a passphrase to unlock the secret key
                 //   no-tty causes "gpg: Sorry, no terminal at all requested - can't get input"
@@ -244,16 +209,12 @@ public class Gpg {
                 //     echo ${CI_OPT_GPG_PASSPHRASE} | gpg --passphrase-fd 0 --yes --batch=true -u ${CI_OPT_GPG_KEYNAME} --armor --detach-sig LICENSE
                 // fi
 
-                logger.info("set default key");
-                // echo -e "trust\n5\ny\n" | gpg --cmd-fd 0 --batch=true --edit-key ${CI_OPT_GPG_KEYNAME}
-                final List<String> setDefaultKey = this.gpgBatch("--cmd-fd", "0", "--edit-key", this.keyName);
-                final Entry<Integer, String> resultSetDefaultKey = this.exec("", setDefaultKey);
-                logger.info(resultSetDefaultKey.getValue());
+                this.gpgSetDefaultKey(this.keyName);
 
-                if (this.keyId != null) {
+                if (!isEmpty(this.keyId)) {
                     logger.info("export secret key for gradle build");
                     // ${gpg_cmd_batch} --keyring secring.gpg --export-secret-key ${CI_OPT_GPG_KEYID} > secring.gpg;
-                    final List<String> exportKey = this.gpgBatch("--keyring", "secring.gpg", "--export-secret-key", this.keyId);
+                    final List<String> exportKey = this.cmdGpgBatch("--keyring", "secring.gpg", "--export-secret-key", this.keyId);
                     final Entry<Integer, String> resultExportKey = this.exec("", exportKey);
                     if (resultExportKey.getKey() == 0) {
                         final Path secringGpg = Paths.get(this.workingDir, "secring.gpg");
@@ -262,6 +223,121 @@ public class Gpg {
                 }
             }
         }
+    }
+
+    private List<String> cmdGpgBatchYes(final String... command) {
+        return SupportFunction.asList(concat(this.cmd, "--batch=true", "--yes"), command);
+    }
+
+    private List<String> cmdGpgBatch(final String... command) {
+        return SupportFunction.asList(concat(this.cmd, "--batch=true"), command);
+    }
+
+    private void decryptByGpg(final String in, final String out, final String passphrase) {
+        if (!isEmpty(this.passphrase) && this.isFilePresent(in)) {
+            logger.info("decrypt private key");
+            // LC_CTYPE="UTF-8" echo ${CI_OPT_GPG_PASSPHRASE}
+            //   | ${gpg_cmd_batch_yes} --passphrase-fd 0 --cipher-algo AES256 -o codesigning.asc codesigning.asc.gpg
+            final List<String> gpgDecrypt = this.cmdGpgBatchYes(
+                "--passphrase-fd", "0",
+                "--cipher-algo", "AES256",
+                "-o", out,
+                in);
+            final Entry<Integer, String> resultGpgDecrypt = this.exec(passphrase, gpgDecrypt);
+            logger.info(resultGpgDecrypt.getValue());
+        }
+    }
+
+    private void decryptByOpenSSL(final String in, final String out, final String passphrase) {
+        if (!isEmpty(this.passphrase) && this.isFilePresent(in)) {
+            logger.info("decrypt private key by openssl");
+
+            final Entry<Integer, String> opensslVersion = this.exec(Arrays.asList("openssl", "version", "-a"));
+            logger.info(opensslVersion.getValue());
+
+            // bad decrypt
+            // 140611360391616:error:06065064:digital envelope routines:EVP_DecryptFinal_ex:bad decrypt:../crypto/evp/evp_enc.c:536:
+            // see: https://stackoverflow.com/questions/34304570/how-to-resolve-the-evp-decryptfinal-ex-bad-decrypt-during-file-decryption
+            // openssl aes-256-cbc -k ${CI_OPT_GPG_PASSPHRASE} -in codesigning.asc.enc -out codesigning.asc -d -md md5
+            final Entry<Integer, String> resultOpensslDecrypt = this.exec(Arrays.asList(
+                "openssl", "aes-256-cbc",
+                "-k", passphrase,
+                "-in", in,
+                "-out", out,
+                "-d", "-md", "md5"));
+            logger.info(resultOpensslDecrypt.getValue());
+        }
+    }
+
+    private Map.Entry<Integer, String> exec(final List<String> command) {
+        return this.exec(null, command);
+    }
+
+    private Map.Entry<Integer, String> exec(final String stdIn, final List<String> command) {
+        return SupportFunction.exec(this.environment, stdIn, command);
+    }
+
+    public Optional<Boolean> gpgFindPrivateKey(final String keyName) {
+        final Boolean found;
+
+        if (!isEmpty(keyName)) {
+            // $(${gpg_cmd} --list-secret-keys | { grep ${CI_OPT_GPG_KEYNAME} || true; }
+            final Entry<Integer, String> resultListSecKeys = this.exec(null, this.cmdGpgBatch("--list-secret-keys"));
+            final List<String> secretKeyFound = lines(resultListSecKeys.getValue())
+                .stream()
+                .filter(line -> line.contains(keyName))
+                .collect(Collectors.toList());
+
+            found = !secretKeyFound.isEmpty();
+            if (logger.isInfoEnabled()) {
+                logger.info(String.format(
+                    "gpg%s found '%s' in '%s'. result: [%s]",
+                    found ? "" : " not",
+                    keyName,
+                    resultListSecKeys.getValue(),
+                    secretKeyFound));
+            }
+        } else {
+            found = null;
+        }
+
+        return Optional.ofNullable(found);
+    }
+
+    private Entry<Integer, String> gpgImport(final String keyFile, final boolean fastimport) {
+        final String importOption = fastimport ? "--fast-import" : "--import";
+        logger.info(String.format("gpg %s %s", importOption, keyFile));
+        // e.g.
+        // ${gpg_cmd_batch_yes} --import codesigning.pub
+        // ${gpg_cmd_batch_yes} --import codesigning.asc
+        // ${gpg_cmd_batch_yes} --fast-import codesigning.asc
+        final Entry<Integer, String> result = this.exec(null, this.cmdGpgBatchYes(importOption, keyFile));
+        logger.info(result.getValue());
+        return result;
+    }
+
+    private Entry<Integer, String> gpgListKeys(final boolean privateKey) {
+        final String listOption = privateKey ? "--list-secret-keys" : "--list-keys";
+        logger.info(String.format("gpg %s", listOption));
+        // ${gpg_cmd_batch} --list-keys
+        // ${gpg_cmd_batch} --list-secret-keys
+        final Entry<Integer, String> result = this.exec(null, this.cmdGpgBatch(listOption));
+        logger.info(result.getValue());
+        return result;
+    }
+
+    private void gpgSetDefaultKey(final String keyName) {
+        if (!isEmpty(keyName)) {
+            logger.info(String.format("gpg set default key to %s", keyName));
+            // echo -e "trust\n5\ny\n" | gpg --cmd-fd 0 --batch=true --edit-key ${CI_OPT_GPG_KEYNAME}
+            final List<String> setDefaultKey = this.cmdGpgBatch("--cmd-fd", "0", "--edit-key", keyName);
+            final Entry<Integer, String> resultSetDefaultKey = this.exec("", setDefaultKey);
+            logger.info(resultSetDefaultKey.getValue());
+        }
+    }
+
+    private boolean isFilePresent(final String file) {
+        return exists(Paths.get(this.workingDir, file));
     }
 
     static boolean gpgVersionGreater(
@@ -281,21 +357,5 @@ public class Gpg {
             result = false;
         }
         return result;
-    }
-
-    private List<String> gpgBatchYes(final String... command) {
-        return SupportFunction.asList(concat(this.cmd, "--batch=true", "--yes"), command);
-    }
-
-    private List<String> gpgBatch(final String... command) {
-        return SupportFunction.asList(concat(this.cmd, "--batch=true"), command);
-    }
-
-    private Map.Entry<Integer, String> exec(final List<String> command) {
-        return this.exec(null, command);
-    }
-
-    private Map.Entry<Integer, String> exec(final String stdIn, final List<String> command) {
-        return SupportFunction.exec(this.environment, stdIn, command);
     }
 }
