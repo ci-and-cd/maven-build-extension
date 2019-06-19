@@ -29,7 +29,9 @@ import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.Properties;
 
+import top.infra.exception.RuntimeIOException;
 import top.infra.maven.extension.mavenbuild.utils.PropertiesUtil;
+import top.infra.maven.extension.mavenbuild.utils.SystemUtil;
 import top.infra.maven.logging.Logger;
 
 public class CiOptionAccessor {
@@ -59,8 +61,12 @@ public class CiOptionAccessor {
             if (mavenMultiModuleProjectDirectory != null) {
                 userProperties.setProperty(PROP_MAVEN_MULTIMODULEPROJECTDIRECTORY, mavenMultiModuleProjectDirectory);
             } else {
-                logger.warn(String.format("System property %s not found", PROP_MAVEN_MULTIMODULEPROJECTDIRECTORY));
-                // TODO use user.dir
+                final String systemUserDir = SystemUtil.systemUserDir();
+                logger.warn(String.format(
+                    "Value of system property [%s] not found, use user.dir [%s] instead.",
+                    PROP_MAVEN_MULTIMODULEPROJECTDIRECTORY, systemUserDir
+                ));
+                userProperties.setProperty(PROP_MAVEN_MULTIMODULEPROJECTDIRECTORY, systemUserDir);
             }
         }
 
@@ -140,7 +146,7 @@ public class CiOptionAccessor {
             } catch (final IOException ex) {
                 final String errorMsg = String.format("Can not load ci options file %s", ex.getMessage());
                 logger.error(errorMsg);
-                throw new RuntimeException(errorMsg, ex); // TODO fix all new RuntimeException
+                throw new RuntimeIOException(errorMsg, ex);
             }
         });
 

@@ -23,6 +23,9 @@ import top.infra.maven.extension.mavenbuild.utils.SupportFunction;
 import top.infra.maven.extension.mavenbuild.utils.SystemUtil;
 import top.infra.maven.logging.Logger;
 
+/**
+ * TODO use a java docker client ?
+ */
 public class Docker {
 
     private static final Pattern PATTERN_BASE_IMAGE = Pattern.compile("^FROM[ ]+.+$");
@@ -120,7 +123,7 @@ public class Docker {
     public void initDockerConfig() {
         this.docker("version");
 
-        // TODO config docker log rotation
+        // TODO config docker log rotation here ?
         final File dockerConfigDir = new File(this.homeDir + ".docker");
         if (!dockerConfigDir.exists()) {
             dockerConfigDir.mkdirs();

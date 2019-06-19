@@ -20,6 +20,8 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import top.infra.exception.RuntimeIOException;
+
 public abstract class SystemUtil {
 
     private SystemUtil() {
@@ -29,7 +31,7 @@ public abstract class SystemUtil {
         try {
             Files.copy(Paths.get(from), Paths.get(to), StandardCopyOption.REPLACE_EXISTING);
         } catch (final IOException ex) {
-            throw new RuntimeException(ex);
+            throw new RuntimeIOException(ex);
         }
     }
 

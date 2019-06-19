@@ -11,6 +11,7 @@ import static top.infra.maven.extension.mavenbuild.Constants.INFRASTRUCTURE_OPEN
 import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.isEmpty;
 
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.Properties;
 
@@ -112,12 +113,13 @@ public class CiOptionEventAware implements MavenEventAware {
     private static void checkGitAuthToken(final Logger logger, final CiOptionAccessor ciOpts) {
         logger.info(">>>>>>>>>> ---------- check GIT_AUTH_TOKEN  ---------- >>>>>>>>>>");
         if (isEmpty(ciOpts.getOption(GIT_AUTH_TOKEN).orElse(null))) {
-            final boolean infraOpenSource = ciOpts.getOption(INFRASTRUCTURE).map(INFRASTRUCTURE_OPENSOURCE::equals).orElse(FALSE);
+            final boolean openSource = ciOpts.getOption(INFRASTRUCTURE).map(INFRASTRUCTURE_OPENSOURCE::equals).orElse(FALSE);
             final Boolean originRepo = ciOpts.getOption(ORIGIN_REPO).map(Boolean::parseBoolean).orElse(FALSE);
-            if (originRepo && infraOpenSource) {
+            if (originRepo && !openSource) {
                 final String errorMsg = String.format(
-                    "%s not set and using origin private repo, exit.", GIT_AUTH_TOKEN.getEnvVariableName());
-                final RuntimeException error = new RuntimeException(errorMsg);
+                    "%s not set when using a private git repo, exit.",
+                    GIT_AUTH_TOKEN.getEnvVariableName());
+                final NoSuchElementException error = new NoSuchElementException(errorMsg);
                 logger.error(errorMsg);
                 throw error;
             } else {

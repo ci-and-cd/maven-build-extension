@@ -90,7 +90,7 @@ public class MavenProjectInfo {
         final File pomFile,
         final ProjectBuildingRequest projectBuildingRequest
     ) {
-        // TODO FIXME set goals
+        // TODO FIXME set goals?
         final Optional<MavenProject> projectOptional = buildProject(logger, pomFile, projectBuilder, projectBuildingRequest);
         final String artifactId = projectOptional.map(MavenProject::getArtifactId).orElse(null);
         final String groupId = projectOptional.map(MavenProject::getGroupId).orElse(null);

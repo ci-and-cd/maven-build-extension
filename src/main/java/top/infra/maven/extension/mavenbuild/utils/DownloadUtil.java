@@ -21,6 +21,21 @@ import top.infra.maven.logging.Logger;
 
 public abstract class DownloadUtil {
 
+    public static class DownloadException extends RuntimeException {
+
+        public DownloadException(final String msg) {
+            super(msg);
+        }
+
+        public DownloadException(final String msg, final Exception cause) {
+            super(msg, cause);
+        }
+
+        public DownloadException(final Exception cause) {
+            super(cause);
+        }
+    }
+
     private DownloadUtil() {
     }
 

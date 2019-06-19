@@ -27,6 +27,7 @@ import java.util.regex.Pattern;
 import org.json.JSONObject;
 
 import top.infra.maven.extension.mavenbuild.utils.DownloadUtil;
+import top.infra.maven.extension.mavenbuild.utils.DownloadUtil.DownloadException;
 import top.infra.maven.logging.Logger;
 
 public class GitRepository {
@@ -76,7 +77,7 @@ public class GitRepository {
         final String sourceFile,
         final String targetFile,
         final boolean reThrowException
-    ) {
+    ) throws DownloadException {
         final Entry<Optional<String>, Entry<Optional<Integer>, Optional<Exception>>> result = this.downloadAndDecode(
             sourceFile, targetFile);
 
@@ -95,7 +96,7 @@ public class GitRepository {
                 );
                 if (reThrowException) {
                     logger.error(errorMsg);
-                    throw new RuntimeException(errorMsg); // TODO fix all new RuntimeException
+                    throw new DownloadException(errorMsg, error.orElse(null));
                 } else {
                     logger.warn(errorMsg);
                 }

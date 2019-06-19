@@ -1,14 +1,16 @@
 package top.infra.maven.extension.mavenbuild.model;
 
+import static java.lang.Boolean.FALSE;
+import static java.util.Collections.emptyMap;
 import static java.util.stream.Collectors.toList;
+import static top.infra.maven.extension.mavenbuild.utils.SystemUtil.pathname;
 
 import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.net.URL;
 import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map.Entry;
+import java.util.Optional;
 
 import org.apache.maven.artifact.repository.ArtifactRepository;
 import org.apache.maven.model.Dependency;
@@ -21,9 +23,8 @@ import org.apache.maven.model.resolution.InvalidRepositoryException;
 import org.apache.maven.model.resolution.ModelResolver;
 import org.apache.maven.model.resolution.UnresolvableModelException;
 
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.Response;
+import top.infra.maven.extension.mavenbuild.utils.DownloadUtil;
+import top.infra.maven.extension.mavenbuild.utils.DownloadUtil.DownloadException;
 import top.infra.maven.logging.Logger;
 import top.infra.maven.logging.LoggerPlexusImpl;
 
@@ -105,14 +106,18 @@ public class RepositoryModelResolver implements ModelResolver {
 
             this.addRepository(repository, true);
         }
-    }    @Override
+    }
+
+    @Override
     public void addRepository(Repository repository) throws InvalidRepositoryException {
         this.addRepository(repository, false);
     }
 
     public void setLocalRepository(final String localRepository) {
         this.localRepository = new File(localRepository);
-    }    @Override
+    }
+
+    @Override
     public void addRepository(final Repository repository, boolean replace) throws InvalidRepositoryException {
         for (final Repository existingRepository : this.repositories) {
             if (existingRepository.getId().equals(repository.getId()) && !replace) {
@@ -128,7 +133,6 @@ public class RepositoryModelResolver implements ModelResolver {
         }
         this.repositories.add(repository);
     }
-
 
 
     @Override
@@ -149,8 +153,8 @@ public class RepositoryModelResolver implements ModelResolver {
 
         if (!pom.exists()) {
             try {
-                download(pom);
-            } catch (IOException e) {
+                this.download(pom);
+            } catch (final Exception e) {
                 throw new UnresolvableModelException("Could not download POM", groupId, artifactId, version, e);
             }
         }
@@ -162,7 +166,6 @@ public class RepositoryModelResolver implements ModelResolver {
     public ModelSource resolveModel(final Parent parent) throws UnresolvableModelException {
         return resolveModel(parent.getGroupId(), parent.getArtifactId(), parent.getVersion());
     }
-
 
 
     private File getLocalFile(final String groupId, final String artifactId, final String version) {
@@ -177,34 +180,53 @@ public class RepositoryModelResolver implements ModelResolver {
         return new File(new File(new File(pom, artifactId), version), artifactId + "-" + version + ".pom");
     }
 
-    private void download(final File localRepoFile) throws IOException {
+    private void download(final File localRepoFile) {
         for (final Repository repo : this.repositories) {
             final String repoUrl = repo.getUrl().endsWith("/")
                 ? repo.getUrl().substring(0, repo.getUrl().length() - 1)
                 : repo.getUrl();
 
             final String filePath = localRepoFile.getAbsolutePath().substring(this.localRepository.getAbsolutePath().length());
-            final URL fileUrl = new URL(repoUrl + filePath);
+            final String sourceUrl = repoUrl + filePath;
 
-            logger.debug("Downloading " + fileUrl);
-
-            // TODO remove okhttp
-
-            final OkHttpClient client = new OkHttpClient();
-            final Request request = new Request.Builder()
-                .url(fileUrl)
-                .build();
-
-            final Response response = client.newCall(request).execute();
-
-            if (response.code() == 200 && response.body() != null) {
-                localRepoFile.getParentFile().mkdirs();
-                try (FileWriter out = new FileWriter(localRepoFile)) {
-                    out.write(response.body().string());
-                    out.flush();
-                }
-                return;
+            final Entry<Optional<Integer>, Optional<Exception>> result = DownloadUtil.download(
+                logger, sourceUrl, pathname(localRepoFile), emptyMap(), 3);
+            final Optional<Integer> status = result.getKey();
+            final Optional<Exception> error = result.getValue();
+            final boolean is2xxStatus = status.map(DownloadUtil::is2xxStatus).orElse(FALSE);
+            if (error.isPresent()) {
+                throw new DownloadException(error.get());
+            } else if (!is2xxStatus) {
+                throw new DownloadException(String.format("url [%s], status [%s]", sourceUrl, status.orElse(null)));
             }
+
+            // this.httpDownload(sourceUrl, pathname(localRepoFile));
         }
     }
+
+    // @Deprecated
+    // private void httpDownload(final String sourceUrl, final String targetLocalFile) {
+    //     try {
+    //         final URL source = new URL(sourceUrl);
+    //         final File target = new File(targetLocalFile);
+    //
+    //         logger.debug("Downloading " + source);
+    //
+    //         final okhttp3.OkHttpClient client = new okhttp3.OkHttpClient();
+    //         final okhttp3.Request request = new okhttp3.Request.Builder()
+    //             .url(source)
+    //             .build();
+    //
+    //         final okhttp3.Response response = client.newCall(request).execute();
+    //         if (response.code() == 200 && response.body() != null) {
+    //             target.getParentFile().mkdirs();
+    //             try (final FileWriter out = new FileWriter(target)) {
+    //                 out.write(response.body().string());
+    //                 out.flush();
+    //             }
+    //         }
+    //     } catch (final IOException ex) {
+    //         throw new RuntimeIOException(ex);
+    //     }
+    // }
 }

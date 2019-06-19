@@ -101,7 +101,7 @@ public enum CiOption {
         }
     },
 
-    FAST("fast"), // TODO sonar.buildbreaker.skip
+    FAST("fast"),
 
     // /**
     //  * Got warning on maven-surefire-plugin's test goal.
@@ -1025,6 +1025,17 @@ public enum CiOption {
         ) {
             return Optional.ofNullable(FAST.getValue(gitProperties, systemProperties, userProperties)
                 .map(Boolean::parseBoolean).orElse(FALSE) ? null : BOOL_STRING_TRUE);
+        }
+    },
+    SONAR_BUILDBREAKER_SKIP("sonar.buildbreaker.skip") {
+        @Override
+        protected Optional<String> calculateValue(
+            final GitProperties gitProperties,
+            final Properties systemProperties,
+            final Properties userProperties
+        ) {
+            return Optional.ofNullable(FAST.getValue(gitProperties, systemProperties, userProperties)
+                .map(Boolean::parseBoolean).orElse(FALSE) ? BOOL_STRING_TRUE : null);
         }
     },
     SONAR_HOST_URL("sonar.host.url") {
