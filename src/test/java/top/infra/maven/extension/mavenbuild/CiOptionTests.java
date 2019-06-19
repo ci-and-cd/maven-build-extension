@@ -20,6 +20,9 @@ import java.util.Properties;
 import org.junit.Test;
 import org.slf4j.LoggerFactory;
 
+import top.infra.maven.logging.Logger;
+import top.infra.maven.logging.LoggerSlf4jImpl;
+
 public class CiOptionTests {
 
     private static final org.slf4j.Logger slf4jLogger = LoggerFactory.getLogger(CiOptionTests.class);

@@ -29,9 +29,9 @@ import static top.infra.maven.extension.mavenbuild.MavenGoalEditor.GOAL_INSTALL;
 import static top.infra.maven.extension.mavenbuild.MavenGoalEditor.GOAL_PACKAGE;
 import static top.infra.maven.extension.mavenbuild.MavenGoalEditor.GOAL_SITE;
 import static top.infra.maven.extension.mavenbuild.MavenServerInterceptor.absentVarsInSettingsXml;
-import static top.infra.maven.extension.mavenbuild.SupportFunction.isEmpty;
-import static top.infra.maven.extension.mavenbuild.SupportFunction.newTupleOptional;
-import static top.infra.maven.extension.mavenbuild.SupportFunction.systemUserHome;
+import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.isEmpty;
+import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.newTupleOptional;
+import static top.infra.maven.extension.mavenbuild.utils.SystemUtil.systemUserHome;
 
 import java.io.File;
 import java.net.URL;
@@ -53,11 +53,15 @@ import javax.inject.Singleton;
 import org.apache.maven.eventspy.AbstractEventSpy;
 import org.apache.maven.execution.MavenExecutionRequest;
 import org.apache.maven.project.ProjectBuildingRequest;
+import org.apache.maven.rtinfo.RuntimeInformation;
 import org.apache.maven.settings.building.SettingsBuildingRequest;
 import org.apache.maven.settings.building.SettingsBuildingResult;
 import org.apache.maven.toolchain.building.ToolchainsBuildingRequest;
 
 import top.infra.maven.extension.mavenbuild.model.ProjectBuilderActivatorModelResolver;
+import top.infra.maven.extension.mavenbuild.utils.SupportFunction;
+import top.infra.maven.logging.Logger;
+import top.infra.maven.logging.LoggerPlexusImpl;
 
 /**
  * Main entry point. Reads properties and exposes them as user properties.
@@ -68,7 +72,6 @@ import top.infra.maven.extension.mavenbuild.model.ProjectBuilderActivatorModelRe
 @Singleton
 public class MavenBuildEventSpy extends AbstractEventSpy {
 
-    private static final String NA = "N/A";
     private static final Pattern PATTERN_CI_ENV_VARS = Pattern.compile("^env\\.CI_.+");
 
     private final Logger logger;
@@ -78,15 +81,12 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
     private final MavenProjectInfoBean projectInfoBean;
 
     private final ProjectBuilderActivatorModelResolver resolver;
-
+    // @org.codehaus.plexus.component.annotations.Requirement
+    private final RuntimeInformation runtime;
     private String settingsLocalRepository;
-
     private CiOptionAccessor ciOpts;
-
     private String mavenSettingsPathname;
-
     private MavenServerInterceptor mavenServerInterceptor;
-
     private String rootProjectPathname;
 
     /**
@@ -102,13 +102,15 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
         final org.codehaus.plexus.logging.Logger logger,
         final ProjectBuilderActivatorModelResolver resolver,
         final MavenServerInterceptor mavenServerInterceptor,
-        final MavenProjectInfoBean projectInfoBean
+        final MavenProjectInfoBean projectInfoBean,
+        final RuntimeInformation runtime
     ) {
         this.homeDir = systemUserHome();
         this.logger = new LoggerPlexusImpl(logger);
         this.resolver = resolver;
         this.mavenServerInterceptor = mavenServerInterceptor;
         this.projectInfoBean = projectInfoBean;
+        this.runtime = runtime;
 
         this.settingsLocalRepository = null;
         this.mavenSettingsPathname = null;
@@ -191,7 +193,7 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
                     }
                     SupportFunction.merge(goalsAndProps.getValue(), request.getUserProperties());
                     SupportFunction.merge(goalsAndProps.getValue(), projectBuildingRequest.getUserProperties());
-                    this.prepareDocker(goalsAndProps.getKey(), this.homeDir, this.ciOpts);
+                    prepareDocker(logger, goalsAndProps.getKey(), this.homeDir, this.ciOpts);
                 } else {
                     if (logger.isInfoEnabled()) {
                         logger.info(String.format("onEvent MavenExecutionRequest %s but projectBuildingRequest is null.", request));
@@ -208,6 +210,198 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
         }
 
         super.onEvent(event);
+    }
+
+    private void onSettingsBuildingRequest(
+        final SettingsBuildingRequest request,
+        final String homeDir,
+        final CiOptionAccessor ciOpts
+    ) {
+        if (logger.isInfoEnabled()) {
+            logger.info(String.format("onEvent SettingsBuildingRequest. request: [%s]", request));
+            logger.info(String.format("onEvent SettingsBuildingRequest. globalSettingsFile: [%s]", request.getGlobalSettingsFile()));
+            logger.info(String.format("onEvent SettingsBuildingRequest. globalSettingsSource: [%s]", request.getGlobalSettingsSource()));
+            logger.info(String.format("onEvent SettingsBuildingRequest. userSettingsFile: [%s]", request.getUserSettingsFile()));
+            logger.info(String.format("onEvent SettingsBuildingRequest. userSettingsSource: [%s]", request.getUserSettingsSource()));
+        }
+
+        if (this.mavenSettingsPathname != null) {
+            if (logger.isInfoEnabled()) {
+                logger.info(String.format("Use userSettingsFile [%s] instead of [%s]",
+                    this.mavenSettingsPathname, request.getUserSettingsFile()));
+            }
+
+            request.setUserSettingsFile(new File(this.mavenSettingsPathname));
+        }
+    }
+
+    private void onToolchainsBuildingRequest(
+        final ToolchainsBuildingRequest request,
+        final String homeDir,
+        final CiOptionAccessor ciOpts
+    ) {
+        if (logger.isInfoEnabled()) {
+            logger.info(String.format("onEvent ToolchainsBuildingRequest %s", request));
+        }
+    }
+
+    private Entry<List<String>, Properties> onMavenExecutionRequest(
+        final MavenExecutionRequest request,
+        final String homeDir,
+        final CiOptionAccessor ciOpts
+    ) {
+        if (logger.isInfoEnabled()) {
+            logger.info(String.format("onEvent MavenExecutionRequest %s", request));
+        }
+
+        // final File rootProjectDirectory = ((MavenExecutionRequest) request).getMultiModuleProjectDirectory();
+
+        this.decryptFiles(ciOpts, homeDir);
+
+        final Entry<Optional<MavenProjectInfo>, Optional<RuntimeException>> resultCheckProjectVer =
+            this.resolveAndCheckProjectVersion(request, ciOpts);
+        final boolean projectVersionValid = resultCheckProjectVer.getKey().isPresent();
+        resultCheckProjectVer.getValue().ifPresent(ex -> {
+            logger.error(ex.getMessage());
+            throw ex;
+        });
+
+        return editGoals(logger, request, ciOpts, projectVersionValid);
+    }
+
+    private void decryptFiles(
+        final CiOptionAccessor ciOpts,
+        final String homeDir
+    ) {
+        logger.info("    >>>>>>>>>> ---------- decrypt files and handle keys ---------- >>>>>>>>>>");
+        final Optional<String> executable = ciOpts.getOption(GPG_EXECUTABLE);
+        if (executable.isPresent()) {
+            final Optional<String> gpgKeyid = ciOpts.getOption(GPG_KEYID);
+            final String gpgKeyname = ciOpts.getOption(GPG_KEYNAME).orElse("");
+            final Optional<String> gpgPassphrase = ciOpts.getOption(GPG_PASSPHRASE);
+            final Gpg gpg = new Gpg(
+                logger,
+                homeDir,
+                this.rootProjectPathname,
+                executable.get(),
+                gpgKeyid.orElse(null),
+                gpgKeyname,
+                gpgPassphrase.orElse(null)
+            );
+            gpg.decryptAndImportKeys();
+        } else {
+            logger.warn("Both gpg and gpg2 are not found.");
+        }
+        logger.info("    <<<<<<<<<< ---------- decrypt files and handle keys ---------- <<<<<<<<<<");
+    }
+
+    private Entry<Optional<MavenProjectInfo>, Optional<RuntimeException>> resolveAndCheckProjectVersion(
+        final MavenExecutionRequest request,
+        final CiOptionAccessor ciOpts
+    ) {
+        // Options are not calculated and merged into projectBuildingRequest this time.
+        final MavenProjectInfo projectInfo = this.projectInfoBean.getMavenProjectInfo(request);
+        if (logger.isInfoEnabled()) {
+            logger.info(">>>>>>>>>> ---------- resolve project version ---------- >>>>>>>>>>");
+            logger.info(projectInfo.toString());
+            logger.info("<<<<<<<<<< ---------- resolve project version ---------- <<<<<<<<<<");
+        }
+
+        final String gitRefName = ciOpts.getOption(GIT_REF_NAME).orElse("");
+        final Entry<Boolean, RuntimeException> resultCheckProjectVer = ciOpts.checkProjectVersion(projectInfo.getVersion());
+        final boolean verValid = resultCheckProjectVer.getKey();
+        if (logger.isInfoEnabled()) {
+            logger.info(">>>>>>>>>> ---------- check project version ---------- >>>>>>>>>>");
+            logger.info(String.format("%s version [%s] for ref [%s].",
+                verValid ? "Valid" : "Invalid", projectInfo.getVersion(), gitRefName));
+            logger.info("<<<<<<<<<< ---------- check project version ---------- <<<<<<<<<<");
+        }
+
+        final Entry<Optional<MavenProjectInfo>, Optional<RuntimeException>> result;
+        if (verValid) {
+            result = newTupleOptional(projectInfo, null);
+        } else {
+            logger.warn("You should use versions with '-SNAPSHOT' suffix on develop branch or feature branches");
+            logger.warn("You should use versions like 1.0.0-SNAPSHOT develop branch");
+            logger.warn("You should use versions like 1.0.0-feature-SNAPSHOT or 1.0.0-branch-SNAPSHOT on feature branches");
+            logger.warn("You should use versions like 1.0.0 without '-SNAPSHOT' suffix on releases");
+            final RuntimeException ex = resultCheckProjectVer.getValue();
+            result = newTupleOptional(null, ex);
+        }
+        return result;
+    }
+
+    private static Entry<List<String>, Properties> editGoals(
+        final Logger logger,
+        final MavenExecutionRequest request,
+        final CiOptionAccessor ciOpts,
+        final boolean projectVersionValid
+    ) {
+        final List<String> requestedGoals = new ArrayList<>(request.getGoals());
+        if (logger.isInfoEnabled()) {
+            logger.info(">>>>>>>>>> ---------- run_mvn alter_mvn ---------- >>>>>>>>>>");
+            logger.info(String.format("onMavenExecutionRequest requested goals: %s", String.join(" ", requestedGoals)));
+        }
+
+        final MavenGoalEditor goalEditor = new MavenGoalEditor(
+            logger,
+            ciOpts.getOption(GIT_REF_NAME).orElse(null),
+            ciOpts.getOption(MVN_DEPLOY_PUBLISH_SEGREGATION).map(Boolean::parseBoolean).orElse(FALSE),
+            ciOpts.getOption(ORIGIN_REPO).map(Boolean::parseBoolean).orElse(FALSE),
+            ciOpts.getOption(PUBLISH_TO_REPO).map(Boolean::parseBoolean).orElse(FALSE) && projectVersionValid,
+            ciOpts.getOption(SITE).map(Boolean::parseBoolean).orElse(FALSE)
+        );
+        final Entry<List<String>, Properties> goalsAndProps = goalEditor.goalsAndUserProperties(request.getGoals());
+        if (logger.isInfoEnabled()) {
+            logger.info(String.format("onMavenExecutionRequest result goals: %s", String.join(" ", goalsAndProps.getKey())));
+            logger.info(">>>>>>>>>> ---------- onMavenExecutionRequest additionalUserProperties ---------- >>>>>>>>>>");
+            logger.info(SupportFunction.toString(goalsAndProps.getValue(), null));
+            logger.info("<<<<<<<<<< ---------- onMavenExecutionRequest additionalUserProperties ---------- <<<<<<<<<<");
+            logger.info("<<<<<<<<<< ---------- run_mvn alter_mvn ---------- <<<<<<<<<<");
+        }
+        return goalsAndProps;
+    }
+
+    private static void prepareDocker(
+        final Logger logger,
+        final List<String> goals,
+        final String homeDir,
+        final CiOptionAccessor ciOpts
+    ) {
+        final boolean dockerEnabled = ciOpts.getOption(DOCKER).map(Boolean::parseBoolean).orElse(FALSE)
+            && goals
+            .stream()
+            .filter(goal -> !goal.contains(GOAL_SITE))
+            .anyMatch(goal ->
+                goal.endsWith("build")
+                    || goal.endsWith(GOAL_DEPLOY)
+                    || goal.endsWith("push")
+                    || goal.equals(GOAL_INSTALL)
+                    || goal.equals(GOAL_PACKAGE)
+            );
+
+        if (dockerEnabled) {
+            final Docker docker = new Docker(
+                logger,
+                dockerHost(ciOpts.getSystemProperties()).orElse(null),
+                homeDir,
+                ciOpts.getOption(DOCKER_REGISTRY).orElse(null),
+                ciOpts.getOption(DOCKER_REGISTRY_PASS).orElse(null),
+                ciOpts.getOption(DOCKER_REGISTRY_URL).orElse(null),
+                ciOpts.getOption(DOCKER_REGISTRY_USER).orElse(null)
+            );
+
+            docker.initDockerConfig();
+
+            if (!ciOpts.getOption(DOCKERFILE_USEMAVENSETTINGSFORAUTH).map(Boolean::parseBoolean).orElse(FALSE)) {
+                docker.dockerLogin();
+            }
+
+            if (!ciOpts.getOption(FAST).map(Boolean::parseBoolean).orElse(FALSE)) {
+                docker.cleanOldImages();
+                docker.pullBaseImage();
+            }
+        }
     }
 
     void onInit(final Context context) {
@@ -268,22 +462,11 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
             final String javaVersion = runtimeImplVersion != null ? runtimeImplVersion : System.getProperty("java.runtime.version");
 
             logger.info(String.format("Java version [%s]", javaVersion));
-            logger.info(String.format("Maven version [%s]", this.projectInfoBean.getMavenVersion()));
+            logger.info(String.format("Maven version [%s]", this.runtime.getMavenVersion()));
 
-            final GitlabCiVariables gitlabCi = new GitlabCiVariables(systemProperties);
-            logger.info(String.format(
-                "gitlab-ci variables: CI_REF_NAME or CI_COMMIT_REF_NAME: [%s], CI_PROJECT_PATH: [%s], CI_PROJECT_URL: [%s]",
-                gitlabCi.refName().orElse(NA),
-                gitlabCi.repoSlug().orElse(NA),
-                gitlabCi.projectUrl().orElse(NA)));
-
-            final TravisCiVariables travisCi = new TravisCiVariables(systemProperties);
-            logger.info(String.format(
-                "travis-ci variables: TRAVIS_BRANCH: [%s], TRAVIS_EVENT_TYPE: [%s], TRAVIS_REPO_SLUG: [%s], TRAVIS_PULL_REQUEST: [%s]",
-                travisCi.branch().orElse(NA),
-                travisCi.eventType().orElse(NA),
-                travisCi.repoSlug().orElse(NA),
-                travisCi.pullRequest().orElse(NA)));
+            logger.info(new AppveyorVariables(systemProperties).toString());
+            logger.info(new GitlabCiVariables(systemProperties).toString());
+            logger.info(new TravisCiVariables(systemProperties).toString());
         }
 
         final GitProperties gitProperties = GitProperties.newInstance(logger).orElseGet(() -> GitProperties.newBlankInstance(logger));
@@ -343,166 +526,6 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
         gitRepository.downloadMavenToolchainFile(this.homeDir);
     }
 
-    private void onSettingsBuildingRequest(
-        final SettingsBuildingRequest request,
-        final String homeDir,
-        final CiOptionAccessor ciOpts
-    ) {
-        if (logger.isInfoEnabled()) {
-            logger.info(String.format("onEvent SettingsBuildingRequest. request: [%s]", request));
-            logger.info(String.format("onEvent SettingsBuildingRequest. globalSettingsFile: [%s]", request.getGlobalSettingsFile()));
-            logger.info(String.format("onEvent SettingsBuildingRequest. globalSettingsSource: [%s]", request.getGlobalSettingsSource()));
-            logger.info(String.format("onEvent SettingsBuildingRequest. userSettingsFile: [%s]", request.getUserSettingsFile()));
-            logger.info(String.format("onEvent SettingsBuildingRequest. userSettingsSource: [%s]", request.getUserSettingsSource()));
-        }
-
-        if (this.mavenSettingsPathname != null) {
-            if (logger.isInfoEnabled()) {
-                logger.info(String.format("Use userSettingsFile [%s] instead of [%s]",
-                    this.mavenSettingsPathname, request.getUserSettingsFile()));
-            }
-
-            request.setUserSettingsFile(new File(this.mavenSettingsPathname));
-        }
-    }
-
-    private void onToolchainsBuildingRequest(
-        final ToolchainsBuildingRequest request,
-        final String homeDir,
-        final CiOptionAccessor ciOpts
-    ) {
-        if (logger.isInfoEnabled()) {
-            logger.info(String.format("onEvent ToolchainsBuildingRequest %s", request));
-        }
-    }
-
-    private Entry<List<String>, Properties> onMavenExecutionRequest(
-        final MavenExecutionRequest request,
-        final String homeDir,
-        final CiOptionAccessor ciOpts
-    ) {
-        if (logger.isInfoEnabled()) {
-            logger.info(String.format("onEvent MavenExecutionRequest %s", request));
-        }
-
-        // final File rootProjectDirectory = ((MavenExecutionRequest) request).getMultiModuleProjectDirectory();
-
-        this.decryptFiles(ciOpts, homeDir);
-
-        final Entry<Optional<MavenProjectInfo>, Optional<RuntimeException>> resultCheckProjectVer =
-            this.resolveAndCheckProjectVersion(request, ciOpts);
-        final boolean projectVersionValid = resultCheckProjectVer.getKey().isPresent();
-        resultCheckProjectVer.getValue().ifPresent(ex -> {
-            logger.error(ex.getMessage());
-            throw ex;
-        });
-
-        return editGoals(logger, request, ciOpts, projectVersionValid);
-    }
-
-    private Entry<Optional<MavenProjectInfo>, Optional<RuntimeException>> resolveAndCheckProjectVersion(
-        final MavenExecutionRequest request,
-        final CiOptionAccessor ciOpts
-    ) {
-        // Options are not calculated and merged into projectBuildingRequest this time.
-        final MavenProjectInfo projectInfo = this.projectInfoBean.getMavenProjectInfo(request);
-        if (logger.isInfoEnabled()) {
-            logger.info(">>>>>>>>>> ---------- resolve project version ---------- >>>>>>>>>>");
-            logger.info(projectInfo.toString());
-            logger.info("<<<<<<<<<< ---------- resolve project version ---------- <<<<<<<<<<");
-        }
-
-        final String gitRefName = ciOpts.getOption(GIT_REF_NAME).orElse("");
-        final Entry<Boolean, RuntimeException> resultCheckProjectVer = ciOpts.checkProjectVersion(projectInfo.getVersion());
-        final boolean verValid = resultCheckProjectVer.getKey();
-        if (logger.isInfoEnabled()) {
-            logger.info(">>>>>>>>>> ---------- check project version ---------- >>>>>>>>>>");
-            logger.info(String.format("%s version [%s] for ref [%s].",
-                verValid ? "Valid" : "Invalid", projectInfo.getVersion(), gitRefName));
-            logger.info("<<<<<<<<<< ---------- check project version ---------- <<<<<<<<<<");
-        }
-
-        final Entry<Optional<MavenProjectInfo>, Optional<RuntimeException>> result;
-        if (verValid) {
-            result = newTupleOptional(projectInfo, null);
-        } else {
-            logger.warn("You should use versions with '-SNAPSHOT' suffix on develop branch or feature branches");
-            logger.warn("You should use versions like 1.0.0-SNAPSHOT develop branch");
-            logger.warn("You should use versions like 1.0.0-feature-SNAPSHOT or 1.0.0-branch-SNAPSHOT on feature branches");
-            logger.warn("You should use versions like 1.0.0 without '-SNAPSHOT' suffix on releases");
-            final RuntimeException ex = resultCheckProjectVer.getValue();
-            result = newTupleOptional(null, ex);
-        }
-        return result;
-    }
-
-    private void decryptFiles( // TODO skip gpg call as possible
-        final CiOptionAccessor ciOpts,
-        final String homeDir
-    ) {
-        logger.info("    >>>>>>>>>> ---------- decrypt files and handle keys ---------- >>>>>>>>>>");
-        final Optional<String> executable = ciOpts.getOption(GPG_EXECUTABLE);
-        if (executable.isPresent()) {
-            final Optional<String> gpgKeyid = ciOpts.getOption(GPG_KEYID);
-            final String gpgKeyname = ciOpts.getOption(GPG_KEYNAME).orElse("");
-            final Optional<String> gpgPassphrase = ciOpts.getOption(GPG_PASSPHRASE);
-            final Gpg gpg = new Gpg(
-                logger,
-                homeDir,
-                this.rootProjectPathname,
-                executable.get(),
-                gpgKeyid.orElse(null),
-                gpgKeyname,
-                gpgPassphrase.orElse(null)
-            );
-            gpg.decryptAndImportKeys();
-        } else {
-            logger.warn("Both gpg and gpg2 are not found.");
-        }
-        logger.info("    <<<<<<<<<< ---------- decrypt files and handle keys ---------- <<<<<<<<<<");
-    }
-
-    private void prepareDocker(
-        final List<String> goals,
-        final String homeDir,
-        final CiOptionAccessor ciOpts
-    ) {
-        final boolean dockerEnabled = ciOpts.getOption(DOCKER).map(Boolean::parseBoolean).orElse(FALSE)
-            && goals
-            .stream()
-            .filter(goal -> !goal.contains(GOAL_SITE))
-            .anyMatch(goal ->
-                goal.endsWith("build")
-                    || goal.endsWith(GOAL_DEPLOY)
-                    || goal.endsWith("push")
-                    || goal.equals(GOAL_INSTALL)
-                    || goal.equals(GOAL_PACKAGE)
-            );
-
-        if (dockerEnabled) {
-            final Docker docker = new Docker(
-                logger,
-                dockerHost(ciOpts.getSystemProperties()).orElse(null),
-                homeDir,
-                ciOpts.getOption(DOCKER_REGISTRY).orElse(null),
-                ciOpts.getOption(DOCKER_REGISTRY_PASS).orElse(null),
-                ciOpts.getOption(DOCKER_REGISTRY_URL).orElse(null),
-                ciOpts.getOption(DOCKER_REGISTRY_USER).orElse(null)
-            );
-
-            docker.initDockerConfig();
-
-            if (!ciOpts.getOption(DOCKERFILE_USEMAVENSETTINGSFORAUTH).map(Boolean::parseBoolean).orElse(FALSE)) {
-                docker.dockerLogin();
-            }
-
-            if (!ciOpts.getOption(FAST).map(Boolean::parseBoolean).orElse(FALSE)) {
-                docker.cleanOldImages();
-                docker.pullBaseImage();
-            }
-        }
-    }
-
     private static void checkGitAuthToken(final Logger logger, final CiOptionAccessor ciOpts) {
         logger.info(">>>>>>>>>> ---------- check GIT_AUTH_TOKEN  ---------- >>>>>>>>>>");
         if (isEmpty(ciOpts.getOption(GIT_AUTH_TOKEN).orElse(null))) {
@@ -522,37 +545,6 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
             }
         }
         logger.info("<<<<<<<<<< ---------- check GIT_AUTH_TOKEN ---------- <<<<<<<<<<");
-    }
-
-    private static Entry<List<String>, Properties> editGoals(
-        final Logger logger,
-        final MavenExecutionRequest request,
-        final CiOptionAccessor ciOpts,
-        final boolean projectVersionValid
-    ) {
-        final List<String> requestedGoals = new ArrayList<>(request.getGoals());
-        if (logger.isInfoEnabled()) {
-            logger.info(">>>>>>>>>> ---------- run_mvn alter_mvn ---------- >>>>>>>>>>");
-            logger.info(String.format("onMavenExecutionRequest requested goals: %s", String.join(" ", requestedGoals)));
-        }
-
-        final MavenGoalEditor goalEditor = new MavenGoalEditor(
-            logger,
-            ciOpts.getOption(GIT_REF_NAME).orElse(null),
-            ciOpts.getOption(MVN_DEPLOY_PUBLISH_SEGREGATION).map(Boolean::parseBoolean).orElse(FALSE),
-            ciOpts.getOption(ORIGIN_REPO).map(Boolean::parseBoolean).orElse(FALSE),
-            ciOpts.getOption(PUBLISH_TO_REPO).map(Boolean::parseBoolean).orElse(FALSE) && projectVersionValid,
-            ciOpts.getOption(SITE).map(Boolean::parseBoolean).orElse(FALSE)
-        );
-        final Entry<List<String>, Properties> goalsAndProps = goalEditor.goalsAndUserProperties(request.getGoals());
-        if (logger.isInfoEnabled()) {
-            logger.info(String.format("onMavenExecutionRequest result goals: %s", String.join(" ", goalsAndProps.getKey())));
-            logger.info(">>>>>>>>>> ---------- onMavenExecutionRequest additionalUserProperties ---------- >>>>>>>>>>");
-            logger.info(SupportFunction.toString(goalsAndProps.getValue(), null));
-            logger.info("<<<<<<<<<< ---------- onMavenExecutionRequest additionalUserProperties ---------- <<<<<<<<<<");
-            logger.info("<<<<<<<<<< ---------- run_mvn alter_mvn ---------- <<<<<<<<<<");
-        }
-        return goalsAndProps;
     }
 
     private static List<String> classPathEntries(

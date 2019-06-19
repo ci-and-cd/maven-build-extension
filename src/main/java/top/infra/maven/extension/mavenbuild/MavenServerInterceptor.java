@@ -1,7 +1,7 @@
 package top.infra.maven.extension.mavenbuild;
 
 import static top.infra.maven.extension.mavenbuild.GitRepository.settingsSecurityXml;
-import static top.infra.maven.extension.mavenbuild.SupportFunction.isEmpty;
+import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.isEmpty;
 
 import cn.home1.tools.maven.MavenSettingsSecurity;
 
@@ -20,6 +20,10 @@ import org.apache.maven.settings.Server;
 import org.apache.maven.settings.crypto.SettingsDecrypter;
 import org.unix4j.Unix4j;
 
+import top.infra.maven.extension.mavenbuild.utils.SupportFunction;
+import top.infra.maven.logging.Logger;
+import top.infra.maven.logging.LoggerPlexusImpl;
+
 /**
  * Fix 'Failed to decrypt passphrase for server foo: org.sonatype.plexus.components.cipher.PlexusCipherException...'.
  */
@@ -30,12 +34,9 @@ public class MavenServerInterceptor {
     static final Pattern PATTERN_ENV_VAR = Pattern.compile("\\$\\{env\\..+?\\}");
 
     private final Logger logger;
-
-    private MavenSettingsSecurity settingsSecurity;
-
-    private String encryptedBlankString;
-
     private final SettingsDecrypter settingsDecrypter;
+    private MavenSettingsSecurity settingsSecurity;
+    private String encryptedBlankString;
 
     @Inject
     public MavenServerInterceptor(
@@ -45,6 +46,37 @@ public class MavenServerInterceptor {
         this.logger = new LoggerPlexusImpl(logger);
 
         this.settingsDecrypter = settingsDecrypter;
+    }
+
+    public static Properties absentVarsInSettingsXml(
+        final Logger logger,
+        final String mavenSettingsPathname,
+        final Properties systemProperties
+    ) {
+        final Properties result = new Properties();
+
+        final List<String> envVars = SupportFunction.lines(Unix4j.cat(mavenSettingsPathname).toStringResult())
+            .stream()
+            .flatMap(line -> {
+                final Matcher matcher = MavenServerInterceptor.PATTERN_ENV_VAR.matcher(line);
+                final List<String> matches = new LinkedList<>();
+                while (matcher.find()) {
+                    matches.add(matcher.group(0));
+                }
+                return matches.stream();
+            })
+            .distinct()
+            .map(line -> line.substring(2, line.length() - 1))
+            .collect(Collectors.toList());
+
+        envVars.forEach(envVar -> {
+            if (!systemProperties.containsKey(envVar)) {
+                logger.warn(String.format(
+                    "Please set a value for env variable [%s] (in settings.xml), to avoid passphrase decrypt error.", envVar));
+            }
+        });
+
+        return result;
     }
 
     public List<String> absentEnvVars(final Server server) {
@@ -59,6 +91,10 @@ public class MavenServerInterceptor {
             found.add(server.getUsername());
         }
         return found.stream().map(line -> line.substring(2, line.length() - 1)).distinct().collect(Collectors.toList());
+    }
+
+    public boolean isAbsentEnvVar(final String str) {
+        return !isEmpty(str) && PATTERN_ENV_VAR.matcher(str).matches();
     }
 
     public void checkServers(final List<Server> servers) {
@@ -83,10 +119,6 @@ public class MavenServerInterceptor {
 
     public String getEncryptedBlankString() {
         return this.encryptedBlankString;
-    }
-
-    public boolean isAbsentEnvVar(final String str) {
-        return !isEmpty(str) && PATTERN_ENV_VAR.matcher(str).matches();
     }
 
     public void setHomeDir(final String homeDir) {
@@ -132,36 +164,5 @@ public class MavenServerInterceptor {
             logger.info(String.format("server [%s] has a empty username [%s]", server.getId(), server.getUsername()));
             server.setUsername(username);
         }
-    }
-
-    public static Properties absentVarsInSettingsXml(
-        final Logger logger,
-        final String mavenSettingsPathname,
-        final Properties systemProperties
-    ) {
-        final Properties result = new Properties();
-
-        final List<String> envVars = SupportFunction.lines(Unix4j.cat(mavenSettingsPathname).toStringResult())
-            .stream()
-            .flatMap(line -> {
-                final Matcher matcher = MavenServerInterceptor.PATTERN_ENV_VAR.matcher(line);
-                final List<String> matches = new LinkedList<>();
-                while (matcher.find()) {
-                    matches.add(matcher.group(0));
-                }
-                return matches.stream();
-            })
-            .distinct()
-            .map(line -> line.substring(2, line.length() - 1))
-            .collect(Collectors.toList());
-
-        envVars.forEach(envVar -> {
-            if (!systemProperties.containsKey(envVar)) {
-                logger.warn(String.format(
-                    "Please set a value for env variable [%s] (in settings.xml), to avoid passphrase decrypt error.", envVar));
-            }
-        });
-
-        return result;
     }
 }

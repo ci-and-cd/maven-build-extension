@@ -6,6 +6,9 @@ import javax.inject.Inject;
 import javax.inject.Named;
 import javax.inject.Singleton;
 
+import top.infra.maven.logging.Logger;
+import top.infra.maven.logging.LoggerPlexusImpl;
+
 @Named
 @Singleton
 public class GitPropertiesBean extends GitProperties {

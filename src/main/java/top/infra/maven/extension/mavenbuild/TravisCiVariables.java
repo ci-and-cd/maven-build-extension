@@ -1,5 +1,7 @@
 package top.infra.maven.extension.mavenbuild;
 
+import static top.infra.maven.extension.mavenbuild.GitlabCiVariables.NA;
+
 import java.util.Optional;
 import java.util.Properties;
 
@@ -12,16 +14,30 @@ public class TravisCiVariables {
         this.systemProperties = systemProperties;
     }
 
-    public Optional<String> branch() {
-        return this.getEnvironmentVariable("env.TRAVIS_BRANCH");
+    public boolean isPullRequestEvent() {
+        return "pull_request".equals(this.eventType().orElse(""));
     }
 
     public Optional<String> eventType() {
         return this.getEnvironmentVariable("env.TRAVIS_EVENT_TYPE");
     }
 
-    public boolean isPullRequestEvent() {
-        return "pull_request".equals(this.eventType().orElse(""));
+    private Optional<String> getEnvironmentVariable(final String name) {
+        return Optional.ofNullable(this.systemProperties.getProperty(name, null));
+    }
+
+    @Override
+    public String toString() {
+        return String.format(
+            "travis-ci variables: TRAVIS_BRANCH: [%s], TRAVIS_EVENT_TYPE: [%s], TRAVIS_REPO_SLUG: [%s], TRAVIS_PULL_REQUEST: [%s]",
+            this.branch().orElse(NA),
+            this.eventType().orElse(NA),
+            this.repoSlug().orElse(NA),
+            this.pullRequest().orElse(NA));
+    }
+
+    public Optional<String> branch() {
+        return this.getEnvironmentVariable("env.TRAVIS_BRANCH");
     }
 
     public Optional<String> pullRequest() {
@@ -30,9 +46,5 @@ public class TravisCiVariables {
 
     public Optional<String> repoSlug() {
         return this.getEnvironmentVariable("env.TRAVIS_REPO_SLUG");
-    }
-
-    private Optional<String> getEnvironmentVariable(final String name) {
-        return Optional.ofNullable(this.systemProperties.getProperty(name, null));
     }
 }

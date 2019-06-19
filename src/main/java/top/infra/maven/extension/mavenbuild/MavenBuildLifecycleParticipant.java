@@ -39,11 +39,6 @@ public class MavenBuildLifecycleParticipant extends AbstractMavenLifecyclePartic
     }
 
     @Override
-    public void afterSessionEnd(final MavenSession session) throws MavenExecutionException {
-
-    }
-
-    @Override
     public void afterSessionStart(final MavenSession session) throws MavenExecutionException {
         if (session != null) {
             if (isOnRootProject(session)) {
@@ -68,6 +63,11 @@ public class MavenBuildLifecycleParticipant extends AbstractMavenLifecyclePartic
                 this.mavenServerInterceptor.checkServers(settings.getServers());
             }
         }
+    }
+
+    @Override
+    public void afterSessionEnd(final MavenSession session) throws MavenExecutionException {
+
     }
 
     private boolean isOnRootProject(final MavenSession session) {

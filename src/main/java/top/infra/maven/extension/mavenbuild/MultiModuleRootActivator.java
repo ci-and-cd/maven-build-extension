@@ -28,6 +28,11 @@ public class MultiModuleRootActivator extends AbstractCustomActivator {
     }
 
     @Override
+    protected String getName() {
+        return "MultiModuleRootActivator";
+    }
+
+    @Override
     protected boolean isActive(
         final Model model,
         final Profile profile,
@@ -56,11 +61,6 @@ public class MultiModuleRootActivator extends AbstractCustomActivator {
         }
 
         return result;
-    }
-
-    @Override
-    protected String getName() {
-        return "MultiModuleRootActivator";
     }
 
     @Override

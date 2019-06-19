@@ -1,7 +1,7 @@
 package top.infra.maven.extension.mavenbuild;
 
-import static top.infra.maven.extension.mavenbuild.SupportFunction.parseJavaVersion;
-import static top.infra.maven.extension.mavenbuild.SupportFunction.projectContext;
+import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.projectContext;
+import static top.infra.maven.extension.mavenbuild.utils.SystemUtil.parseJavaVersion;
 
 import java.util.Map;
 import java.util.Optional;
@@ -29,6 +29,10 @@ public class JavaVersionSensitiveActivator extends AbstractCustomActivator {
         final ProjectBuilderActivatorModelResolver resolver
     ) {
         super(logger, resolver);
+    }
+
+    static boolean isJavaVersionRelatedProfile(final String id) {
+        return PATTERN_JAVA_PROFILE.matcher(id).matches();
     }
 
     @Override
@@ -88,10 +92,6 @@ public class JavaVersionSensitiveActivator extends AbstractCustomActivator {
     @Override
     public boolean supported(final Profile profile) {
         return profileJavaVersion(profile.getId()).isPresent();
-    }
-
-    static boolean isJavaVersionRelatedProfile(final String id) {
-        return PATTERN_JAVA_PROFILE.matcher(id).matches();
     }
 
     static Optional<Integer> profileJavaVersion(final String id) {

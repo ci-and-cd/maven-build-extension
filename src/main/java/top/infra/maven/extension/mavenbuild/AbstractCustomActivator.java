@@ -1,7 +1,7 @@
 package top.infra.maven.extension.mavenbuild;
 
-import static top.infra.maven.extension.mavenbuild.SupportFunction.profileId;
-import static top.infra.maven.extension.mavenbuild.SupportFunction.projectName;
+import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.profileId;
+import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.projectName;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -14,6 +14,8 @@ import org.apache.maven.model.profile.ProfileActivationContext;
 
 import top.infra.maven.extension.mavenbuild.model.ActivatorModelResolver;
 import top.infra.maven.extension.mavenbuild.model.ProjectBuilderActivatorModelResolver;
+import top.infra.maven.logging.Logger;
+import top.infra.maven.logging.LoggerPlexusImpl;
 
 public abstract class AbstractCustomActivator implements CustomActivator {
 
@@ -35,10 +37,6 @@ public abstract class AbstractCustomActivator implements CustomActivator {
         this.resolver = resolver;
 
         this.profileMemento = new LinkedHashMap<>();
-    }
-
-    protected boolean cacheResult() {
-        return false;
     }
 
     @Override
@@ -85,6 +83,10 @@ public abstract class AbstractCustomActivator implements CustomActivator {
         }
 
         return result;
+    }
+
+    protected boolean cacheResult() {
+        return false;
     }
 
     @Override

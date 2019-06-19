@@ -20,16 +20,15 @@ import static top.infra.maven.extension.mavenbuild.Constants.SRC_MAVEN_SETTINGS_
 import static top.infra.maven.extension.mavenbuild.Docker.dockerHost;
 import static top.infra.maven.extension.mavenbuild.Docker.dockerfiles;
 import static top.infra.maven.extension.mavenbuild.Gpg.gpgVersionGreater;
-import static top.infra.maven.extension.mavenbuild.SupportFunction.domainOrHostFromUrl;
-import static top.infra.maven.extension.mavenbuild.SupportFunction.exec;
-import static top.infra.maven.extension.mavenbuild.SupportFunction.existsInPath;
-import static top.infra.maven.extension.mavenbuild.SupportFunction.find;
-import static top.infra.maven.extension.mavenbuild.SupportFunction.gitRepoSlugFromUrl;
-import static top.infra.maven.extension.mavenbuild.SupportFunction.isEmpty;
-import static top.infra.maven.extension.mavenbuild.SupportFunction.systemJavaIoTmp;
-import static top.infra.maven.extension.mavenbuild.SupportFunction.systemJavaVersion;
-import static top.infra.maven.extension.mavenbuild.SupportFunction.systemUserDir;
-import static top.infra.maven.extension.mavenbuild.SupportFunction.urlWithoutPath;
+import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.gitRepoSlugFromUrl;
+import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.isEmpty;
+import static top.infra.maven.extension.mavenbuild.utils.SystemUtil.exec;
+import static top.infra.maven.extension.mavenbuild.utils.SystemUtil.existsInPath;
+import static top.infra.maven.extension.mavenbuild.utils.SystemUtil.find;
+import static top.infra.maven.extension.mavenbuild.utils.SystemUtil.pathname;
+import static top.infra.maven.extension.mavenbuild.utils.SystemUtil.systemJavaIoTmp;
+import static top.infra.maven.extension.mavenbuild.utils.SystemUtil.systemJavaVersion;
+import static top.infra.maven.extension.mavenbuild.utils.SystemUtil.systemUserDir;
 
 import java.io.File;
 import java.util.Arrays;
@@ -38,6 +37,10 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.function.Function;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import top.infra.maven.extension.mavenbuild.utils.SupportFunction;
 
 public enum CiOption {
     /**
@@ -328,7 +331,7 @@ public enum CiOption {
         ) {
             final Optional<String> dockerRegistryUrl = DOCKER_REGISTRY_URL.getValue(gitProperties, systemProperties, userProperties);
             return dockerRegistryUrl
-                .flatMap(SupportFunction::domainOrHostFromUrl)
+                .flatMap(CiOption::domainOrHostFromUrl)
                 .flatMap(value -> Optional.ofNullable(value.endsWith("docker.io") ? null : value));
         }
 
@@ -1195,10 +1198,15 @@ public enum CiOption {
     },
     ;
 
+    private static final Pattern PATTERN_URL = Pattern.compile("^(.+://|git@)([^/\\:]+(:\\d+)?).*$");
     private final String defaultValue;
     private final String envVariableName;
     private final String propertyName;
     private final String systemPropertyName;
+
+    CiOption(final String propertyName) {
+        this(propertyName, null);
+    }
 
     CiOption(final String propertyName, final String defaultValue) {
         if (!name(propertyName).equals(this.name())) {
@@ -1211,77 +1219,62 @@ public enum CiOption {
         this.systemPropertyName = systemPropertyName(propertyName);
     }
 
-    CiOption(final String propertyName) {
-        this(propertyName, null);
+    public static String envVariableName(final String propertyName) {
+        final String name = name(propertyName);
+        return name.startsWith("CI_OPT_") ? name : "CI_OPT_" + name;
     }
 
-    public Optional<String> getDefaultValue() {
-        return Optional.ofNullable(this.defaultValue);
+    private static String name(final String propertyName) {
+        if (isEmpty(propertyName)) {
+            throw new IllegalArgumentException("propertyName must not empty");
+        }
+        return propertyName.replaceAll("-", "").replaceAll("\\.", "_").toUpperCase();
+    }
+
+    public static String systemPropertyName(final String propertyName) {
+        return "env." + envVariableName(propertyName);
+    }
+
+    static String rootProjectPathname(final Properties systemProperties) {
+        final File directory = mavenMultiModuleProjectDirectory(systemProperties).orElseGet(() -> new File(systemUserDir()));
+        return pathname(directory);
+    }
+
+    static Optional<File> mavenMultiModuleProjectDirectory(final Properties systemProperties) {
+        final Optional<File> result;
+        if (systemProperties != null) {
+            final String value = systemProperties.getProperty("maven.multiModuleProjectDirectory");
+            result = Optional.ofNullable(value != null ? new File(value) : null);
+        } else {
+            result = Optional.empty();
+        }
+        return result;
+    }
+
+    private static Optional<String> domainOrHostFromUrl(final String url) {
+        final Optional<String> result;
+        final Matcher matcher = PATTERN_URL.matcher(url);
+        if (matcher.matches()) {
+            result = Optional.ofNullable(matcher.group(2));
+        } else {
+            result = Optional.empty();
+        }
+        return result;
+    }
+
+    private static Optional<String> urlWithoutPath(final String url) {
+        final Optional<String> result;
+        final Matcher matcher = PATTERN_URL.matcher(url);
+        if (matcher.matches()) {
+            result = Optional.of(matcher.group(1) + matcher.group(2));
+        } else {
+            result = Optional.empty();
+        }
+        return result;
     }
 
     public String getEnvVariableName() {
         return this.envVariableName;
-    }
-
-    public String getPropertyName() {
-        return this.propertyName;
-    }
-
-    public String getSystemPropertyName() {
-        return this.systemPropertyName;
-    }
-
-    /**
-     * Calculate value.
-     *
-     * @param gitProperties    gitProperties
-     * @param systemProperties systemProperties
-     * @param userProperties   userProperties
-     * @return Optional value
-     */
-    protected Optional<String> calculateValue(
-        final GitProperties gitProperties,
-        final Properties systemProperties,
-        final Properties userProperties
-    ) {
-        return Optional.empty();
-    }
-
-    protected Optional<String> findInProperties(
-        final Properties systemProperties,
-        final Properties userProperties
-    ) {
-        // systemProperty first
-        final Optional<String> systemProperty = getOptionValue(this, systemProperties, CiOption::getSystemPropertyName);
-        return systemProperty.isPresent()
-            ? systemProperty
-            : getOptionValue(this, userProperties, CiOption::getPropertyName);
-
-        // // userProperty first
-        // final Optional<String> userProperty = getOptionValue(this, userProperties, CiOption::getPropertyName);
-        // return userProperty.isPresent()
-        //     ? userProperty
-        //     : getOptionValue(this, systemProperties, CiOption::getSystemPropertyName);
-    }
-
-    /**
-     * Get value.
-     *
-     * @param gitProperties    gitProperties
-     * @param systemProperties systemProperties
-     * @param userProperties   userProperties
-     * @return Optional value
-     */
-    public Optional<String> getValue(
-        final GitProperties gitProperties,
-        final Properties systemProperties,
-        final Properties userProperties
-    ) {
-        final Optional<String> foundInProperties = this.findInProperties(systemProperties, userProperties);
-        final Optional<String> value = foundInProperties.isPresent()
-            ? foundInProperties
-            : this.calculateValue(gitProperties, systemProperties, userProperties);
-        return value.isPresent() ? value : this.getDefaultValue();
     }
 
     /**
@@ -1359,9 +1352,29 @@ public enum CiOption {
         return result;
     }
 
-    public static String envVariableName(final String propertyName) {
-        final String name = name(propertyName);
-        return name.startsWith("CI_OPT_") ? name : "CI_OPT_" + name;
+    protected Optional<String> findInProperties(
+        final Properties systemProperties,
+        final Properties userProperties
+    ) {
+        // systemProperty first
+        final Optional<String> systemProperty = getOptionValue(this, systemProperties, CiOption::getSystemPropertyName);
+        return systemProperty.isPresent()
+            ? systemProperty
+            : getOptionValue(this, userProperties, CiOption::getPropertyName);
+
+        // // userProperty first
+        // final Optional<String> userProperty = getOptionValue(this, userProperties, CiOption::getPropertyName);
+        // return userProperty.isPresent()
+        //     ? userProperty
+        //     : getOptionValue(this, systemProperties, CiOption::getSystemPropertyName);
+    }
+
+    public String getPropertyName() {
+        return this.propertyName;
+    }
+
+    public String getSystemPropertyName() {
+        return this.systemPropertyName;
     }
 
     private static Optional<String> getOptionValue(
@@ -1373,30 +1386,43 @@ public enum CiOption {
         return Optional.ofNullable(properties.getProperty(key));
     }
 
-    static Optional<File> mavenMultiModuleProjectDirectory(final Properties systemProperties) {
-        final Optional<File> result;
-        if (systemProperties != null) {
-            final String value = systemProperties.getProperty("maven.multiModuleProjectDirectory");
-            result = Optional.ofNullable(value != null ? new File(value) : null);
-        } else {
-            result = Optional.empty();
-        }
-        return result;
+    /**
+     * Get value.
+     *
+     * @param gitProperties    gitProperties
+     * @param systemProperties systemProperties
+     * @param userProperties   userProperties
+     * @return Optional value
+     */
+    public Optional<String> getValue(
+        final GitProperties gitProperties,
+        final Properties systemProperties,
+        final Properties userProperties
+    ) {
+        final Optional<String> foundInProperties = this.findInProperties(systemProperties, userProperties);
+        final Optional<String> value = foundInProperties.isPresent()
+            ? foundInProperties
+            : this.calculateValue(gitProperties, systemProperties, userProperties);
+        return value.isPresent() ? value : this.getDefaultValue();
     }
 
-    private static String name(final String propertyName) {
-        if (isEmpty(propertyName)) {
-            throw new IllegalArgumentException("propertyName must not empty");
-        }
-        return propertyName.replaceAll("-", "").replaceAll("\\.", "_").toUpperCase();
+    public Optional<String> getDefaultValue() {
+        return Optional.ofNullable(this.defaultValue);
     }
 
-    static String rootProjectPathname(final Properties systemProperties) {
-        final File directory = mavenMultiModuleProjectDirectory(systemProperties).orElseGet(() -> new File(systemUserDir()));
-        return SupportFunction.pathname(directory);
-    }
-
-    public static String systemPropertyName(final String propertyName) {
-        return "env." + envVariableName(propertyName);
+    /**
+     * Calculate value.
+     *
+     * @param gitProperties    gitProperties
+     * @param systemProperties systemProperties
+     * @param userProperties   userProperties
+     * @return Optional value
+     */
+    protected Optional<String> calculateValue(
+        final GitProperties gitProperties,
+        final Properties systemProperties,
+        final Properties userProperties
+    ) {
+        return Optional.empty();
     }
 }

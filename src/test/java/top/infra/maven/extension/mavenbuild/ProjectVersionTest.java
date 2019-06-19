@@ -11,7 +11,7 @@ import static top.infra.maven.extension.mavenbuild.CiOption.SITE;
 import static top.infra.maven.extension.mavenbuild.Constants.BOOL_STRING_TRUE;
 import static top.infra.maven.extension.mavenbuild.Constants.GIT_REF_NAME_DEVELOP;
 import static top.infra.maven.extension.mavenbuild.Constants.INFRASTRUCTURE_OPENSOURCE;
-import static top.infra.maven.extension.mavenbuild.SupportFunction.isSemanticSnapshotVersion;
+import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.isSemanticSnapshotVersion;
 
 import java.util.Map;
 import java.util.Optional;
@@ -19,6 +19,9 @@ import java.util.Properties;
 
 import org.junit.Test;
 import org.slf4j.LoggerFactory;
+
+import top.infra.maven.logging.Logger;
+import top.infra.maven.logging.LoggerSlf4jImpl;
 
 public class ProjectVersionTest {
 

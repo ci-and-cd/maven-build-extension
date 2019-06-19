@@ -13,8 +13,10 @@ import org.apache.maven.execution.MavenExecutionRequest;
 import org.apache.maven.internal.aether.DefaultRepositorySystemSessionFactory;
 import org.apache.maven.project.ProjectBuilder;
 import org.apache.maven.project.ProjectBuildingRequest;
-import org.apache.maven.rtinfo.RuntimeInformation;
 import org.eclipse.aether.RepositorySystemSession;
+
+import top.infra.maven.logging.Logger;
+import top.infra.maven.logging.LoggerPlexusImpl;
 
 @Named
 @Singleton
@@ -27,22 +29,17 @@ public class MavenProjectInfoBean {
 
     private final DefaultRepositorySystemSessionFactory repositorySessionFactory;
 
-    // @org.codehaus.plexus.component.annotations.Requirement
-    private final RuntimeInformation runtime;
-
     private MavenProjectInfo projectInfo;
 
     @Inject
     public MavenProjectInfoBean(
         final org.codehaus.plexus.logging.Logger logger,
         final ProjectBuilder projectBuilder,
-        final DefaultRepositorySystemSessionFactory repositorySessionFactory,
-        final RuntimeInformation runtime
+        final DefaultRepositorySystemSessionFactory repositorySessionFactory
     ) {
         this.logger = new LoggerPlexusImpl(logger);
         this.projectBuilder = projectBuilder;
         this.repositorySessionFactory = repositorySessionFactory;
-        this.runtime = runtime;
     }
 
     public MavenProjectInfo getMavenProjectInfo(final MavenExecutionRequest request) {
@@ -59,14 +56,6 @@ public class MavenProjectInfoBean {
                 projectBuildingRequest.setRepositorySession(null);
             }
         }
-    }
-
-    public String getMavenVersion() {
-        return this.runtime.getMavenVersion();
-    }
-
-    public MavenProjectInfo getProjectInfo() {
-        return this.projectInfo;
     }
 
     /**
@@ -108,5 +97,9 @@ public class MavenProjectInfoBean {
             repositorySystemSessionNull = true;
         }
         return repositorySystemSessionNull;
+    }
+
+    public MavenProjectInfo getProjectInfo() {
+        return this.projectInfo;
     }
 }

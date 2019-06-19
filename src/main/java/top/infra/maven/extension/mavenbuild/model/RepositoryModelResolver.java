@@ -24,8 +24,8 @@ import org.apache.maven.model.resolution.UnresolvableModelException;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
-import top.infra.maven.extension.mavenbuild.Logger;
-import top.infra.maven.extension.mavenbuild.LoggerPlexusImpl;
+import top.infra.maven.logging.Logger;
+import top.infra.maven.logging.LoggerPlexusImpl;
 
 /**
  * This class allows to resolve Maven artifact in order to build a Maven model
@@ -76,28 +76,6 @@ public class RepositoryModelResolver implements ModelResolver {
         this.repositories.addAll(repositories.stream().map(Repository::clone).collect(toList()));
     }
 
-    @Override
-    public void addRepository(Repository repository) throws InvalidRepositoryException {
-        this.addRepository(repository, false);
-    }
-
-    @Override
-    public void addRepository(final Repository repository, boolean replace) throws InvalidRepositoryException {
-        for (final Repository existingRepository : this.repositories) {
-            if (existingRepository.getId().equals(repository.getId()) && !replace) {
-                if (logger.isDebugEnabled()) {
-                    logger.debug(String.format("addRepository [%s] skip [%s]", this, repository));
-                }
-                return;
-            }
-        }
-
-        if (logger.isInfoEnabled()) {
-            logger.info(String.format("addRepository [%s] add [%s]", this, repository));
-        }
-        this.repositories.add(repository);
-    }
-
     public void addRepositories(final List<ArtifactRepository> artifactRepositories) throws InvalidRepositoryException {
         for (final ArtifactRepository artifactRepository : artifactRepositories) {
             if (logger.isInfoEnabled()) {
@@ -127,7 +105,31 @@ public class RepositoryModelResolver implements ModelResolver {
 
             this.addRepository(repository, true);
         }
+    }    @Override
+    public void addRepository(Repository repository) throws InvalidRepositoryException {
+        this.addRepository(repository, false);
     }
+
+    public void setLocalRepository(final String localRepository) {
+        this.localRepository = new File(localRepository);
+    }    @Override
+    public void addRepository(final Repository repository, boolean replace) throws InvalidRepositoryException {
+        for (final Repository existingRepository : this.repositories) {
+            if (existingRepository.getId().equals(repository.getId()) && !replace) {
+                if (logger.isDebugEnabled()) {
+                    logger.debug(String.format("addRepository [%s] skip [%s]", this, repository));
+                }
+                return;
+            }
+        }
+
+        if (logger.isInfoEnabled()) {
+            logger.info(String.format("addRepository [%s] add [%s]", this, repository));
+        }
+        this.repositories.add(repository);
+    }
+
+
 
     @Override
     public ModelResolver newCopy() {
@@ -161,9 +163,7 @@ public class RepositoryModelResolver implements ModelResolver {
         return resolveModel(parent.getGroupId(), parent.getArtifactId(), parent.getVersion());
     }
 
-    public void setLocalRepository(final String localRepository) {
-        this.localRepository = new File(localRepository);
-    }
+
 
     private File getLocalFile(final String groupId, final String artifactId, final String version) {
         File pom = this.localRepository;

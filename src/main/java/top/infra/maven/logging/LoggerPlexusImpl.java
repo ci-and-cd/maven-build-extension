@@ -1,10 +1,10 @@
-package top.infra.maven.extension.mavenbuild;
+package top.infra.maven.logging;
 
-public class LoggerSlf4jImpl implements Logger {
+public class LoggerPlexusImpl implements Logger {
 
-    private final org.slf4j.Logger delegate;
+    private final org.codehaus.plexus.logging.Logger delegate;
 
-    public LoggerSlf4jImpl(final org.slf4j.Logger logger) {
+    public LoggerPlexusImpl(final org.codehaus.plexus.logging.Logger logger) {
         this.delegate = logger;
     }
 

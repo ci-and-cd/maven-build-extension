@@ -25,15 +25,6 @@ public class RepositoryModelResolverActivatorModelResolver extends AbstractActiv
     }
 
     /**
-     * Change properties format.
-     */
-    private static Properties propertiesToMap(final Map<String, String> map) {
-        final Properties props = new Properties();
-        props.putAll(map);
-        return props;
-    }
-
-    /**
      * Default model resolution request.
      */
     @Override
@@ -47,5 +38,14 @@ public class RepositoryModelResolverActivatorModelResolver extends AbstractActiv
         request.setUserProperties(propertiesToMap(context.getUserProperties()));
         request.setValidationLevel(ModelBuildingRequest.VALIDATION_LEVEL_MINIMAL);
         return request;
+    }
+
+    /**
+     * Change properties format.
+     */
+    private static Properties propertiesToMap(final Map<String, String> map) {
+        final Properties props = new Properties();
+        props.putAll(map);
+        return props;
     }
 }

@@ -76,21 +76,6 @@ public class MavenBuildProfileSelector extends DefaultProfileSelector {
         return activeProfiles;
     }
 
-    protected boolean superIsActive(
-        final Profile profile,
-        final ProfileActivationContext context,
-        final ModelProblemCollector problems
-    ) {
-        try {
-            final Method superIsActive = super.getClass().getDeclaredMethod(
-                "isActive", Profile.class, ProfileActivationContext.class, ModelProblemCollector.class);
-            superIsActive.setAccessible(true);
-            return (boolean) superIsActive.invoke(this, profile, context, problems);
-        } catch (final NoSuchMethodException | IllegalAccessException | InvocationTargetException ex) {
-            return false;
-        }
-    }
-
     static boolean noAnyCondition(final Profile profile) {
         final Activation activation = profile.getActivation();
         return activation == null
@@ -104,5 +89,20 @@ public class MavenBuildProfileSelector extends DefaultProfileSelector {
         return profiles.stream()
             .filter(profile -> customActivators.stream().anyMatch(activator -> activator.supported(profile)))
             .collect(Collectors.toList());
+    }
+
+    protected boolean superIsActive(
+        final Profile profile,
+        final ProfileActivationContext context,
+        final ModelProblemCollector problems
+    ) {
+        try {
+            final Method superIsActive = super.getClass().getDeclaredMethod(
+                "isActive", Profile.class, ProfileActivationContext.class, ModelProblemCollector.class);
+            superIsActive.setAccessible(true);
+            return (boolean) superIsActive.invoke(this, profile, context, problems);
+        } catch (final NoSuchMethodException | IllegalAccessException | InvocationTargetException ex) {
+            return false;
+        }
     }
 }

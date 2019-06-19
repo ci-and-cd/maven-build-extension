@@ -1,9 +1,9 @@
 package top.infra.maven.extension.mavenbuild;
 
-import static top.infra.maven.extension.mavenbuild.SupportFunction.find;
-import static top.infra.maven.extension.mavenbuild.SupportFunction.isNotEmpty;
-import static top.infra.maven.extension.mavenbuild.SupportFunction.lines;
-import static top.infra.maven.extension.mavenbuild.SupportFunction.notEmpty;
+import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.isNotEmpty;
+import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.lines;
+import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.notEmpty;
+import static top.infra.maven.extension.mavenbuild.utils.SystemUtil.find;
 
 import java.io.File;
 import java.io.IOException;
@@ -18,6 +18,10 @@ import java.util.Properties;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+
+import top.infra.maven.extension.mavenbuild.utils.SupportFunction;
+import top.infra.maven.extension.mavenbuild.utils.SystemUtil;
+import top.infra.maven.logging.Logger;
 
 public class Docker {
 
@@ -52,6 +56,24 @@ public class Docker {
         this.registryUser = registryUser;
     }
 
+    static Map<String, String> environment(final String dockerHost, final String registry) {
+        final Map<String, String> result = new LinkedHashMap<>();
+
+        if (notEmpty(dockerHost)) {
+            result.put("DOCKER_HOST", dockerHost);
+        }
+
+        if (notEmpty(registry) && !registry.startsWith("https://")) {
+            result.put("DOCKER_OPTS", String.format("–insecure-registry %s", registry));
+        }
+
+        return result;
+    }
+
+    public static Optional<String> dockerHost(final Properties systemProperties) {
+        return Optional.ofNullable(systemProperties.getProperty("env.DOCKER_HOST"));
+    }
+
     public void cleanOldImages() {
         final Entry<Integer, String> dockerImages = this.docker("images");
 
@@ -74,6 +96,25 @@ public class Docker {
                 }
             });
         }
+    }
+
+    private Entry<Integer, String> docker(final String... options) {
+        return SystemUtil.exec(this.environment, null, dockerCommand(options));
+    }
+
+    static List<String> dockerCommand(final String... options) {
+        return SupportFunction.asList(new String[]{"docker"}, options);
+    }
+
+    static List<String> imagesToClean(final List<String> dockerImages) {
+        return dockerImages
+            .stream()
+            .filter(line -> line.contains("<none>"))
+            .map(line -> line.split("\\s+"))
+            .filter(value -> value.length > 2)
+            .map(value -> value[2])
+            .filter(value -> !"IMAGE".equals(value))
+            .collect(Collectors.toList());
     }
 
     public void initDockerConfig() {
@@ -104,36 +145,6 @@ public class Docker {
         logger.info("<<<<<<<<<< ---------- pull_base_image ---------- <<<<<<<<<<");
     }
 
-    private Entry<Integer, String> docker(final String... options) {
-        return SupportFunction.exec(this.environment, null, dockerCommand(options));
-    }
-
-    public void dockerLogin() {
-        if (isNotEmpty(this.registry)) {
-            this.dockerLogin(this.registry);
-        } else {
-            this.dockerLogin(this.registryUrl);
-        }
-    }
-
-    private void dockerLogin(final String toRegistry) {
-        if (isNotEmpty(this.registryPass) && isNotEmpty(this.registryUser)) {
-            if (isNotEmpty(toRegistry)) {
-                if (toRegistry.startsWith("https://")) {
-                    logger.info(String.format("docker logging into secure registry %s", toRegistry));
-                } else {
-                    logger.info(String.format("docker logging into insecure registry %s", toRegistry));
-                }
-
-                final List<String> command = dockerCommand("login", "--password-stdin", "-u=" + this.registryUser, toRegistry);
-                final Entry<Integer, String> resultDockerLogin = SupportFunction.exec(this.environment, this.registryPass, command);
-                logger.info(String.format("docker login [%s] result [%s]", toRegistry, resultDockerLogin.getKey()));
-            }
-        } else {
-            logger.info(String.format("skip docker login [%s]", toRegistry));
-        }
-    }
-
     static List<String> baseImages(final List<String> dockerfiles) {
         return dockerfiles
             .stream()
@@ -156,10 +167,6 @@ public class Docker {
         }
     }
 
-    static List<String> dockerCommand(final String... options) {
-        return SupportFunction.asList(new String[]{"docker"}, options);
-    }
-
     static List<String> dockerfiles() {
         return find(".", "*Docker*")
             .stream()
@@ -168,32 +175,29 @@ public class Docker {
             .collect(Collectors.toList());
     }
 
-    public static Optional<String> dockerHost(final Properties systemProperties) {
-        return Optional.ofNullable(systemProperties.getProperty("env.DOCKER_HOST"));
+    public void dockerLogin() {
+        if (isNotEmpty(this.registry)) {
+            this.dockerLogin(this.registry);
+        } else {
+            this.dockerLogin(this.registryUrl);
+        }
     }
 
-    static Map<String, String> environment(final String dockerHost, final String registry) {
-        final Map<String, String> result = new LinkedHashMap<>();
+    private void dockerLogin(final String toRegistry) {
+        if (isNotEmpty(this.registryPass) && isNotEmpty(this.registryUser)) {
+            if (isNotEmpty(toRegistry)) {
+                if (toRegistry.startsWith("https://")) {
+                    logger.info(String.format("docker logging into secure registry %s", toRegistry));
+                } else {
+                    logger.info(String.format("docker logging into insecure registry %s", toRegistry));
+                }
 
-        if (notEmpty(dockerHost)) {
-            result.put("DOCKER_HOST", dockerHost);
+                final List<String> command = dockerCommand("login", "--password-stdin", "-u=" + this.registryUser, toRegistry);
+                final Entry<Integer, String> resultDockerLogin = SystemUtil.exec(this.environment, this.registryPass, command);
+                logger.info(String.format("docker login [%s] result [%s]", toRegistry, resultDockerLogin.getKey()));
+            }
+        } else {
+            logger.info(String.format("skip docker login [%s]", toRegistry));
         }
-
-        if (notEmpty(registry) && !registry.startsWith("https://")) {
-            result.put("DOCKER_OPTS", String.format("–insecure-registry %s", registry));
-        }
-
-        return result;
-    }
-
-    static List<String> imagesToClean(final List<String> dockerImages) {
-        return dockerImages
-            .stream()
-            .filter(line -> line.contains("<none>"))
-            .map(line -> line.split("\\s+"))
-            .filter(value -> value.length > 2)
-            .map(value -> value[2])
-            .filter(value -> !"IMAGE".equals(value))
-            .collect(Collectors.toList());
     }
 }

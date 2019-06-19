@@ -4,13 +4,13 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Collections.singletonList;
 import static java.util.regex.Pattern.DOTALL;
 import static java.util.regex.Pattern.MULTILINE;
-import static top.infra.maven.extension.mavenbuild.SupportFunction.concat;
-import static top.infra.maven.extension.mavenbuild.SupportFunction.exists;
-import static top.infra.maven.extension.mavenbuild.SupportFunction.isEmpty;
-import static top.infra.maven.extension.mavenbuild.SupportFunction.lines;
-import static top.infra.maven.extension.mavenbuild.SupportFunction.readFile;
-import static top.infra.maven.extension.mavenbuild.SupportFunction.stackTrace;
-import static top.infra.maven.extension.mavenbuild.SupportFunction.writeFile;
+import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.concat;
+import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.exists;
+import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.isEmpty;
+import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.lines;
+import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.readFile;
+import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.stackTrace;
+import static top.infra.maven.extension.mavenbuild.utils.SystemUtil.writeFile;
 
 import java.io.IOException;
 import java.nio.file.FileAlreadyExistsException;
@@ -31,6 +31,10 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import org.apache.maven.artifact.versioning.DefaultArtifactVersion;
+
+import top.infra.maven.extension.mavenbuild.utils.SupportFunction;
+import top.infra.maven.extension.mavenbuild.utils.SystemUtil;
+import top.infra.maven.logging.Logger;
 
 public class Gpg {
 
@@ -74,7 +78,7 @@ public class Gpg {
 
         final Map<String, String> env = new LinkedHashMap<>();
         env.put("LC_CTYPE", "UTF-8");
-        final Entry<Integer, String> tty = SupportFunction.exec("tty");
+        final Entry<Integer, String> tty = SystemUtil.exec("tty");
         if (tty.getKey() == 0) {
             if (logger.isInfoEnabled()) {
                 logger.info(String.format("GPG_TTY=%s", tty.getValue()));
@@ -82,6 +86,25 @@ public class Gpg {
             env.put("GPG_TTY", tty.getValue());
         }
         this.environment = Collections.unmodifiableMap(env);
+    }
+
+    static boolean gpgVersionGreater(
+        final String gpgVersionInfo,
+        final String thanVersion
+    ) {
+        // e.g. "gpg (GnuPG) 2.2.14\nlibgcrypt 1.8.4\nCopyright ( ... pressed, ZIP, ZLIB, BZIP2"
+        final Matcher matcher = Pattern
+            .compile("[^0-9]*([0-9]+\\.[0-9]+\\.[0-9]+).*", DOTALL | MULTILINE)
+            .matcher(gpgVersionInfo);
+
+        final boolean result;
+        if (matcher.matches()) {
+            final String versionValue = matcher.group(1);
+            result = new DefaultArtifactVersion(versionValue).compareTo(new DefaultArtifactVersion(thanVersion)) > 0;
+        } else {
+            result = false;
+        }
+        return result;
     }
 
     public void decryptAndImportKeys() {
@@ -274,7 +297,7 @@ public class Gpg {
     }
 
     private Map.Entry<Integer, String> exec(final String stdIn, final List<String> command) {
-        return SupportFunction.exec(this.environment, stdIn, command);
+        return SystemUtil.exec(this.environment, stdIn, command);
     }
 
     public Optional<Boolean> gpgFindPrivateKey(final String keyName) {
@@ -338,24 +361,5 @@ public class Gpg {
 
     private boolean isFilePresent(final String file) {
         return exists(Paths.get(this.workingDir, file));
-    }
-
-    static boolean gpgVersionGreater(
-        final String gpgVersionInfo,
-        final String thanVersion
-    ) {
-        // e.g. "gpg (GnuPG) 2.2.14\nlibgcrypt 1.8.4\nCopyright ( ... pressed, ZIP, ZLIB, BZIP2"
-        final Matcher matcher = Pattern
-            .compile("[^0-9]*([0-9]+\\.[0-9]+\\.[0-9]+).*", DOTALL | MULTILINE)
-            .matcher(gpgVersionInfo);
-
-        final boolean result;
-        if (matcher.matches()) {
-            final String versionValue = matcher.group(1);
-            result = new DefaultArtifactVersion(versionValue).compareTo(new DefaultArtifactVersion(thanVersion)) > 0;
-        } else {
-            result = false;
-        }
-        return result;
     }
 }

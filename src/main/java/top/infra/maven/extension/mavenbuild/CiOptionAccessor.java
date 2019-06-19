@@ -12,12 +12,12 @@ import static top.infra.maven.extension.mavenbuild.Constants.BRANCH_PREFIX_FEATU
 import static top.infra.maven.extension.mavenbuild.Constants.GIT_REF_NAME_DEVELOP;
 import static top.infra.maven.extension.mavenbuild.Constants.PUBLISH_CHANNEL_SNAPSHOT;
 import static top.infra.maven.extension.mavenbuild.Constants.SRC_CI_OPTS_PROPERTIES;
-import static top.infra.maven.extension.mavenbuild.SupportFunction.exists;
-import static top.infra.maven.extension.mavenbuild.SupportFunction.isEmpty;
-import static top.infra.maven.extension.mavenbuild.SupportFunction.isSemanticSnapshotVersion;
-import static top.infra.maven.extension.mavenbuild.SupportFunction.maskSecrets;
-import static top.infra.maven.extension.mavenbuild.SupportFunction.newTuple;
-import static top.infra.maven.extension.mavenbuild.SupportFunction.systemJavaIoTmp;
+import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.exists;
+import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.isEmpty;
+import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.isSemanticSnapshotVersion;
+import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.maskSecrets;
+import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.newTuple;
+import static top.infra.maven.extension.mavenbuild.utils.SystemUtil.systemJavaIoTmp;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -28,6 +28,9 @@ import java.util.Arrays;
 import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.Properties;
+
+import top.infra.maven.extension.mavenbuild.utils.SupportFunction;
+import top.infra.maven.logging.Logger;
 
 public class CiOptionAccessor {
 
@@ -64,6 +67,18 @@ public class CiOptionAccessor {
         this.cacheDirectory();
     }
 
+    private String cacheDirectory() {
+        final String result = this.getOption(CACHE_DIRECTORY).orElse(systemJavaIoTmp());
+        if (!exists(Paths.get(result))) {
+            try {
+                Files.createDirectories(Paths.get(result));
+            } catch (final IOException ex) {
+                logger.error(String.format("Error create cacheDirectory '%s'. %s", result, ex.getMessage()));
+            }
+        }
+        return result;
+    }
+
     public Optional<String> getOption(final CiOption ciOption) {
         return ciOption.getValue(this.gitProperties, this.systemProperties, this.userProperties);
     }
@@ -80,15 +95,6 @@ public class CiOptionAccessor {
                 this.systemProperties.setProperty(key, value);
             }
         }
-    }
-
-    public GitRepository gitRepository() {
-        return new GitRepository(
-            logger,
-            this.getOption(MAVEN_BUILD_OPTS_REPO).orElse(null),
-            this.getOption(MAVEN_BUILD_OPTS_REPO_REF).orElse(null),
-            this.getOption(GIT_AUTH_TOKEN).orElse(null)
-        );
     }
 
     public Entry<Boolean, RuntimeException> checkProjectVersion(final String projectVersion) {
@@ -141,6 +147,15 @@ public class CiOptionAccessor {
         return properties;
     }
 
+    public GitRepository gitRepository() {
+        return new GitRepository(
+            logger,
+            this.getOption(MAVEN_BUILD_OPTS_REPO).orElse(null),
+            this.getOption(MAVEN_BUILD_OPTS_REPO_REF).orElse(null),
+            this.getOption(GIT_AUTH_TOKEN).orElse(null)
+        );
+    }
+
     public Properties mergeCiOptsInto(final Properties intoProperties) {
         final Properties newProperties = new Properties();
 
@@ -154,18 +169,6 @@ public class CiOptionAccessor {
         SupportFunction.merge(newProperties, intoProperties);
 
         return newProperties;
-    }
-
-    private String cacheDirectory() {
-        final String result = this.getOption(CACHE_DIRECTORY).orElse(systemJavaIoTmp());
-        if (!exists(Paths.get(result))) {
-            try {
-                Files.createDirectories(Paths.get(result));
-            } catch (final IOException ex) {
-                logger.error(String.format("Error create cacheDirectory '%s'. %s", result, ex.getMessage()));
-            }
-        }
-        return result;
     }
 
     private Optional<String> setOption(final CiOption ciOption, final Properties properties) {

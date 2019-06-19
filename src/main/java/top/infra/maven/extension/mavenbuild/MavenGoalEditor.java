@@ -10,8 +10,8 @@ import static top.infra.maven.extension.mavenbuild.CiOption.SITE;
 import static top.infra.maven.extension.mavenbuild.Constants.BOOL_STRING_FALSE;
 import static top.infra.maven.extension.mavenbuild.Constants.BOOL_STRING_TRUE;
 import static top.infra.maven.extension.mavenbuild.Constants.GIT_REF_NAME_DEVELOP;
-import static top.infra.maven.extension.mavenbuild.SupportFunction.isNotEmpty;
-import static top.infra.maven.extension.mavenbuild.SupportFunction.newTuple;
+import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.isNotEmpty;
+import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.newTuple;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -20,6 +20,8 @@ import java.util.List;
 import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.Properties;
+
+import top.infra.maven.logging.Logger;
 
 public class MavenGoalEditor {
 
@@ -55,6 +57,18 @@ public class MavenGoalEditor {
         this.originRepo = originRepo;
         this.publishToRepo = publishToRepo;
         this.site = site;
+    }
+
+    private static boolean isSiteGoal(final String goal) {
+        return isNotEmpty(goal) && goal.contains(GOAL_SITE);
+    }
+
+    private static boolean isDeployGoal(final String goal) {
+        return isNotEmpty(goal) && goal.endsWith(GOAL_DEPLOY) && !isSiteGoal(goal);
+    }
+
+    private static boolean isInstallGoal(final String goal) {
+        return isNotEmpty(goal) && !isDeployGoal(goal) && !isSiteGoal(goal) && goal.endsWith(GOAL_INSTALL);
     }
 
     public Entry<List<String>, Properties> goalsAndUserProperties(final List<String> requestedGoals) {
@@ -160,17 +174,5 @@ public class MavenGoalEditor {
             }
         }
         return properties;
-    }
-
-    private static boolean isSiteGoal(final String goal) {
-        return isNotEmpty(goal) && goal.contains(GOAL_SITE);
-    }
-
-    private static boolean isDeployGoal(final String goal) {
-        return isNotEmpty(goal) && goal.endsWith(GOAL_DEPLOY) && !isSiteGoal(goal);
-    }
-
-    private static boolean isInstallGoal(final String goal) {
-        return isNotEmpty(goal) && !isDeployGoal(goal) && !isSiteGoal(goal) && goal.endsWith(GOAL_INSTALL);
     }
 }

@@ -1,4 +1,4 @@
-package top.infra.maven.extension.mavenbuild;
+package top.infra.maven.logging;
 
 public interface Logger {
 

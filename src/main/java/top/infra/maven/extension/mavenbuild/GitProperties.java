@@ -2,8 +2,8 @@ package top.infra.maven.extension.mavenbuild;
 
 import static org.eclipse.jgit.lib.Repository.shortenRefName;
 import static top.infra.maven.extension.mavenbuild.CiOption.GIT_REF_NAME;
-import static top.infra.maven.extension.mavenbuild.SupportFunction.isEmpty;
-import static top.infra.maven.extension.mavenbuild.SupportFunction.notEmpty;
+import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.isEmpty;
+import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.notEmpty;
 
 import java.io.File;
 import java.io.IOException;
@@ -28,6 +28,8 @@ import org.eclipse.jgit.revwalk.RevCommit;
 import org.eclipse.jgit.revwalk.RevWalk;
 import org.eclipse.jgit.revwalk.RevWalkUtils;
 
+import top.infra.maven.logging.Logger;
+
 public class GitProperties {
 
     private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss");
@@ -49,20 +51,8 @@ public class GitProperties {
         this.propertiesMap = Collections.unmodifiableMap(propertiesMap);
     }
 
-    public Optional<String> commitId() {
-        // `git rev-parse HEAD`
-        final String value = this.propertiesMap.get(GIT_COMMIT_ID);
-        return isEmpty(value) ? Optional.empty() : Optional.of(value);
-    }
-
-    public Optional<String> refName() {
-        final String value = this.propertiesMap.get(GIT_REF_NAME.getPropertyName());
-        return notEmpty(value) ? Optional.of(value) : Optional.empty();
-    }
-
-    public Optional<String> remoteOriginUrl() {
-        final String value = this.propertiesMap.get(GIT_REMOTE_ORIGIN_URL);
-        return notEmpty(value) ? Optional.of(value) : Optional.empty();
+    public static Optional<GitProperties> newInstance(final Logger logger) {
+        return gitPropertiesMap(logger).map(propertiesMap -> new GitProperties(logger, propertiesMap));
     }
 
     public static Optional<Map<String, String>> gitPropertiesMap(final Logger logger) {
@@ -74,14 +64,6 @@ public class GitProperties {
             logger.warn("Exception on gitPropertiesMap.", ex);
             return Optional.empty();
         }
-    }
-
-    public static Optional<GitProperties> newInstance(final Logger logger) {
-        return gitPropertiesMap(logger).map(propertiesMap -> new GitProperties(logger, propertiesMap));
-    }
-
-    public static GitProperties newBlankInstance(final Logger logger) {
-        return new GitProperties(logger, new HashMap<>());
     }
 
     private static void addProperties(final Logger logger, final Map<String, String> map) throws IOException {
@@ -201,5 +183,25 @@ public class GitProperties {
 
     private static String getFormattedDate() {
         return LocalDateTime.now().format(DATE_TIME_FORMATTER);
+    }
+
+    public static GitProperties newBlankInstance(final Logger logger) {
+        return new GitProperties(logger, new HashMap<>());
+    }
+
+    public Optional<String> commitId() {
+        // `git rev-parse HEAD`
+        final String value = this.propertiesMap.get(GIT_COMMIT_ID);
+        return isEmpty(value) ? Optional.empty() : Optional.of(value);
+    }
+
+    public Optional<String> refName() {
+        final String value = this.propertiesMap.get(GIT_REF_NAME.getPropertyName());
+        return notEmpty(value) ? Optional.of(value) : Optional.empty();
+    }
+
+    public Optional<String> remoteOriginUrl() {
+        final String value = this.propertiesMap.get(GIT_REMOTE_ORIGIN_URL);
+        return notEmpty(value) ? Optional.of(value) : Optional.empty();
     }
 }

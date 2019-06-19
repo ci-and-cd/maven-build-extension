@@ -14,12 +14,12 @@ class ReactorModelCache implements ModelCache {
 
     private final Map<CacheKey, Object> models = new ConcurrentHashMap<>(256);
 
-    public Object get(String groupId, String artifactId, String version, String tag) {
-        return models.get(new CacheKey(groupId, artifactId, version, tag));
-    }
-
     public void put(String groupId, String artifactId, String version, String tag, Object data) {
         models.put(new CacheKey(groupId, artifactId, version, tag), data);
+    }
+
+    public Object get(String groupId, String artifactId, String version, String tag) {
+        return models.get(new CacheKey(groupId, artifactId, version, tag));
     }
 
     private static final class CacheKey {
@@ -49,6 +49,11 @@ class ReactorModelCache implements ModelCache {
         }
 
         @Override
+        public int hashCode() {
+            return hashCode;
+        }
+
+        @Override
         public boolean equals(Object obj) {
             if (this == obj) {
                 return true;
@@ -62,11 +67,6 @@ class ReactorModelCache implements ModelCache {
 
             return artifactId.equals(that.artifactId) && groupId.equals(that.groupId)
                 && version.equals(that.version) && tag.equals(that.tag);
-        }
-
-        @Override
-        public int hashCode() {
-            return hashCode;
         }
     }
 }

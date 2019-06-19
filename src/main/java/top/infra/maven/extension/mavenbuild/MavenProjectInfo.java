@@ -1,9 +1,9 @@
 package top.infra.maven.extension.mavenbuild;
 
 import static java.util.Collections.singletonList;
-import static top.infra.maven.extension.mavenbuild.SupportFunction.isEmpty;
-import static top.infra.maven.extension.mavenbuild.SupportFunction.pathname;
-import static top.infra.maven.extension.mavenbuild.SupportFunction.stackTrace;
+import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.isEmpty;
+import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.stackTrace;
+import static top.infra.maven.extension.mavenbuild.utils.SystemUtil.pathname;
 
 import java.io.File;
 import java.io.FileReader;
@@ -20,6 +20,8 @@ import org.apache.maven.project.ProjectBuilder;
 import org.apache.maven.project.ProjectBuildingRequest;
 import org.apache.maven.project.ProjectBuildingResult;
 import org.codehaus.plexus.util.xml.pull.XmlPullParserException;
+
+import top.infra.maven.logging.Logger;
 
 public class MavenProjectInfo {
 
@@ -39,18 +41,6 @@ public class MavenProjectInfo {
         if (isEmpty(artifactId) || isEmpty(groupId) || isEmpty(version)) {
             throw new IllegalArgumentException(this.toString());
         }
-    }
-
-    public String getArtifactId() {
-        return artifactId;
-    }
-
-    public String getGroupId() {
-        return groupId;
-    }
-
-    public String getVersion() {
-        return version;
     }
 
     @Override
@@ -135,5 +125,17 @@ public class MavenProjectInfo {
             result = Optional.empty();
         }
         return result;
+    }
+
+    public String getArtifactId() {
+        return artifactId;
+    }
+
+    public String getGroupId() {
+        return groupId;
+    }
+
+    public String getVersion() {
+        return version;
     }
 }
