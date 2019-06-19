@@ -20,7 +20,6 @@ import static top.infra.maven.extension.mavenbuild.Constants.SRC_MAVEN_SETTINGS_
 import static top.infra.maven.extension.mavenbuild.Docker.dockerHost;
 import static top.infra.maven.extension.mavenbuild.Docker.dockerfiles;
 import static top.infra.maven.extension.mavenbuild.Gpg.gpgVersionGreater;
-import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.gitRepoSlugFromUrl;
 import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.isEmpty;
 import static top.infra.maven.extension.mavenbuild.utils.SystemUtil.exec;
 import static top.infra.maven.extension.mavenbuild.utils.SystemUtil.existsInPath;
@@ -1222,6 +1221,27 @@ public enum CiOption {
     public static String envVariableName(final String propertyName) {
         final String name = name(propertyName);
         return name.startsWith("CI_OPT_") ? name : "CI_OPT_" + name;
+    }
+
+    public static final Pattern PATTERN_GIT_REPO_SLUG = Pattern.compile(".*[:/]([^/]+(/[^/.]+))(\\.git)?");
+
+    /**
+     * Gitlab's sub group is not supported intentionally.
+     *
+     * @param url git remote origin url
+     * @return repo slug
+     */
+    static Optional<String> gitRepoSlugFromUrl(final String url) {
+        final Optional<String> result;
+
+        final Matcher matcher = PATTERN_GIT_REPO_SLUG.matcher(url);
+        if (matcher.matches()) {
+            result = Optional.ofNullable(matcher.group(1));
+        } else {
+            result = Optional.empty();
+        }
+
+        return result;
     }
 
     private static String name(final String propertyName) {

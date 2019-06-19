@@ -19,7 +19,7 @@ import java.util.concurrent.TimeUnit;
 
 import top.infra.maven.logging.Logger;
 
-public final class DownloadUtil {
+public abstract class DownloadUtil {
 
     private DownloadUtil() {
     }

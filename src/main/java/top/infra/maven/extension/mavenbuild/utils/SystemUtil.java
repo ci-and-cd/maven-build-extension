@@ -7,9 +7,11 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
+import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
 import java.util.List;
 import java.util.Map;
@@ -18,9 +20,17 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-public final class SystemUtil {
+public abstract class SystemUtil {
 
     private SystemUtil() {
+    }
+
+    private static void copyFile(final String from, final String to) {
+        try {
+            Files.copy(Paths.get(from), Paths.get(to), StandardCopyOption.REPLACE_EXISTING);
+        } catch (final IOException ex) {
+            throw new RuntimeException(ex);
+        }
     }
 
     public static Map.Entry<Integer, String> exec(final String command) {
@@ -83,6 +93,29 @@ public final class SystemUtil {
 
     public static List<String> find(final String path, final String name) {
         return org.unix4j.Unix4j.find(path, name).toStringList();
+    }
+
+    public static String os() {
+        final String osName = System.getProperty("os.name", "generic").toLowerCase();
+        final String result;
+        if (osName.contains("mac")) {
+            result = "darwin";
+        } else if (osName.contains("win")) {
+            result = "windows";
+        } else if (osName.contains("nix") || osName.contains("nux") || osName.contains("aix")) {
+            result = "unix";
+        } else {
+            result = "generic";
+        }
+        return result;
+    }
+
+    public static Optional<String> readFile(final Path path, final Charset encoding) {
+        try {
+            return Optional.of(new String(Files.readAllBytes(path), encoding));
+        } catch (final IOException ex) {
+            return Optional.empty();
+        }
     }
 
     public static String systemJavaIoTmp() {

@@ -1,7 +1,7 @@
 package top.infra.maven.extension.mavenbuild;
 
-import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.profileId;
-import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.projectName;
+import static top.infra.maven.extension.mavenbuild.utils.MavenUtils.profileId;
+import static top.infra.maven.extension.mavenbuild.utils.MavenUtils.projectName;
 
 import java.util.LinkedHashMap;
 import java.util.Map;

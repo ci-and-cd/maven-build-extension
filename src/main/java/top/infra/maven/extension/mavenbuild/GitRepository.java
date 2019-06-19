@@ -10,8 +10,8 @@ import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.isEmpty
 import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.isNotEmpty;
 import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.newTuple;
 import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.newTupleOptional;
-import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.os;
-import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.readFile;
+import static top.infra.maven.extension.mavenbuild.utils.SystemUtil.os;
+import static top.infra.maven.extension.mavenbuild.utils.SystemUtil.readFile;
 import static top.infra.maven.extension.mavenbuild.utils.SystemUtil.writeFile;
 
 import java.io.File;

@@ -12,10 +12,10 @@ import static top.infra.maven.extension.mavenbuild.Constants.BRANCH_PREFIX_FEATU
 import static top.infra.maven.extension.mavenbuild.Constants.GIT_REF_NAME_DEVELOP;
 import static top.infra.maven.extension.mavenbuild.Constants.PUBLISH_CHANNEL_SNAPSHOT;
 import static top.infra.maven.extension.mavenbuild.Constants.SRC_CI_OPTS_PROPERTIES;
+import static top.infra.maven.extension.mavenbuild.utils.PropertiesUtil.maskSecrets;
 import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.exists;
 import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.isEmpty;
 import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.isSemanticSnapshotVersion;
-import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.maskSecrets;
 import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.newTuple;
 import static top.infra.maven.extension.mavenbuild.utils.SystemUtil.systemJavaIoTmp;
 
@@ -29,7 +29,7 @@ import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.Properties;
 
-import top.infra.maven.extension.mavenbuild.utils.SupportFunction;
+import top.infra.maven.extension.mavenbuild.utils.PropertiesUtil;
 import top.infra.maven.logging.Logger;
 
 public class CiOptionAccessor {
@@ -166,7 +166,7 @@ public class CiOptionAccessor {
             }
         });
 
-        SupportFunction.merge(newProperties, intoProperties);
+        PropertiesUtil.merge(newProperties, intoProperties);
 
         return newProperties;
     }

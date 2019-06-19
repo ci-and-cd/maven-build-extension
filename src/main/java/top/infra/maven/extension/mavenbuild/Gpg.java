@@ -8,8 +8,8 @@ import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.concat;
 import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.exists;
 import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.isEmpty;
 import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.lines;
-import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.readFile;
 import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.stackTrace;
+import static top.infra.maven.extension.mavenbuild.utils.SystemUtil.readFile;
 import static top.infra.maven.extension.mavenbuild.utils.SystemUtil.writeFile;
 
 import java.io.IOException;

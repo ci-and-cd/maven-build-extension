@@ -2,7 +2,7 @@ package top.infra.maven.extension.mavenbuild;
 
 import static java.lang.Boolean.FALSE;
 import static top.infra.maven.extension.mavenbuild.CiOption.INFRASTRUCTURE;
-import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.toProperties;
+import static top.infra.maven.extension.mavenbuild.utils.PropertiesUtil.toProperties;
 
 import java.util.Optional;
 import java.util.regex.Matcher;

@@ -1,8 +1,9 @@
 package top.infra.maven.extension.mavenbuild;
 
-import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.projectContext;
+import static top.infra.maven.extension.mavenbuild.utils.PropertiesUtil.mapFromProperties;
 import static top.infra.maven.extension.mavenbuild.utils.SystemUtil.parseJavaVersion;
 
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.regex.Matcher;
@@ -105,5 +106,29 @@ public class JavaVersionSensitiveActivator extends AbstractCustomActivator {
         }
 
         return result;
+    }
+
+    /**
+     * Provide script execution context variables.
+     */
+    private static Map<String, Object> projectContext(
+        final Model project,
+        final ProfileActivationContext context
+    ) {
+        // Note: keep order.
+        final Map<String, Object> bindings = new LinkedHashMap<>();
+        // Inject project props: override defaults
+        bindings.putAll(context.getProjectProperties());
+
+        bindings.putAll(mapFromProperties(project.getProperties()));
+        // Inject system props, override previous.
+        bindings.putAll(context.getSystemProperties());
+        // Inject user props, override previous.
+        bindings.putAll(context.getUserProperties());
+        // Expose default variable context.
+        bindings.put("value", bindings);
+        // Expose resolved pom.xml model.
+        bindings.put("project", project);
+        return bindings;
     }
 }

@@ -59,7 +59,7 @@ import org.apache.maven.settings.building.SettingsBuildingResult;
 import org.apache.maven.toolchain.building.ToolchainsBuildingRequest;
 
 import top.infra.maven.extension.mavenbuild.model.ProjectBuilderActivatorModelResolver;
-import top.infra.maven.extension.mavenbuild.utils.SupportFunction;
+import top.infra.maven.extension.mavenbuild.utils.PropertiesUtil;
 import top.infra.maven.logging.Logger;
 import top.infra.maven.logging.LoggerPlexusImpl;
 
@@ -169,15 +169,15 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
                 final ProjectBuildingRequest projectBuildingRequest = request.getProjectBuildingRequest();
                 if (projectBuildingRequest != null) {
                     // To make profile activation conditions work
-                    SupportFunction.merge(request.getSystemProperties(), projectBuildingRequest.getSystemProperties());
-                    SupportFunction.merge(request.getUserProperties(), projectBuildingRequest.getUserProperties());
+                    PropertiesUtil.merge(request.getSystemProperties(), projectBuildingRequest.getSystemProperties());
+                    PropertiesUtil.merge(request.getUserProperties(), projectBuildingRequest.getUserProperties());
                     if (logger.isInfoEnabled()) {
                         logger.info("     >>>>> projectBuildingRequest (ProfileActivationContext) systemProperties >>>>>");
-                        logger.info(SupportFunction.toString(projectBuildingRequest.getSystemProperties(), PATTERN_CI_ENV_VARS));
+                        logger.info(PropertiesUtil.toString(projectBuildingRequest.getSystemProperties(), PATTERN_CI_ENV_VARS));
                         logger.info("     <<<<< projectBuildingRequest (ProfileActivationContext) systemProperties <<<<<");
 
                         logger.info("     >>>>> projectBuildingRequest (ProfileActivationContext) userProperties >>>>>");
-                        logger.info(SupportFunction.toString(projectBuildingRequest.getUserProperties(), null));
+                        logger.info(PropertiesUtil.toString(projectBuildingRequest.getUserProperties(), null));
                         logger.info("     <<<<< projectBuildingRequest (ProfileActivationContext) userProperties <<<<<");
                     }
 
@@ -191,8 +191,8 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
                     } else {
                         request.setGoals(goalsAndProps.getKey());
                     }
-                    SupportFunction.merge(goalsAndProps.getValue(), request.getUserProperties());
-                    SupportFunction.merge(goalsAndProps.getValue(), projectBuildingRequest.getUserProperties());
+                    PropertiesUtil.merge(goalsAndProps.getValue(), request.getUserProperties());
+                    PropertiesUtil.merge(goalsAndProps.getValue(), projectBuildingRequest.getUserProperties());
                     prepareDocker(logger, goalsAndProps.getKey(), this.homeDir, this.ciOpts);
                 } else {
                     if (logger.isInfoEnabled()) {
@@ -355,7 +355,7 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
         if (logger.isInfoEnabled()) {
             logger.info(String.format("onMavenExecutionRequest result goals: %s", String.join(" ", goalsAndProps.getKey())));
             logger.info(">>>>>>>>>> ---------- onMavenExecutionRequest additionalUserProperties ---------- >>>>>>>>>>");
-            logger.info(SupportFunction.toString(goalsAndProps.getValue(), null));
+            logger.info(PropertiesUtil.toString(goalsAndProps.getValue(), null));
             logger.info("<<<<<<<<<< ---------- onMavenExecutionRequest additionalUserProperties ---------- <<<<<<<<<<");
             logger.info("<<<<<<<<<< ---------- run_mvn alter_mvn ---------- <<<<<<<<<<");
         }
@@ -418,7 +418,7 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
                 final Object v = contextData.get(k);
                 if (v instanceof Properties) {
                     logger.info(String.format("contextData found properties %s => ", k));
-                    logger.info(SupportFunction.toString((Properties) v, null));
+                    logger.info(PropertiesUtil.toString((Properties) v, null));
                 } else {
                     logger.info(String.format("contextData found property   %s => %s", k, v));
                 }
@@ -436,10 +436,10 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
                 logger.info(String.format(" maven-build-extension classpath entry: %s", entry)));
 
             logger.info(">>>>>>>>>> ---------- init systemProperties ---------- >>>>>>>>>>");
-            logger.info(SupportFunction.toString(systemProperties, PATTERN_CI_ENV_VARS));
+            logger.info(PropertiesUtil.toString(systemProperties, PATTERN_CI_ENV_VARS));
             logger.info("<<<<<<<<<< ---------- init systemProperties ---------- <<<<<<<<<<");
             logger.info(">>>>>>>>>> ---------- init userProperties ---------- >>>>>>>>>>");
-            logger.info(SupportFunction.toString(userProperties, null));
+            logger.info(PropertiesUtil.toString(userProperties, null));
             logger.info("<<<<<<<<<< ---------- init userProperties ---------- <<<<<<<<<<");
         }
 
@@ -492,7 +492,7 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
         this.ciOpts.updateSystemProperties(loadedProperties);
         if (logger.isInfoEnabled()) {
             logger.info("    >>>>>>>>>> ---------- loadedProperties ---------- >>>>>>>>>>");
-            logger.info(SupportFunction.toString(loadedProperties, PATTERN_CI_ENV_VARS));
+            logger.info(PropertiesUtil.toString(loadedProperties, PATTERN_CI_ENV_VARS));
             logger.info("    <<<<<<<<<< ---------- loadedProperties ---------- <<<<<<<<<<");
         }
 
@@ -510,8 +510,8 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
         final Properties newProperties = this.ciOpts.mergeCiOptsInto(userProperties);
 
         if (logger.isInfoEnabled()) {
-            logger.info(SupportFunction.toString(systemProperties, PATTERN_CI_ENV_VARS));
-            logger.info(SupportFunction.toString(userProperties, null));
+            logger.info(PropertiesUtil.toString(systemProperties, PATTERN_CI_ENV_VARS));
+            logger.info(PropertiesUtil.toString(userProperties, null));
             logger.info("<<<<<<<<<< ---------- set options (update userProperties) ---------- <<<<<<<<<<");
         }
 
@@ -521,7 +521,7 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
 
         this.mavenServerInterceptor.setHomeDir(this.homeDir);
         final Properties absentVarsInSettingsXml = absentVarsInSettingsXml(logger, this.mavenSettingsPathname, systemProperties);
-        SupportFunction.merge(absentVarsInSettingsXml, systemProperties);
+        PropertiesUtil.merge(absentVarsInSettingsXml, systemProperties);
 
         gitRepository.downloadMavenToolchainFile(this.homeDir);
     }
