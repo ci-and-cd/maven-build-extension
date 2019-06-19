@@ -1,6 +1,15 @@
 # maven-build-extension
 Maven extension for github.com/ci-and-cd/maven-build
 
+
+Support overriding maven local repository by user property settings.localRepository
+Allow overriding value of localRepository in settings.xml by user property settings.localRepository.
+e.g. ./mvnw -Dsettings.localRepository=${HOME}/.m3/repository clean install
+
+Auto fill empty or blank properties (e.g. CI_OPT_GPG_PASSPHRASE) in maven settings.xml.
+Fix 'Failed to decrypt passphrase for server foo: org.sonatype.plexus.components.cipher.PlexusCipherException...'.
+
+
 ### Usage
 
 ```xml

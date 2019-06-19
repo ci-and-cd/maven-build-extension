@@ -1,9 +1,12 @@
 package top.infra.maven.extension.mavenbuild;
 
+import static top.infra.maven.extension.mavenbuild.CiOption.GIT_REF_NAME;
+import static top.infra.maven.extension.mavenbuild.GpgEventAware.ORDER_GPG;
 import static top.infra.maven.extension.mavenbuild.MavenProjectInfo.newProjectInfoByBuildProject;
 import static top.infra.maven.extension.mavenbuild.MavenProjectInfo.newProjectInfoByReadPom;
 
 import java.io.File;
+import java.util.Map;
 
 import javax.inject.Inject;
 import javax.inject.Named;
@@ -20,7 +23,9 @@ import top.infra.maven.logging.LoggerPlexusImpl;
 
 @Named
 @Singleton
-public class MavenProjectInfoBean {
+public class MavenProjectInfoEventAware implements MavenEventAware {
+
+    public static final int ORDER_MAVEN_PROJECT_INFO = ORDER_GPG + 1;
 
     private final Logger logger;
 
@@ -32,7 +37,7 @@ public class MavenProjectInfoBean {
     private MavenProjectInfo projectInfo;
 
     @Inject
-    public MavenProjectInfoBean(
+    public MavenProjectInfoEventAware(
         final org.codehaus.plexus.logging.Logger logger,
         final ProjectBuilder projectBuilder,
         final DefaultRepositorySystemSessionFactory repositorySessionFactory
@@ -99,7 +104,50 @@ public class MavenProjectInfoBean {
         return repositorySystemSessionNull;
     }
 
+    @Override
+    public int getOrder() {
+        return ORDER_MAVEN_PROJECT_INFO;
+    }
+
     public MavenProjectInfo getProjectInfo() {
         return this.projectInfo;
+    }
+
+    @Override
+    public void onProjectBuildingRequest(
+        final MavenExecutionRequest mavenExecution,
+        final ProjectBuildingRequest projectBuilding,
+        final String homeDir,
+        final CiOptionAccessor ciOpts
+    ) {
+        // Options are not calculated and merged into projectBuildingRequest this time.
+        final MavenProjectInfo mavenProjectInfo = this.getMavenProjectInfo(mavenExecution);
+        if (logger.isInfoEnabled()) {
+            logger.info(">>>>>>>>>> ---------- resolve project version ---------- >>>>>>>>>>");
+            logger.info(mavenProjectInfo.toString());
+            logger.info("<<<<<<<<<< ---------- resolve project version ---------- <<<<<<<<<<");
+        }
+
+        final String gitRefName = ciOpts.getOption(GIT_REF_NAME).orElse("");
+        final Map.Entry<Boolean, RuntimeException> checkResult = ciOpts.checkProjectVersion(mavenProjectInfo.getVersion());
+        final boolean valid = checkResult.getKey();
+        if (logger.isInfoEnabled()) {
+            logger.info(">>>>>>>>>> ---------- check project version ---------- >>>>>>>>>>");
+            logger.info(String.format("%s version [%s] for ref [%s].",
+                valid ? "Valid" : "Invalid", mavenProjectInfo.getVersion(), gitRefName));
+            logger.info("<<<<<<<<<< ---------- check project version ---------- <<<<<<<<<<");
+        }
+
+        if (!valid) {
+            logger.warn("You should use versions with '-SNAPSHOT' suffix on develop branch or feature branches");
+            logger.warn("You should use versions like 1.0.0-SNAPSHOT develop branch");
+            logger.warn("You should use versions like 1.0.0-feature-SNAPSHOT or 1.0.0-branch-SNAPSHOT on feature branches");
+            logger.warn("You should use versions like 1.0.0 without '-SNAPSHOT' suffix on releases");
+            final RuntimeException ex = checkResult.getValue();
+            if (ex != null) {
+                logger.error(ex.getMessage());
+                throw ex;
+            }
+        }
     }
 }

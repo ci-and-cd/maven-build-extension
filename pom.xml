@@ -202,6 +202,9 @@
 
     <!-- @formatter:off -->
     <dependencies>
+        <dependency><groupId>com.google.code.findbugs</groupId><artifactId>annotations</artifactId></dependency>
+        <dependency><groupId>org.jetbrains</groupId><artifactId>annotations</artifactId></dependency>
+
         <dependency><groupId>org.apache.maven</groupId><artifactId>maven-artifact</artifactId><version>${version.maven}</version><scope>provided</scope></dependency>
         <dependency><groupId>org.apache.maven</groupId><artifactId>maven-core</artifactId><version>${version.maven}</version><scope>provided</scope></dependency>
         <dependency><groupId>org.apache.maven</groupId><artifactId>maven-model</artifactId><version>${version.maven}</version><scope>provided</scope></dependency>
@@ -219,6 +222,12 @@
         <dependency><groupId>ch.qos.logback</groupId><artifactId>logback-classic</artifactId><version>${version.logback}</version><scope>test</scope></dependency>
         <dependency><groupId>junit</groupId><artifactId>junit</artifactId><version>${version.junit.legacy}</version><scope>test</scope></dependency>
     </dependencies>
+    <dependencyManagement>
+        <dependencies>
+            <dependency><groupId>com.google.code.findbugs</groupId><artifactId>annotations</artifactId><version>3.0.1u2</version></dependency>
+            <dependency><groupId>org.jetbrains</groupId><artifactId>annotations</artifactId><version>16.0.3</version></dependency>
+        </dependencies>
+    </dependencyManagement>
     <!-- @formatter:on -->
 
     <!-- @formatter:off -->

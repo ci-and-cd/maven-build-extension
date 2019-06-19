@@ -1197,7 +1197,11 @@ public enum CiOption {
     },
     ;
 
+
+    public static final Pattern PATTERN_CI_ENV_VARS = Pattern.compile("^env\\.CI_.+");
+    public static final Pattern PATTERN_GIT_REPO_SLUG = Pattern.compile(".*[:/]([^/]+(/[^/.]+))(\\.git)?");
     private static final Pattern PATTERN_URL = Pattern.compile("^(.+://|git@)([^/\\:]+(:\\d+)?).*$");
+
     private final String defaultValue;
     private final String envVariableName;
     private final String propertyName;
@@ -1222,8 +1226,6 @@ public enum CiOption {
         final String name = name(propertyName);
         return name.startsWith("CI_OPT_") ? name : "CI_OPT_" + name;
     }
-
-    public static final Pattern PATTERN_GIT_REPO_SLUG = Pattern.compile(".*[:/]([^/]+(/[^/.]+))(\\.git)?");
 
     /**
      * Gitlab's sub group is not supported intentionally.

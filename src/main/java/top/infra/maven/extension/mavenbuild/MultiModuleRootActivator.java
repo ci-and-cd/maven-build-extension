@@ -14,13 +14,13 @@ import top.infra.maven.extension.mavenbuild.model.ProjectBuilderActivatorModelRe
 @Component(role = CustomActivator.class, hint = "MultiModuleRootActivator")
 public class MultiModuleRootActivator extends AbstractCustomActivator {
 
-    private final MavenProjectInfoBean projectInfoBean;
+    private final MavenProjectInfoEventAware projectInfoBean;
 
     @Inject
     public MultiModuleRootActivator(
         final Logger logger,
         final ProjectBuilderActivatorModelResolver resolver,
-        final MavenProjectInfoBean projectInfoBean
+        final MavenProjectInfoEventAware projectInfoBean
     ) {
         super(logger, resolver);
 

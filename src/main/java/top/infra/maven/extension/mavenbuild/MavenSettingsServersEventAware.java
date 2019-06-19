@@ -1,10 +1,13 @@
 package top.infra.maven.extension.mavenbuild;
 
 import static top.infra.maven.extension.mavenbuild.GitRepository.settingsSecurityXml;
+import static top.infra.maven.extension.mavenbuild.MavenSettingsLocalRepositoryEventAware.ORDER_MAVEN_SETTINGS_LOCALREPOSITORY;
 import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.isEmpty;
+import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.isNotEmpty;
 
 import cn.home1.tools.maven.MavenSettingsSecurity;
 
+import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Properties;
@@ -16,6 +19,7 @@ import javax.inject.Inject;
 import javax.inject.Named;
 import javax.inject.Singleton;
 
+import org.apache.maven.execution.MavenExecutionRequest;
 import org.apache.maven.settings.Server;
 import org.apache.maven.settings.crypto.SettingsDecrypter;
 import org.unix4j.Unix4j;
@@ -25,21 +29,27 @@ import top.infra.maven.logging.Logger;
 import top.infra.maven.logging.LoggerPlexusImpl;
 
 /**
+ * Auto fill empty or blank properties (e.g. CI_OPT_GPG_PASSPHRASE) in maven settings.xml.
  * Fix 'Failed to decrypt passphrase for server foo: org.sonatype.plexus.components.cipher.PlexusCipherException...'.
  */
 @Named
 @Singleton
-public class MavenServerInterceptor {
+public class MavenSettingsServersEventAware implements MavenEventAware {
+
+    public static final int ORDER_MAVEN_SETTINGS_SERVERS = ORDER_MAVEN_SETTINGS_LOCALREPOSITORY + 1;
 
     static final Pattern PATTERN_ENV_VAR = Pattern.compile("\\$\\{env\\..+?\\}");
 
     private final Logger logger;
+
     private final SettingsDecrypter settingsDecrypter;
+
     private MavenSettingsSecurity settingsSecurity;
+
     private String encryptedBlankString;
 
     @Inject
-    public MavenServerInterceptor(
+    public MavenSettingsServersEventAware(
         final org.codehaus.plexus.logging.Logger logger,
         final SettingsDecrypter settingsDecrypter
     ) {
@@ -55,10 +65,11 @@ public class MavenServerInterceptor {
     ) {
         final Properties result = new Properties();
 
-        final List<String> envVars = SupportFunction.lines(Unix4j.cat(mavenSettingsPathname).toStringResult())
+        final List<String> envVars = isNotEmpty(mavenSettingsPathname)
+            ? SupportFunction.lines(Unix4j.cat(mavenSettingsPathname).toStringResult())
             .stream()
             .flatMap(line -> {
-                final Matcher matcher = MavenServerInterceptor.PATTERN_ENV_VAR.matcher(line);
+                final Matcher matcher = MavenSettingsServersEventAware.PATTERN_ENV_VAR.matcher(line);
                 final List<String> matches = new LinkedList<>();
                 while (matcher.find()) {
                     matches.add(matcher.group(0));
@@ -67,7 +78,8 @@ public class MavenServerInterceptor {
             })
             .distinct()
             .map(line -> line.substring(2, line.length() - 1))
-            .collect(Collectors.toList());
+            .collect(Collectors.toList())
+            : Collections.emptyList();
 
         envVars.forEach(envVar -> {
             if (!systemProperties.containsKey(envVar)) {
@@ -119,6 +131,17 @@ public class MavenServerInterceptor {
 
     public String getEncryptedBlankString() {
         return this.encryptedBlankString;
+    }
+
+    @Override
+    public int getOrder() {
+        return ORDER_MAVEN_SETTINGS_SERVERS;
+    }
+
+    @Override
+    public void onMavenExecutionRequest(final MavenExecutionRequest request, final String homeDir, final CiOptionAccessor ciOpts) {
+        this.setHomeDir(homeDir);
+        this.checkServers(request.getServers());
     }
 
     public void setHomeDir(final String homeDir) {

@@ -12,6 +12,9 @@ import org.codehaus.plexus.component.annotations.Component;
 import org.codehaus.plexus.component.annotations.Requirement;
 import org.codehaus.plexus.logging.Logger;
 
+/**
+ * see: https://maven.apache.org/examples/maven-3-lifecycle-extensions.html
+ */
 @Component(role = AbstractMavenLifecycleParticipant.class, hint = "MavenBuildLifecycleParticipant")
 public class MavenBuildLifecycleParticipant extends AbstractMavenLifecycleParticipant {
 
@@ -22,7 +25,7 @@ public class MavenBuildLifecycleParticipant extends AbstractMavenLifecyclePartic
     private RuntimeInformation runtime;
 
     @Requirement
-    private MavenServerInterceptor mavenServerInterceptor;
+    private MavenSettingsServersEventAware mavenServerInterceptor;
 
     public MavenBuildLifecycleParticipant() {
     }

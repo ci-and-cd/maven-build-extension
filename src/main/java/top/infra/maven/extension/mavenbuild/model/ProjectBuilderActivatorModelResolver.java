@@ -9,6 +9,7 @@ import javax.inject.Singleton;
 
 import org.apache.maven.RepositoryUtils;
 import org.apache.maven.artifact.repository.LegacyLocalRepositoryManager;
+import org.apache.maven.execution.MavenExecutionRequest;
 import org.apache.maven.model.building.DefaultModelBuildingRequest;
 import org.apache.maven.model.building.ModelBuilder;
 import org.apache.maven.model.building.ModelBuildingRequest;
@@ -22,9 +23,15 @@ import org.eclipse.aether.RequestTrace;
 import org.eclipse.aether.impl.RemoteRepositoryManager;
 import org.eclipse.aether.repository.RemoteRepository;
 
+import top.infra.maven.extension.mavenbuild.CiOptionAccessor;
+import top.infra.maven.extension.mavenbuild.MavenEventAware;
+import top.infra.maven.extension.mavenbuild.MavenSettingsServersEventAware;
+
 @Named
 @Singleton
-public class ProjectBuilderActivatorModelResolver extends AbstractActivatorModelResolver {
+public class ProjectBuilderActivatorModelResolver extends AbstractActivatorModelResolver implements MavenEventAware {
+
+    public static final int ORDER_MODEL_RESOLVER = MavenSettingsServersEventAware.ORDER_MAVEN_SETTINGS_SERVERS + 1;
 
     private final ModelCache modelCache;
 
@@ -83,5 +90,20 @@ public class ProjectBuilderActivatorModelResolver extends AbstractActivatorModel
 
     public void setProjectBuildingRequest(final ProjectBuildingRequest projectBuildingRequest) {
         this.projectBuildingRequest = projectBuildingRequest;
+    }
+
+    @Override
+    public int getOrder() {
+        return ORDER_MODEL_RESOLVER;
+    }
+
+    @Override
+    public void onProjectBuildingRequest(
+        final MavenExecutionRequest mavenExecution,
+        final ProjectBuildingRequest projectBuilding,
+        final String homeDir,
+        final CiOptionAccessor ciOpts
+    ) {
+        this.setProjectBuildingRequest(projectBuilding);
     }
 }
