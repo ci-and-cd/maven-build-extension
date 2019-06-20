@@ -1,5 +1,7 @@
 package top.infra.maven.extension.mavenbuild;
 
+import static java.lang.Boolean.FALSE;
+import static top.infra.maven.extension.mavenbuild.CiOption.FAST;
 import static top.infra.maven.extension.mavenbuild.CiOption.GIT_REF_NAME;
 import static top.infra.maven.extension.mavenbuild.GpgEventAware.ORDER_GPG;
 import static top.infra.maven.extension.mavenbuild.MavenProjectInfo.newProjectInfoByBuildProject;
@@ -119,34 +121,38 @@ public class MavenProjectInfoEventAware implements MavenEventAware {
         final ProjectBuildingRequest projectBuilding,
         final CiOptionAccessor ciOpts
     ) {
-        // Options are not calculated and merged into projectBuildingRequest this time.
-        final MavenProjectInfo mavenProjectInfo = this.getMavenProjectInfo(mavenExecution);
-        if (logger.isInfoEnabled()) {
-            logger.info(">>>>>>>>>> ---------- resolve project version ---------- >>>>>>>>>>");
-            logger.info(mavenProjectInfo.toString());
-            logger.info("<<<<<<<<<< ---------- resolve project version ---------- <<<<<<<<<<");
-        }
-
-        final String gitRefName = ciOpts.getOption(GIT_REF_NAME).orElse("");
-        final Map.Entry<Boolean, RuntimeException> checkResult = ciOpts.checkProjectVersion(mavenProjectInfo.getVersion());
-        final boolean valid = checkResult.getKey();
-        if (logger.isInfoEnabled()) {
-            logger.info(">>>>>>>>>> ---------- check project version ---------- >>>>>>>>>>");
-            logger.info(String.format("%s version [%s] for ref [%s].",
-                valid ? "Valid" : "Invalid", mavenProjectInfo.getVersion(), gitRefName));
-            logger.info("<<<<<<<<<< ---------- check project version ---------- <<<<<<<<<<");
-        }
-
-        if (!valid) {
-            logger.warn("You should use versions with '-SNAPSHOT' suffix on develop branch or feature branches");
-            logger.warn("You should use versions like 1.0.0-SNAPSHOT develop branch");
-            logger.warn("You should use versions like 1.0.0-feature-SNAPSHOT or 1.0.0-branch-SNAPSHOT on feature branches");
-            logger.warn("You should use versions like 1.0.0 without '-SNAPSHOT' suffix on releases");
-            final RuntimeException ex = checkResult.getValue();
-            if (ex != null) {
-                logger.error(ex.getMessage());
-                throw ex;
+        if (!ciOpts.getOption(FAST).map(Boolean::parseBoolean).orElse(FALSE)) {
+            // Options are not calculated and merged into projectBuildingRequest this time.
+            final MavenProjectInfo mavenProjectInfo = this.getMavenProjectInfo(mavenExecution);
+            if (logger.isInfoEnabled()) {
+                logger.info(">>>>>>>>>> ---------- resolve project version ---------- >>>>>>>>>>");
+                logger.info(mavenProjectInfo.toString());
+                logger.info("<<<<<<<<<< ---------- resolve project version ---------- <<<<<<<<<<");
             }
+
+            final String gitRefName = ciOpts.getOption(GIT_REF_NAME).orElse("");
+            final Map.Entry<Boolean, RuntimeException> checkResult = ciOpts.checkProjectVersion(mavenProjectInfo.getVersion());
+            final boolean valid = checkResult.getKey();
+            if (logger.isInfoEnabled()) {
+                logger.info(">>>>>>>>>> ---------- check project version ---------- >>>>>>>>>>");
+                logger.info(String.format("%s version [%s] for ref [%s].",
+                    valid ? "Valid" : "Invalid", mavenProjectInfo.getVersion(), gitRefName));
+                logger.info("<<<<<<<<<< ---------- check project version ---------- <<<<<<<<<<");
+            }
+
+            if (!valid) {
+                logger.warn("You should use versions with '-SNAPSHOT' suffix on develop branch or feature branches");
+                logger.warn("You should use versions like 1.0.0-SNAPSHOT develop branch");
+                logger.warn("You should use versions like 1.0.0-feature-SNAPSHOT or 1.0.0-branch-SNAPSHOT on feature branches");
+                logger.warn("You should use versions like 1.0.0 without '-SNAPSHOT' suffix on releases");
+                final RuntimeException ex = checkResult.getValue();
+                if (ex != null) {
+                    logger.error(ex.getMessage());
+                    throw ex;
+                }
+            }
+        } else {
+            logger.info("Skip resolving and checking project version under fast mode.");
         }
     }
 }
