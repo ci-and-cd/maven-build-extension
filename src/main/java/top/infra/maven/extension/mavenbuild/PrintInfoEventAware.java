@@ -1,7 +1,7 @@
 package top.infra.maven.extension.mavenbuild;
 
 import static top.infra.maven.extension.mavenbuild.CiOption.PATTERN_CI_ENV_VARS;
-import static top.infra.maven.extension.mavenbuild.utils.SystemUtil.systemUserHome;
+import static top.infra.maven.extension.mavenbuild.utils.SystemUtils.systemUserHome;
 
 import java.io.File;
 import java.net.URL;
@@ -18,7 +18,7 @@ import javax.inject.Singleton;
 import org.apache.maven.eventspy.EventSpy.Context;
 import org.apache.maven.rtinfo.RuntimeInformation;
 
-import top.infra.maven.extension.mavenbuild.utils.PropertiesUtil;
+import top.infra.maven.extension.mavenbuild.utils.PropertiesUtils;
 import top.infra.maven.logging.Logger;
 import top.infra.maven.logging.LoggerPlexusImpl;
 
@@ -67,7 +67,7 @@ public class PrintInfoEventAware implements MavenEventAware {
                 final Object v = contextData.get(k);
                 if (v instanceof Properties) {
                     logger.info(String.format("contextData found properties %s => ", k));
-                    logger.info(PropertiesUtil.toString((Properties) v, null));
+                    logger.info(PropertiesUtils.toString((Properties) v, null));
                 } else {
                     logger.info(String.format("contextData found property   %s => %s", k, v));
                 }
@@ -77,10 +77,10 @@ public class PrintInfoEventAware implements MavenEventAware {
         this.printClassPath(context);
 
         logger.info(">>>>>>>>>> ---------- init systemProperties ---------- >>>>>>>>>>");
-        logger.info(PropertiesUtil.toString(systemProperties, PATTERN_CI_ENV_VARS));
+        logger.info(PropertiesUtils.toString(systemProperties, PATTERN_CI_ENV_VARS));
         logger.info("<<<<<<<<<< ---------- init systemProperties ---------- <<<<<<<<<<");
         logger.info(">>>>>>>>>> ---------- init userProperties ---------- >>>>>>>>>>");
-        logger.info(PropertiesUtil.toString(userProperties, null));
+        logger.info(PropertiesUtils.toString(userProperties, null));
         logger.info("<<<<<<<<<< ---------- init userProperties ---------- <<<<<<<<<<");
 
         this.rootProjectPathname = CiOption.rootProjectPathname(systemProperties);

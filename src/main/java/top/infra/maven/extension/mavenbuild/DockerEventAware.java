@@ -23,6 +23,7 @@ import javax.inject.Singleton;
 import org.apache.maven.execution.MavenExecutionRequest;
 import org.apache.maven.project.ProjectBuildingRequest;
 
+import top.infra.maven.extension.mavenbuild.utils.SystemUtils;
 import top.infra.maven.logging.Logger;
 import top.infra.maven.logging.LoggerPlexusImpl;
 
@@ -50,7 +51,6 @@ public class DockerEventAware implements MavenEventAware {
     public void onProjectBuildingRequest(
         final MavenExecutionRequest mavenExecution,
         final ProjectBuildingRequest projectBuilding,
-        final String homeDir,
         final CiOptionAccessor ciOpts
     ) {
         final List<String> goals = mavenExecution.getGoals();
@@ -70,7 +70,7 @@ public class DockerEventAware implements MavenEventAware {
             final Docker docker = new Docker(
                 logger,
                 dockerHost(ciOpts.getSystemProperties()).orElse(null),
-                homeDir,
+                SystemUtils.systemUserHome(),
                 ciOpts.getOption(DOCKER_REGISTRY).orElse(null),
                 ciOpts.getOption(DOCKER_REGISTRY_PASS).orElse(null),
                 ciOpts.getOption(DOCKER_REGISTRY_URL).orElse(null),

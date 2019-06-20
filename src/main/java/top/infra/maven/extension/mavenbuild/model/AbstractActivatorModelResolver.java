@@ -170,6 +170,6 @@ public abstract class AbstractActivatorModelResolver implements ActivatorModelRe
 
     private static String mementoKey(final Profile profile, final File pomFile) {
         final String pom = pomFile != null ? pomFile.getAbsolutePath() : "";
-        return "" + profile + "@" + pom;
+        return String.format("%s@%s", profile, pom);
     }
 }

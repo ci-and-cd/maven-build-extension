@@ -1,6 +1,7 @@
 package top.infra.maven.extension.mavenbuild;
 
-import static top.infra.maven.extension.mavenbuild.GitRepository.settingsSecurityXml;
+import static top.infra.maven.extension.mavenbuild.CiOption.MAVEN_SETTINGS_FILE;
+import static top.infra.maven.extension.mavenbuild.MavenSettingsFilesEventAware.ORDER_MAVEN_SETTINGS_FILES;
 import static top.infra.maven.extension.mavenbuild.MavenSettingsLocalRepositoryEventAware.ORDER_MAVEN_SETTINGS_LOCALREPOSITORY;
 import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.isEmpty;
 import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.isNotEmpty;
@@ -19,11 +20,13 @@ import javax.inject.Inject;
 import javax.inject.Named;
 import javax.inject.Singleton;
 
+import org.apache.maven.eventspy.EventSpy.Context;
 import org.apache.maven.execution.MavenExecutionRequest;
 import org.apache.maven.settings.Server;
 import org.apache.maven.settings.crypto.SettingsDecrypter;
 import org.unix4j.Unix4j;
 
+import top.infra.maven.extension.mavenbuild.utils.MavenUtils;
 import top.infra.maven.extension.mavenbuild.utils.SupportFunction;
 import top.infra.maven.logging.Logger;
 import top.infra.maven.logging.LoggerPlexusImpl;
@@ -36,7 +39,7 @@ import top.infra.maven.logging.LoggerPlexusImpl;
 @Singleton
 public class MavenSettingsServersEventAware implements MavenEventAware {
 
-    public static final int ORDER_MAVEN_SETTINGS_SERVERS = ORDER_MAVEN_SETTINGS_LOCALREPOSITORY + 1;
+    public static final int ORDER_MAVEN_SETTINGS_SERVERS = ORDER_MAVEN_SETTINGS_FILES + 1;// ORDER_MAVEN_SETTINGS_LOCALREPOSITORY + 1;
 
     static final Pattern PATTERN_ENV_VAR = Pattern.compile("\\$\\{env\\..+?\\}");
 
@@ -44,9 +47,9 @@ public class MavenSettingsServersEventAware implements MavenEventAware {
 
     private final SettingsDecrypter settingsDecrypter;
 
-    private MavenSettingsSecurity settingsSecurity;
-
     private String encryptedBlankString;
+
+    private MavenSettingsSecurity settingsSecurity;
 
     @Inject
     public MavenSettingsServersEventAware(
@@ -56,57 +59,23 @@ public class MavenSettingsServersEventAware implements MavenEventAware {
         this.logger = new LoggerPlexusImpl(logger);
 
         this.settingsDecrypter = settingsDecrypter;
-    }
 
-    public static Properties absentVarsInSettingsXml(
-        final Logger logger,
-        final String mavenSettingsPathname,
-        final Properties systemProperties
-    ) {
-        final Properties result = new Properties();
-
-        final List<String> envVars = isNotEmpty(mavenSettingsPathname)
-            ? SupportFunction.lines(Unix4j.cat(mavenSettingsPathname).toStringResult())
-            .stream()
-            .flatMap(line -> {
-                final Matcher matcher = MavenSettingsServersEventAware.PATTERN_ENV_VAR.matcher(line);
-                final List<String> matches = new LinkedList<>();
-                while (matcher.find()) {
-                    matches.add(matcher.group(0));
-                }
-                return matches.stream();
-            })
-            .distinct()
-            .map(line -> line.substring(2, line.length() - 1))
-            .collect(Collectors.toList())
-            : Collections.emptyList();
-
-        envVars.forEach(envVar -> {
-            if (!systemProperties.containsKey(envVar)) {
-                logger.warn(String.format(
-                    "Please set a value for env variable [%s] (in settings.xml), to avoid passphrase decrypt error.", envVar));
-            }
-        });
-
-        return result;
+        this.encryptedBlankString = null;
+        this.settingsSecurity = null;
     }
 
     public List<String> absentEnvVars(final Server server) {
         final List<String> found = new LinkedList<>();
-        if (this.isAbsentEnvVar(server.getPassphrase())) {
+        if (this.isSystemPropertyNameOfEnvVar(server.getPassphrase())) {
             found.add(server.getPassphrase());
         }
-        if (this.isAbsentEnvVar(server.getPassword())) {
+        if (this.isSystemPropertyNameOfEnvVar(server.getPassword())) {
             found.add(server.getPassword());
         }
-        if (this.isAbsentEnvVar(server.getUsername())) {
+        if (this.isSystemPropertyNameOfEnvVar(server.getUsername())) {
             found.add(server.getUsername());
         }
         return found.stream().map(line -> line.substring(2, line.length() - 1)).distinct().collect(Collectors.toList());
-    }
-
-    public boolean isAbsentEnvVar(final String str) {
-        return !isEmpty(str) && PATTERN_ENV_VAR.matcher(str).matches();
     }
 
     public void checkServers(final List<Server> servers) {
@@ -139,14 +108,31 @@ public class MavenSettingsServersEventAware implements MavenEventAware {
     }
 
     @Override
-    public void onMavenExecutionRequest(final MavenExecutionRequest request, final String homeDir, final CiOptionAccessor ciOpts) {
-        this.setHomeDir(homeDir);
+    public void afterInit(final Context context, final CiOptionAccessor ciOpts) {
+        final String settingsXmlPathname = ciOpts.getOption(MAVEN_SETTINGS_FILE).orElse(null);
+
+        final Properties systemProperties = (Properties) context.getData().get("systemProperties");
+        // final Properties absentVarsInSettingsXml = absentVarsInSettingsXml(logger, settingsXmlPathname, systemProperties);
+        // PropertiesUtils.merge(absentVarsInSettingsXml, systemProperties);
+
+        final List<String> envVars = absentVarsInSettingsXml(logger, settingsXmlPathname, systemProperties);
+        envVars.forEach(envVar -> {
+            if (!systemProperties.containsKey(envVar)) {
+                logger.warn(String.format(
+                    "Please set a value for env variable [%s] (in settings.xml), to avoid passphrase decrypt error.", envVar));
+            }
+        });
+    }
+
+    @Override
+    public void onMavenExecutionRequest(final MavenExecutionRequest request, final CiOptionAccessor ciOpts) {
+        this.settingsSecurity = new MavenSettingsSecurity(MavenUtils.settingsSecurityXml(), false);
+        this.encryptedBlankString = this.settingsSecurity.encodeText(" ");
         this.checkServers(request.getServers());
     }
 
-    public void setHomeDir(final String homeDir) {
-        this.settingsSecurity = new MavenSettingsSecurity(settingsSecurityXml(homeDir), false);
-        this.encryptedBlankString = this.settingsSecurity.encodeText(" ");
+    private boolean isSystemPropertyNameOfEnvVar(final String str) {
+        return !isEmpty(str) && PATTERN_ENV_VAR.matcher(str).matches();
     }
 
     private String replaceEmptyValue(final String value) {
@@ -156,7 +142,7 @@ public class MavenSettingsServersEventAware implements MavenEventAware {
         } else if ("".equals(value)) {
             result = this.encryptedBlankString;
         } else {
-            if (isAbsentEnvVar(value)) {
+            if (isSystemPropertyNameOfEnvVar(value)) {
                 result = this.encryptedBlankString;
             } else {
                 result = value;
@@ -187,5 +173,35 @@ public class MavenSettingsServersEventAware implements MavenEventAware {
             logger.info(String.format("server [%s] has a empty username [%s]", server.getId(), server.getUsername()));
             server.setUsername(username);
         }
+    }
+
+    /**
+     * Find properties that absent in systemProperties but used in settings.xml.
+     *
+     * @param logger              logger
+     * @param settingsXmlPathname settings.xml
+     * @param systemProperties    systemProperties of current maven session
+     * @return variables absent in systemProperties but used in settings.xml
+     */
+    private static List<String> absentVarsInSettingsXml(
+        final Logger logger,
+        final String settingsXmlPathname,
+        final Properties systemProperties
+    ) {
+        return isNotEmpty(settingsXmlPathname)
+            ? SupportFunction.lines(Unix4j.cat(settingsXmlPathname).toStringResult())
+            .stream()
+            .flatMap(line -> {
+                final Matcher matcher = PATTERN_ENV_VAR.matcher(line);
+                final List<String> matches = new LinkedList<>();
+                while (matcher.find()) {
+                    matches.add(matcher.group(0));
+                }
+                return matches.stream();
+            })
+            .distinct()
+            .map(line -> line.substring(2, line.length() - 1))
+            .collect(Collectors.toList())
+            : Collections.emptyList();
     }
 }

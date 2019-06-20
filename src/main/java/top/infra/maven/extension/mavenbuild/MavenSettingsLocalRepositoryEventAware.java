@@ -43,12 +43,12 @@ public class MavenSettingsLocalRepositoryEventAware implements MavenEventAware {
     }
 
     @Override
-    public void onSettingsBuildingRequest(final SettingsBuildingRequest request, final String homeDir, final CiOptionAccessor ciOpts) {
+    public void onSettingsBuildingRequest(final SettingsBuildingRequest request, final CiOptionAccessor ciOpts) {
         this.settingsLocalRepository = request.getUserProperties().getProperty(USER_PROPERTY_SETTINGS_LOCALREPOSITORY);
     }
 
     @Override
-    public void onSettingsBuildingResult(final SettingsBuildingResult result, final String homeDir, final CiOptionAccessor ciOpts) {
+    public void onSettingsBuildingResult(final SettingsBuildingResult result, final CiOptionAccessor ciOpts) {
         // Allow override value of localRepository in settings.xml by user property settings.localRepository.
         // e.g. ./mvnw -Dsettings.localRepository=${HOME}/.m3/repository clean install
         if (!isEmpty(this.settingsLocalRepository)) {
@@ -62,7 +62,7 @@ public class MavenSettingsLocalRepositoryEventAware implements MavenEventAware {
     }
 
     @Override
-    public void onMavenExecutionRequest(final MavenExecutionRequest request, final String homeDir, final CiOptionAccessor ciOpts) {
+    public void onMavenExecutionRequest(final MavenExecutionRequest request, final CiOptionAccessor ciOpts) {
         if (isEmpty(this.settingsLocalRepository)) {
             this.settingsLocalRepository = request.getLocalRepository().getBasedir();
             if (logger.isInfoEnabled()) {

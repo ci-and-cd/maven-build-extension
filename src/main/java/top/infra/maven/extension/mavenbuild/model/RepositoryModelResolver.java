@@ -3,7 +3,7 @@ package top.infra.maven.extension.mavenbuild.model;
 import static java.lang.Boolean.FALSE;
 import static java.util.Collections.emptyMap;
 import static java.util.stream.Collectors.toList;
-import static top.infra.maven.extension.mavenbuild.utils.SystemUtil.pathname;
+import static top.infra.maven.extension.mavenbuild.utils.FileUtils.pathname;
 
 import java.io.File;
 import java.util.Collection;
@@ -23,8 +23,8 @@ import org.apache.maven.model.resolution.InvalidRepositoryException;
 import org.apache.maven.model.resolution.ModelResolver;
 import org.apache.maven.model.resolution.UnresolvableModelException;
 
-import top.infra.maven.extension.mavenbuild.utils.DownloadUtil;
-import top.infra.maven.extension.mavenbuild.utils.DownloadUtil.DownloadException;
+import top.infra.maven.extension.mavenbuild.utils.DownloadUtils;
+import top.infra.maven.extension.mavenbuild.utils.DownloadUtils.DownloadException;
 import top.infra.maven.logging.Logger;
 import top.infra.maven.logging.LoggerPlexusImpl;
 
@@ -189,11 +189,11 @@ public class RepositoryModelResolver implements ModelResolver {
             final String filePath = localRepoFile.getAbsolutePath().substring(this.localRepository.getAbsolutePath().length());
             final String sourceUrl = repoUrl + filePath;
 
-            final Entry<Optional<Integer>, Optional<Exception>> result = DownloadUtil.download(
+            final Entry<Optional<Integer>, Optional<Exception>> result = DownloadUtils.download(
                 logger, sourceUrl, pathname(localRepoFile), emptyMap(), 3);
             final Optional<Integer> status = result.getKey();
             final Optional<Exception> error = result.getValue();
-            final boolean is2xxStatus = status.map(DownloadUtil::is2xxStatus).orElse(FALSE);
+            final boolean is2xxStatus = status.map(DownloadUtils::is2xxStatus).orElse(FALSE);
             if (error.isPresent()) {
                 throw new DownloadException(error.get());
             } else if (!is2xxStatus) {

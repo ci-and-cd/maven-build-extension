@@ -1,6 +1,7 @@
 package top.infra.maven.extension.mavenbuild;
 
-import static top.infra.maven.extension.mavenbuild.CiOption.CACHE_DIRECTORY;
+import static top.infra.maven.extension.mavenbuild.CiOption.CACHE_INFRASTRUCTURE_PATH;
+import static top.infra.maven.extension.mavenbuild.CiOption.CACHE_SESSION_PATH;
 import static top.infra.maven.extension.mavenbuild.CiOption.CI_OPTS_FILE;
 import static top.infra.maven.extension.mavenbuild.CiOption.GIT_AUTH_TOKEN;
 import static top.infra.maven.extension.mavenbuild.CiOption.GIT_REF_NAME;
@@ -12,12 +13,12 @@ import static top.infra.maven.extension.mavenbuild.Constants.BRANCH_PREFIX_FEATU
 import static top.infra.maven.extension.mavenbuild.Constants.GIT_REF_NAME_DEVELOP;
 import static top.infra.maven.extension.mavenbuild.Constants.PUBLISH_CHANNEL_SNAPSHOT;
 import static top.infra.maven.extension.mavenbuild.Constants.SRC_CI_OPTS_PROPERTIES;
-import static top.infra.maven.extension.mavenbuild.utils.PropertiesUtil.maskSecrets;
+import static top.infra.maven.extension.mavenbuild.utils.PropertiesUtils.maskSecrets;
 import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.exists;
 import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.isEmpty;
 import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.isSemanticSnapshotVersion;
 import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.newTuple;
-import static top.infra.maven.extension.mavenbuild.utils.SystemUtil.systemJavaIoTmp;
+import static top.infra.maven.extension.mavenbuild.utils.SystemUtils.systemJavaIoTmp;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -30,8 +31,8 @@ import java.util.Optional;
 import java.util.Properties;
 
 import top.infra.exception.RuntimeIOException;
-import top.infra.maven.extension.mavenbuild.utils.PropertiesUtil;
-import top.infra.maven.extension.mavenbuild.utils.SystemUtil;
+import top.infra.maven.extension.mavenbuild.utils.PropertiesUtils;
+import top.infra.maven.extension.mavenbuild.utils.SystemUtils;
 import top.infra.maven.logging.Logger;
 
 public class CiOptionAccessor {
@@ -61,7 +62,7 @@ public class CiOptionAccessor {
             if (mavenMultiModuleProjectDirectory != null) {
                 userProperties.setProperty(PROP_MAVEN_MULTIMODULEPROJECTDIRECTORY, mavenMultiModuleProjectDirectory);
             } else {
-                final String systemUserDir = SystemUtil.systemUserDir();
+                final String systemUserDir = SystemUtils.systemUserDir();
                 logger.warn(String.format(
                     "Value of system property [%s] not found, use user.dir [%s] instead.",
                     PROP_MAVEN_MULTIMODULEPROJECTDIRECTORY, systemUserDir
@@ -69,20 +70,31 @@ public class CiOptionAccessor {
                 userProperties.setProperty(PROP_MAVEN_MULTIMODULEPROJECTDIRECTORY, systemUserDir);
             }
         }
-
-        this.cacheDirectory();
     }
 
-    private String cacheDirectory() {
-        final String result = this.getOption(CACHE_DIRECTORY).orElse(systemJavaIoTmp());
-        if (!exists(Paths.get(result))) {
+    public String createCacheInfrastructure() {
+        return this.createCache(CACHE_INFRASTRUCTURE_PATH);
+    }
+
+    public String createCacheSession() {
+        return this.createCache(CACHE_SESSION_PATH);
+    }
+
+    private String createCache(final CiOption ciOpt) {
+        final String pathname = this.getOption(ciOpt).orElse(systemJavaIoTmp());
+        if (!exists(Paths.get(pathname))) {
             try {
-                Files.createDirectories(Paths.get(result));
+                Files.createDirectories(Paths.get(pathname));
             } catch (final IOException ex) {
-                logger.error(String.format("Error create cacheDirectory '%s'. %s", result, ex.getMessage()));
+                logger.error(
+                    String.format(
+                        "Error create [%s] directory '%s'. %s",
+                        ciOpt.getEnvVariableName(), pathname, ex.getMessage()),
+                    ex);
+                throw new RuntimeIOException(ex);
             }
         }
-        return result;
+        return pathname;
     }
 
     public Optional<String> getOption(final CiOption ciOption) {
@@ -139,6 +151,7 @@ public class CiOptionAccessor {
         this.getOption(CI_OPTS_FILE).ifPresent(ciOptsFile -> {
             final boolean ciOptsFileExists = new File(ciOptsFile).exists();
             if (!ciOptsFileExists) {
+                this.createCacheInfrastructure();
                 this.gitRepository().download(SRC_CI_OPTS_PROPERTIES, ciOptsFile, true);
             }
             try {
@@ -172,7 +185,7 @@ public class CiOptionAccessor {
             }
         });
 
-        PropertiesUtil.merge(newProperties, intoProperties);
+        PropertiesUtils.merge(newProperties, intoProperties);
 
         return newProperties;
     }

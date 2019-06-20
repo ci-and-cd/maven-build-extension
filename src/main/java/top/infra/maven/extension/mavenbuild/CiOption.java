@@ -20,16 +20,18 @@ import static top.infra.maven.extension.mavenbuild.Constants.SRC_MAVEN_SETTINGS_
 import static top.infra.maven.extension.mavenbuild.Docker.dockerHost;
 import static top.infra.maven.extension.mavenbuild.Docker.dockerfiles;
 import static top.infra.maven.extension.mavenbuild.Gpg.gpgVersionGreater;
+import static top.infra.maven.extension.mavenbuild.utils.FileUtils.existsInPath;
+import static top.infra.maven.extension.mavenbuild.utils.FileUtils.find;
+import static top.infra.maven.extension.mavenbuild.utils.FileUtils.pathname;
 import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.isEmpty;
-import static top.infra.maven.extension.mavenbuild.utils.SystemUtil.exec;
-import static top.infra.maven.extension.mavenbuild.utils.SystemUtil.existsInPath;
-import static top.infra.maven.extension.mavenbuild.utils.SystemUtil.find;
-import static top.infra.maven.extension.mavenbuild.utils.SystemUtil.pathname;
-import static top.infra.maven.extension.mavenbuild.utils.SystemUtil.systemJavaIoTmp;
-import static top.infra.maven.extension.mavenbuild.utils.SystemUtil.systemJavaVersion;
-import static top.infra.maven.extension.mavenbuild.utils.SystemUtil.systemUserDir;
+import static top.infra.maven.extension.mavenbuild.utils.SystemUtils.exec;
+import static top.infra.maven.extension.mavenbuild.utils.SystemUtils.systemJavaIoTmp;
+import static top.infra.maven.extension.mavenbuild.utils.SystemUtils.systemJavaVersion;
+import static top.infra.maven.extension.mavenbuild.utils.SystemUtils.systemUserDir;
+import static top.infra.maven.extension.mavenbuild.utils.SystemUtils.systemUserHome;
 
 import java.io.File;
+import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -64,13 +66,13 @@ public enum CiOption {
                 final Optional<String> addModules = JAVA_ADDMODULES.getValue(gitProperties, systemProperties, userProperties);
                 final Optional<String> argLineWithModules;
                 if (addModules.isPresent() && (argLine == null || !argLine.contains("--add-modules"))) {
-                    argLineWithModules = Optional.of("--add-modules " + addModules.get());
+                    argLineWithModules = Optional.of(String.format("--add-modules %s", addModules.get()));
                 } else {
                     argLineWithModules = Optional.empty();
                 }
 
                 if (javaVersion.map(version -> version >= 11).orElse(FALSE)) {
-                    result = Optional.of(addExports + " --illegal-access=permit " + argLineWithModules.orElse(""));
+                    result = Optional.of(String.format("%s --illegal-access=permit %s", addExports, argLineWithModules.orElse("")));
                 } else {
                     result = argLineWithModules;
                 }
@@ -231,18 +233,31 @@ public enum CiOption {
     },
 
     //
-    CACHE_DIRECTORY("cache.directory") {
+    CACHE_INFRASTRUCTURE_PATH("cache.infrastructure.path") {
         @Override
         protected Optional<String> calculateValue(
             final GitProperties gitProperties,
             final Properties systemProperties,
             final Properties userProperties
         ) {
+            // We need a stable global cache path
+            return Optional.of(Paths.get(systemUserHome(), ".ci-and-cd").toString());
+        }
+    },
+    //
+    CACHE_SESSION_PATH("cache.session.path") {
+        @Override
+        protected Optional<String> calculateValue(
+            final GitProperties gitProperties,
+            final Properties systemProperties,
+            final Properties userProperties
+        ) {
+            // We need a stable path prefix for cache
+            // java.io.tmp changed on every time java process start.
+            final String prefix = Paths.get(systemUserHome(), ".ci-and-cd", "tmp").toString();
             final String commitId = gitProperties.commitId().map(value -> value.substring(0, 8)).orElse("unknown-commit");
-
-            final String prefix = systemJavaIoTmp() + "/.ci-and-cd/tmp" + "/" + SupportFunction.uniqueKey();
-
-            return Optional.of(prefix + "/" + commitId);
+            final String pathname = Paths.get(prefix, SupportFunction.uniqueKey(), commitId).toString();
+            return Optional.of(pathname);
         }
     },
     CHECKSTYLE_CONFIG_LOCATION("checkstyle.config.location",
@@ -258,9 +273,9 @@ public enum CiOption {
             if (new File(SRC_CI_OPTS_PROPERTIES).exists()) {
                 result = Optional.of(SRC_CI_OPTS_PROPERTIES);
             } else {
-                final String cacheDirectory = CACHE_DIRECTORY.getValue(gitProperties, systemProperties, userProperties)
+                final String cacheDirectory = CACHE_INFRASTRUCTURE_PATH.getValue(gitProperties, systemProperties, userProperties)
                     .orElse(systemJavaIoTmp());
-                final String cachedCiOptsProperties = cacheDirectory + "/" + SRC_CI_OPTS_PROPERTIES;
+                final String cachedCiOptsProperties = Paths.get(cacheDirectory, SRC_CI_OPTS_PROPERTIES).toString();
                 result = Optional.of(cachedCiOptsProperties);
             }
             return result;
@@ -299,7 +314,7 @@ public enum CiOption {
                 // TODO Support named pipe (for windows).
                 // Unix sock file
                 // [[ -f /var/run/docker.sock ]] || [[ -L /var/run/docker.sock ]]
-                final String dockerSockFile = "/var/run/docker.sock";
+                final String dockerSockFile = "/var/run/docker.sock"; // TODO windows ?
                 final boolean dockerSockFilePresent = new File(dockerSockFile).exists();
                 // TCP
                 final boolean envDockerHostPresent = dockerHost(systemProperties).isPresent();
@@ -392,9 +407,9 @@ public enum CiOption {
             final Properties userProperties
         ) {
             return INFRASTRUCTURE.getValue(gitProperties, systemProperties, userProperties)
-                .map(infrastructure ->
+                .map(infra ->
                     Arrays.stream(CiOption.values())
-                        .filter(ciOption -> ciOption.name().equals(infrastructure.toUpperCase() + "_" + GIT_AUTH_TOKEN.name()))
+                        .filter(ciOption -> ciOption.name().equals(infra.toUpperCase() + "_" + GIT_AUTH_TOKEN.name()))
                         .findFirst()
                         .map(ciOption -> ciOption.findInProperties(systemProperties, userProperties).orElse(null))
                         .orElse(null)
@@ -716,20 +731,21 @@ public enum CiOption {
             final Properties userProperties
         ) {
             final String rootProjectPathname = rootProjectPathname(systemProperties);
-            final String settingsFile = rootProjectPathname + "/" + SRC_MAVEN_SETTINGS_XML;
+            final String settingsFile = Paths.get(rootProjectPathname, SRC_MAVEN_SETTINGS_XML).toString();
 
             final Optional<String> result;
 
             if (new File(settingsFile).exists()) {
                 result = Optional.of(settingsFile);
             } else {
-                final String cacheDirectory = CACHE_DIRECTORY.getValue(gitProperties, systemProperties, userProperties)
+                final String cacheDir = CACHE_INFRASTRUCTURE_PATH.getValue(gitProperties, systemProperties, userProperties)
                     .orElse(systemJavaIoTmp());
 
-                final String targetFile = cacheDirectory
-                    + "/settings"
-                    + INFRASTRUCTURE.getValue(gitProperties, systemProperties, userProperties)
-                    .map(value -> "-" + value).orElse("") + ".xml";
+                final String filename = "settings"
+                    + INFRASTRUCTURE.getValue(gitProperties, systemProperties, userProperties).map(infra -> "-" + infra).orElse("")
+                    + ".xml";
+
+                final String targetFile = Paths.get(cacheDir, filename).toString();
 
                 result = Optional.of(targetFile);
             }
@@ -1137,10 +1153,10 @@ public enum CiOption {
         ) {
             final String commitId = gitProperties.commitId().map(value -> value.substring(0, 8)).orElse("unknown-commit");
 
-            // final String prefix = systemUserHome() + "/.ci-and-cd/local-deploy";
-            final String prefix = systemUserDir() + "/.mvn/wagonRepository";
+            // final String prefix = Paths.get(systemUserHome(), ".ci-and-cd", "local-deploy").toString();
+            final String prefix = Paths.get(systemUserDir(), ".mvn", "wagonRepository").toString();
 
-            return Optional.of(prefix + "/" + commitId);
+            return Optional.of(Paths.get(prefix, commitId).toString());
         }
 
         @Override
@@ -1224,7 +1240,7 @@ public enum CiOption {
 
     CiOption(final String propertyName, final String defaultValue) {
         if (!name(propertyName).equals(this.name())) {
-            throw new IllegalArgumentException("invalid name " + this.name() + " property name " + propertyName);
+            throw new IllegalArgumentException(String.format("invalid property name [%s] for enum name [%s]", this.name(), propertyName));
         }
 
         this.defaultValue = defaultValue;
@@ -1265,7 +1281,7 @@ public enum CiOption {
     }
 
     public static String systemPropertyName(final String propertyName) {
-        return "env." + envVariableName(propertyName);
+        return String.format("env.%s", envVariableName(propertyName));
     }
 
     static String rootProjectPathname(final Properties systemProperties) {

@@ -4,13 +4,13 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Collections.singletonList;
 import static java.util.regex.Pattern.DOTALL;
 import static java.util.regex.Pattern.MULTILINE;
+import static top.infra.maven.extension.mavenbuild.utils.FileUtils.readFile;
+import static top.infra.maven.extension.mavenbuild.utils.FileUtils.writeFile;
 import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.concat;
 import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.exists;
 import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.isEmpty;
 import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.lines;
 import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.stackTrace;
-import static top.infra.maven.extension.mavenbuild.utils.SystemUtil.readFile;
-import static top.infra.maven.extension.mavenbuild.utils.SystemUtil.writeFile;
 
 import java.io.IOException;
 import java.nio.file.FileAlreadyExistsException;
@@ -33,7 +33,7 @@ import java.util.stream.Collectors;
 import org.apache.maven.artifact.versioning.DefaultArtifactVersion;
 
 import top.infra.maven.extension.mavenbuild.utils.SupportFunction;
-import top.infra.maven.extension.mavenbuild.utils.SystemUtil;
+import top.infra.maven.extension.mavenbuild.utils.SystemUtils;
 import top.infra.maven.logging.Logger;
 
 public class Gpg {
@@ -78,7 +78,7 @@ public class Gpg {
 
         final Map<String, String> env = new LinkedHashMap<>();
         env.put("LC_CTYPE", "UTF-8");
-        final Entry<Integer, String> tty = SystemUtil.exec("tty");
+        final Entry<Integer, String> tty = SystemUtils.exec("tty");
         if (tty.getKey() == 0) {
             if (logger.isInfoEnabled()) {
                 logger.info(String.format("GPG_TTY=%s", tty.getValue()));
@@ -297,7 +297,7 @@ public class Gpg {
     }
 
     private Map.Entry<Integer, String> exec(final String stdIn, final List<String> command) {
-        return SystemUtil.exec(this.environment, stdIn, command);
+        return SystemUtils.exec(this.environment, stdIn, command);
     }
 
     public Optional<Boolean> gpgFindPrivateKey(final String keyName) {

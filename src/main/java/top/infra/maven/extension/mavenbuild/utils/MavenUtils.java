@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Paths;
 
 import org.apache.maven.model.InputLocation;
 import org.apache.maven.model.Model;
@@ -82,6 +83,20 @@ public abstract class MavenUtils {
         } else {
             return basedir.getName();
         }
+    }
+
+    public static String settingsSecurityXml() {
+        final String homeDir = SystemUtils.systemUserHome();
+        return pathnameInUserHomeDotM2(homeDir, "settings-security.xml");
+    }
+
+    public static String toolchainsXml() {
+        final String homeDir = SystemUtils.systemUserHome();
+        return pathnameInUserHomeDotM2(homeDir, "toolchains.xml");
+    }
+
+    private static String pathnameInUserHomeDotM2(final String homeDir, final String filename) {
+        return Paths.get(homeDir, ".m2", filename).toString();
     }
 
     /**

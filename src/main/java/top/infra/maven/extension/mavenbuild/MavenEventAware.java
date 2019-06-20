@@ -45,7 +45,7 @@ public interface MavenEventAware extends Comparable<MavenEventAware> {
         // no-op
     }
 
-    default void afterInit(final Context context, final String homeDir, final CiOptionAccessor ciOpts) {
+    default void afterInit(final Context context, final CiOptionAccessor ciOpts) {
         // no-op
     }
 
@@ -53,14 +53,13 @@ public interface MavenEventAware extends Comparable<MavenEventAware> {
      * First event on maven execution.
      *
      * @param request SettingsBuildingRequest
-     * @param homeDir homeDir
      * @param ciOpts  ciOpts
      */
-    default void onSettingsBuildingRequest(final SettingsBuildingRequest request, final String homeDir, final CiOptionAccessor ciOpts) {
+    default void onSettingsBuildingRequest(final SettingsBuildingRequest request, final CiOptionAccessor ciOpts) {
         // no-op
     }
 
-    default void onSettingsBuildingResult(final SettingsBuildingResult result, final String homeDir, final CiOptionAccessor ciOpts) {
+    default void onSettingsBuildingResult(final SettingsBuildingResult result, final CiOptionAccessor ciOpts) {
         // no-op
     }
 
@@ -68,14 +67,13 @@ public interface MavenEventAware extends Comparable<MavenEventAware> {
      * After SettingsBuildingRequest.
      *
      * @param request ToolchainsBuildingRequest
-     * @param homeDir homeDir
      * @param ciOpts  ciOpts
      */
-    default void onToolchainsBuildingRequest(final ToolchainsBuildingRequest request, final String homeDir, final CiOptionAccessor ciOpts) {
+    default void onToolchainsBuildingRequest(final ToolchainsBuildingRequest request, final CiOptionAccessor ciOpts) {
         // no-op
     }
 
-    default void onToolchainsBuildingResult(final ToolchainsBuildingResult result, final String homeDir, final CiOptionAccessor ciOpts) {
+    default void onToolchainsBuildingResult(final ToolchainsBuildingResult result, final CiOptionAccessor ciOpts) {
         // no-op
     }
 
@@ -83,10 +81,9 @@ public interface MavenEventAware extends Comparable<MavenEventAware> {
      * After ToolchainsBuildingRequest.
      *
      * @param request MavenExecutionRequest
-     * @param homeDir homeDir
      * @param ciOpts  ciOpts
      */
-    default void onMavenExecutionRequest(final MavenExecutionRequest request, final String homeDir, final CiOptionAccessor ciOpts) {
+    default void onMavenExecutionRequest(final MavenExecutionRequest request, final CiOptionAccessor ciOpts) {
         // no-op
     }
 
@@ -95,13 +92,11 @@ public interface MavenEventAware extends Comparable<MavenEventAware> {
      *
      * @param mavenExecution  MavenExecutionRequest
      * @param projectBuilding ProjectBuildingRequest
-     * @param homeDir         homeDir
      * @param ciOpts          ciOpts
      */
     default void onProjectBuildingRequest(
         final MavenExecutionRequest mavenExecution,
         final ProjectBuildingRequest projectBuilding,
-        final String homeDir,
         final CiOptionAccessor ciOpts
     ) {
         // no-op

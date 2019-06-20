@@ -1,7 +1,8 @@
 package top.infra.maven.extension.mavenbuild;
 
-import static top.infra.maven.extension.mavenbuild.utils.PropertiesUtil.mapFromProperties;
-import static top.infra.maven.extension.mavenbuild.utils.SystemUtil.parseJavaVersion;
+import static java.lang.Integer.parseInt;
+import static top.infra.maven.extension.mavenbuild.utils.PropertiesUtils.mapFromProperties;
+import static top.infra.maven.extension.mavenbuild.utils.SystemUtils.parseJavaVersion;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -64,7 +65,7 @@ public class JavaVersionSensitiveActivator extends AbstractCustomActivator {
 
             Optional<Integer> javaVersionForce;
             try {
-                javaVersionForce = Optional.of(Integer.parseInt("" + projectContext.get("javaVersionForce")));
+                javaVersionForce = Optional.of(parseInt(String.format("%s", projectContext.get("javaVersionForce"))));
             } catch (final Exception ex) {
                 javaVersionForce = Optional.empty();
             }
@@ -73,7 +74,7 @@ public class JavaVersionSensitiveActivator extends AbstractCustomActivator {
             if (javaVersionForce.isPresent()) {
                 javaVersionActive = javaVersionForce.get().equals(profileJavaVersion.orElse(null));
             } else {
-                final Optional<Integer> projectJavaVersion = parseJavaVersion("" + projectContext.get("java.version"));
+                final Optional<Integer> projectJavaVersion = parseJavaVersion(String.format("%s", projectContext.get("java.version")));
                 javaVersionActive = projectJavaVersion
                     .map(integer -> integer.equals(profileJavaVersion.orElse(null))).orElse(false);
             }
@@ -100,7 +101,7 @@ public class JavaVersionSensitiveActivator extends AbstractCustomActivator {
 
         final Matcher matcher = PATTERN_JAVA_PROFILE.matcher(id);
         if (matcher.matches()) {
-            result = Optional.of(Integer.parseInt(matcher.group(1)));
+            result = Optional.of(parseInt(matcher.group(1)));
         } else {
             result = Optional.empty();
         }

@@ -21,7 +21,7 @@ import javax.inject.Singleton;
 
 import org.apache.maven.eventspy.EventSpy.Context;
 
-import top.infra.maven.extension.mavenbuild.utils.PropertiesUtil;
+import top.infra.maven.extension.mavenbuild.utils.PropertiesUtils;
 import top.infra.maven.logging.Logger;
 import top.infra.maven.logging.LoggerPlexusImpl;
 
@@ -72,6 +72,8 @@ public class CiOptionEventAware implements MavenEventAware {
             systemProperties,
             userProperties
         );
+        this.ciOpts.createCacheInfrastructure();
+        this.ciOpts.createCacheSession();
 
         checkGitAuthToken(logger, this.ciOpts);
 
@@ -82,11 +84,11 @@ public class CiOptionEventAware implements MavenEventAware {
 
         logger.info(">>>>>>>>>> ---------- load options from file ---------- >>>>>>>>>>");
         // ci options from file
-        final Properties loadedProperties = ciOpts.ciOptsFromFile();
+        final Properties loadedProperties = this.ciOpts.ciOptsFromFile();
         this.ciOpts.updateSystemProperties(loadedProperties);
         if (logger.isInfoEnabled()) {
             logger.info("    >>>>>>>>>> ---------- loadedProperties ---------- >>>>>>>>>>");
-            logger.info(PropertiesUtil.toString(loadedProperties, PATTERN_CI_ENV_VARS));
+            logger.info(PropertiesUtils.toString(loadedProperties, PATTERN_CI_ENV_VARS));
             logger.info("    <<<<<<<<<< ---------- loadedProperties ---------- <<<<<<<<<<");
         }
 
@@ -104,8 +106,8 @@ public class CiOptionEventAware implements MavenEventAware {
         final Properties newProperties = this.ciOpts.mergeCiOptsInto(userProperties);
 
         if (logger.isInfoEnabled()) {
-            logger.info(PropertiesUtil.toString(systemProperties, PATTERN_CI_ENV_VARS));
-            logger.info(PropertiesUtil.toString(userProperties, null));
+            logger.info(PropertiesUtils.toString(systemProperties, PATTERN_CI_ENV_VARS));
+            logger.info(PropertiesUtils.toString(userProperties, null));
             logger.info("<<<<<<<<<< ---------- set options (update userProperties) ---------- <<<<<<<<<<");
         }
     }

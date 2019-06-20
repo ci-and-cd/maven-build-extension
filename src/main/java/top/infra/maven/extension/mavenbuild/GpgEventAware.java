@@ -16,6 +16,7 @@ import org.apache.maven.execution.MavenExecutionRequest;
 import org.apache.maven.project.ProjectBuildingRequest;
 
 import top.infra.maven.extension.mavenbuild.model.ProjectBuilderActivatorModelResolver;
+import top.infra.maven.extension.mavenbuild.utils.SystemUtils;
 import top.infra.maven.logging.Logger;
 import top.infra.maven.logging.LoggerPlexusImpl;
 
@@ -43,7 +44,6 @@ public class GpgEventAware implements MavenEventAware {
     public void onProjectBuildingRequest(
         final MavenExecutionRequest mavenExecution,
         final ProjectBuildingRequest projectBuilding,
-        final String homeDir,
         final CiOptionAccessor ciOpts
     ) {
         logger.info("    >>>>>>>>>> ---------- decrypt files and handle keys ---------- >>>>>>>>>>");
@@ -54,7 +54,7 @@ public class GpgEventAware implements MavenEventAware {
             final Optional<String> gpgPassphrase = ciOpts.getOption(GPG_PASSPHRASE);
             final Gpg gpg = new Gpg(
                 logger,
-                homeDir,
+                SystemUtils.systemUserHome(),
                 rootProjectPathname(projectBuilding.getSystemProperties()),
                 executable.get(),
                 gpgKeyid.orElse(null),

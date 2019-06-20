@@ -1,9 +1,9 @@
 package top.infra.maven.extension.mavenbuild;
 
+import static top.infra.maven.extension.mavenbuild.utils.FileUtils.find;
 import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.isNotEmpty;
 import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.lines;
 import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.notEmpty;
-import static top.infra.maven.extension.mavenbuild.utils.SystemUtil.find;
 
 import java.io.File;
 import java.io.IOException;
@@ -20,7 +20,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import top.infra.maven.extension.mavenbuild.utils.SupportFunction;
-import top.infra.maven.extension.mavenbuild.utils.SystemUtil;
+import top.infra.maven.extension.mavenbuild.utils.SystemUtils;
 import top.infra.maven.logging.Logger;
 
 /**
@@ -102,7 +102,7 @@ public class Docker {
     }
 
     private Entry<Integer, String> docker(final String... options) {
-        return SystemUtil.exec(this.environment, null, dockerCommand(options));
+        return SystemUtils.exec(this.environment, null, dockerCommand(options));
     }
 
     static List<String> dockerCommand(final String... options) {
@@ -124,7 +124,7 @@ public class Docker {
         this.docker("version");
 
         // TODO config docker log rotation here ?
-        final File dockerConfigDir = new File(this.homeDir + ".docker");
+        final File dockerConfigDir = Paths.get(this.homeDir, ".docker").toFile();
         if (!dockerConfigDir.exists()) {
             dockerConfigDir.mkdirs();
         }
@@ -173,7 +173,7 @@ public class Docker {
     static List<String> dockerfiles() {
         return find(".", "*Docker*")
             .stream()
-            .filter(line -> !line.contains("/target/classes/"))
+            .filter(line -> !line.contains("/target/classes/")) // TODO windows ?
             .filter(line -> !PATTERN_FILE_WITH_EXT.matcher(line).matches())
             .collect(Collectors.toList());
     }
@@ -196,7 +196,7 @@ public class Docker {
                 }
 
                 final List<String> command = dockerCommand("login", "--password-stdin", "-u=" + this.registryUser, toRegistry);
-                final Entry<Integer, String> resultDockerLogin = SystemUtil.exec(this.environment, this.registryPass, command);
+                final Entry<Integer, String> resultDockerLogin = SystemUtils.exec(this.environment, this.registryPass, command);
                 logger.info(String.format("docker login [%s] result [%s]", toRegistry, resultDockerLogin.getKey()));
             }
         } else {

@@ -6,7 +6,7 @@ import java.util.Properties;
 import java.util.regex.Pattern;
 import java.util.stream.IntStream;
 
-public class PropertiesUtil {
+public class PropertiesUtils {
 
     public static Properties toProperties(final Map<String, String> map) {
         final Properties result;

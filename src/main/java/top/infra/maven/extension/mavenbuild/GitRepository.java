@@ -4,17 +4,13 @@ import static java.lang.Boolean.FALSE;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static top.infra.maven.extension.mavenbuild.CiOption.GIT_AUTH_TOKEN;
 import static top.infra.maven.extension.mavenbuild.Constants.GIT_REF_NAME_MASTER;
-import static top.infra.maven.extension.mavenbuild.Constants.SRC_MAVEN_SETTINGS_SECURITY_XML;
-import static top.infra.maven.extension.mavenbuild.Constants.SRC_MAVEN_SETTINGS_XML;
+import static top.infra.maven.extension.mavenbuild.utils.FileUtils.readFile;
+import static top.infra.maven.extension.mavenbuild.utils.FileUtils.writeFile;
 import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.isEmpty;
 import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.isNotEmpty;
 import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.newTuple;
 import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.newTupleOptional;
-import static top.infra.maven.extension.mavenbuild.utils.SystemUtil.os;
-import static top.infra.maven.extension.mavenbuild.utils.SystemUtil.readFile;
-import static top.infra.maven.extension.mavenbuild.utils.SystemUtil.writeFile;
 
-import java.io.File;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.util.Base64;
@@ -26,8 +22,8 @@ import java.util.regex.Pattern;
 
 import org.json.JSONObject;
 
-import top.infra.maven.extension.mavenbuild.utils.DownloadUtil;
-import top.infra.maven.extension.mavenbuild.utils.DownloadUtil.DownloadException;
+import top.infra.maven.extension.mavenbuild.utils.DownloadUtils;
+import top.infra.maven.extension.mavenbuild.utils.DownloadUtils.DownloadException;
 import top.infra.maven.logging.Logger;
 
 public class GitRepository {
@@ -53,18 +49,6 @@ public class GitRepository {
         this.token = token;
     }
 
-    public void downloadMavenSettingsFile(final String homeDir, final String settingsXml) {
-        // settings.xml
-        logger.info(">>>>>>>>>> ---------- run_mvn settings.xml and settings-security.xml ---------- >>>>>>>>>>");
-        if (isNotEmpty(settingsXml) && !new File(settingsXml).exists()) {
-            this.download(SRC_MAVEN_SETTINGS_XML, settingsXml, true);
-        }
-
-        // settings-security.xml
-        this.download(SRC_MAVEN_SETTINGS_SECURITY_XML, settingsSecurityXml(homeDir), false);
-        logger.info("<<<<<<<<<< ---------- run_mvn settings.xml and settings-security.xml ---------- <<<<<<<<<<");
-    }
-
     /**
      * Download sourceFile from git repository.
      * Throws RuntimeException on error.
@@ -77,14 +61,14 @@ public class GitRepository {
         final String sourceFile,
         final String targetFile,
         final boolean reThrowException
-    ) throws DownloadException {
+    ) {
         final Entry<Optional<String>, Entry<Optional<Integer>, Optional<Exception>>> result = this.downloadAndDecode(
             sourceFile, targetFile);
 
         final Optional<Integer> status = result.getValue().getKey();
         final Optional<Exception> error = result.getValue().getValue();
-        final boolean is2xxStatus = status.map(DownloadUtil::is2xxStatus).orElse(FALSE);
-        final boolean is404Status = status.map(DownloadUtil::is404Status).orElse(FALSE);
+        final boolean is2xxStatus = status.map(DownloadUtils::is2xxStatus).orElse(FALSE);
+        final boolean is404Status = status.map(DownloadUtils::is404Status).orElse(FALSE);
 
         if (error.isPresent() || !is2xxStatus) {
             if (!is404Status) {
@@ -131,10 +115,10 @@ public class GitRepository {
             if (PATTERN_GITLAB_URL.matcher(this.repo).matches()) {
                 fromUrl = this.repo + sourceFile.replaceAll("/", "%2F") + "?ref=" + this.repoRef;
                 final String saveToFile = targetFile + ".json";
-                statusOrException = DownloadUtil.download(logger, fromUrl, saveToFile, headers, 3);
+                statusOrException = DownloadUtils.download(logger, fromUrl, saveToFile, headers, 3);
                 status = statusOrException.getKey();
 
-                final boolean is2xxStatus = status.map(DownloadUtil::is2xxStatus).orElse(FALSE);
+                final boolean is2xxStatus = status.map(DownloadUtils::is2xxStatus).orElse(FALSE);
                 if (is2xxStatus) {
                     if (logger.isDebugEnabled()) {
                         logger.debug(String.format("decode %s", saveToFile));
@@ -148,7 +132,7 @@ public class GitRepository {
                 }
             } else {
                 fromUrl = this.repo + "/raw/" + this.repoRef + "/" + sourceFile;
-                statusOrException = DownloadUtil.download(logger, fromUrl, targetFile, headers, 3);
+                statusOrException = DownloadUtils.download(logger, fromUrl, targetFile, headers, 3);
                 status = statusOrException.getKey();
             }
 
@@ -172,19 +156,5 @@ public class GitRepository {
         }
 
         return newTuple(Optional.ofNullable(fromUrl), statusOrException);
-    }
-
-    public static String settingsSecurityXml(final String homeDir) {
-        return homeDir + "/.m2/settings-security.xml";
-    }
-
-    public void downloadMavenToolchainFile(final String homeDir) {
-        // toolchains.xml
-        logger.info(">>>>>>>>>> ---------- run_mvn toolchains.xml ---------- >>>>>>>>>>");
-        final String os = os();
-        final String toolchainsSource = "generic".equals(os) ? "src/main/maven/toolchains.xml" : "src/main/maven/toolchains-" + os + ".xml";
-        final String toolchainsTarget = homeDir + "/.m2/toolchains.xml";
-        this.download(toolchainsSource, toolchainsTarget, true);
-        logger.info("<<<<<<<<<< ---------- run_mvn toolchains.xml ---------- <<<<<<<<<<");
     }
 }

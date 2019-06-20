@@ -117,7 +117,6 @@ public class MavenProjectInfoEventAware implements MavenEventAware {
     public void onProjectBuildingRequest(
         final MavenExecutionRequest mavenExecution,
         final ProjectBuildingRequest projectBuilding,
-        final String homeDir,
         final CiOptionAccessor ciOpts
     ) {
         // Options are not calculated and merged into projectBuildingRequest this time.

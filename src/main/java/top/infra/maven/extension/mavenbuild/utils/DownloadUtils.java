@@ -19,7 +19,7 @@ import java.util.concurrent.TimeUnit;
 
 import top.infra.maven.logging.Logger;
 
-public abstract class DownloadUtil {
+public abstract class DownloadUtils {
 
     public static class DownloadException extends RuntimeException {
 
@@ -36,7 +36,7 @@ public abstract class DownloadUtil {
         }
     }
 
-    private DownloadUtil() {
+    private DownloadUtils() {
     }
 
     public static Entry<Optional<Integer>, Optional<Exception>> download(

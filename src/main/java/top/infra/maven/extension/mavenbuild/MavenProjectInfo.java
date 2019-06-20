@@ -1,9 +1,9 @@
 package top.infra.maven.extension.mavenbuild;
 
 import static java.util.Collections.singletonList;
+import static top.infra.maven.extension.mavenbuild.utils.FileUtils.pathname;
 import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.isEmpty;
 import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.stackTrace;
-import static top.infra.maven.extension.mavenbuild.utils.SystemUtil.pathname;
 
 import java.io.File;
 import java.io.FileReader;

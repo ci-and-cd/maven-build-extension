@@ -21,7 +21,7 @@ import javax.inject.Singleton;
 import org.apache.maven.execution.MavenExecutionRequest;
 import org.apache.maven.project.ProjectBuildingRequest;
 
-import top.infra.maven.extension.mavenbuild.utils.PropertiesUtil;
+import top.infra.maven.extension.mavenbuild.utils.PropertiesUtils;
 import top.infra.maven.logging.Logger;
 import top.infra.maven.logging.LoggerPlexusImpl;
 
@@ -49,7 +49,6 @@ public class MavenGoalEditorEventAware implements MavenEventAware {
     public void onProjectBuildingRequest(
         final MavenExecutionRequest mavenExecution,
         final ProjectBuildingRequest projectBuilding,
-        final String homeDir,
         final CiOptionAccessor ciOpts
     ) {
         final Entry<List<String>, Properties> goalsAndProps = editGoals(logger, mavenExecution, ciOpts);
@@ -61,8 +60,8 @@ public class MavenGoalEditorEventAware implements MavenEventAware {
         } else {
             mavenExecution.setGoals(goalsAndProps.getKey());
         }
-        PropertiesUtil.merge(goalsAndProps.getValue(), mavenExecution.getUserProperties());
-        PropertiesUtil.merge(goalsAndProps.getValue(), projectBuilding.getUserProperties());
+        PropertiesUtils.merge(goalsAndProps.getValue(), mavenExecution.getUserProperties());
+        PropertiesUtils.merge(goalsAndProps.getValue(), projectBuilding.getUserProperties());
     }
 
     private static Entry<List<String>, Properties> editGoals(
@@ -88,7 +87,7 @@ public class MavenGoalEditorEventAware implements MavenEventAware {
         if (logger.isInfoEnabled()) {
             logger.info(String.format("onMavenExecutionRequest result goals: %s", String.join(" ", goalsAndProps.getKey())));
             logger.info(">>>>>>>>>> ---------- onMavenExecutionRequest additionalUserProperties ---------- >>>>>>>>>>");
-            logger.info(PropertiesUtil.toString(goalsAndProps.getValue(), null));
+            logger.info(PropertiesUtils.toString(goalsAndProps.getValue(), null));
             logger.info("<<<<<<<<<< ---------- onMavenExecutionRequest additionalUserProperties ---------- <<<<<<<<<<");
             logger.info("<<<<<<<<<< ---------- run_mvn alter_mvn ---------- <<<<<<<<<<");
         }

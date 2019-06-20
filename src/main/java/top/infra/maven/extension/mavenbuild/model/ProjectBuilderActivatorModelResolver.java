@@ -101,7 +101,6 @@ public class ProjectBuilderActivatorModelResolver extends AbstractActivatorModel
     public void onProjectBuildingRequest(
         final MavenExecutionRequest mavenExecution,
         final ProjectBuildingRequest projectBuilding,
-        final String homeDir,
         final CiOptionAccessor ciOpts
     ) {
         this.setProjectBuildingRequest(projectBuilding);

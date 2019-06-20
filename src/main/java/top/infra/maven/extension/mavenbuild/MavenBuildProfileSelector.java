@@ -69,7 +69,7 @@ public class MavenBuildProfileSelector extends DefaultProfileSelector {
 
         if (!activeProfiles.isEmpty()) {
             if (logger.isDebugEnabled()) {
-                logger.debug("SELECT: " + Arrays.toString(activeProfiles.toArray()));
+                logger.debug(String.format("SELECT: %s", Arrays.toString(activeProfiles.toArray())));
             }
         }
 

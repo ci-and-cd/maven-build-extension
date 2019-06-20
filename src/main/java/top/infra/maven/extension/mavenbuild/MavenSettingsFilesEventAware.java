@@ -1,21 +1,22 @@
 package top.infra.maven.extension.mavenbuild;
 
 import static top.infra.maven.extension.mavenbuild.CiOption.MAVEN_SETTINGS_FILE;
-import static top.infra.maven.extension.mavenbuild.MavenSettingsServersEventAware.absentVarsInSettingsXml;
+import static top.infra.maven.extension.mavenbuild.Constants.SRC_MAVEN_SETTINGS_SECURITY_XML;
+import static top.infra.maven.extension.mavenbuild.Constants.SRC_MAVEN_SETTINGS_XML;
 import static top.infra.maven.extension.mavenbuild.MavenSettingsLocalRepositoryEventAware.ORDER_MAVEN_SETTINGS_LOCALREPOSITORY;
+import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.isNotEmpty;
+import static top.infra.maven.extension.mavenbuild.utils.SystemUtils.os;
 
 import java.io.File;
-import java.util.Map;
-import java.util.Properties;
 
 import javax.inject.Inject;
 import javax.inject.Named;
 import javax.inject.Singleton;
 
-import org.apache.maven.eventspy.EventSpy;
+import org.apache.maven.eventspy.EventSpy.Context;
 import org.apache.maven.settings.building.SettingsBuildingRequest;
 
-import top.infra.maven.extension.mavenbuild.utils.PropertiesUtil;
+import top.infra.maven.extension.mavenbuild.utils.MavenUtils;
 import top.infra.maven.logging.Logger;
 import top.infra.maven.logging.LoggerPlexusImpl;
 
@@ -44,24 +45,19 @@ public class MavenSettingsFilesEventAware implements MavenEventAware {
     }
 
     @Override
-    public void afterInit(final EventSpy.Context context, final String homeDir, final CiOptionAccessor ciOpts) {
+    public void afterInit(final Context context, final CiOptionAccessor ciOpts) {
         this.mavenSettingsPathname = ciOpts.getOption(MAVEN_SETTINGS_FILE).orElse(null);
 
         final GitRepository gitRepository = ciOpts.gitRepository();
-        gitRepository.downloadMavenSettingsFile(homeDir, this.mavenSettingsPathname);
 
-        final Map<String, Object> contextData = context.getData();
-        final Properties systemProperties = (Properties) contextData.get("systemProperties");
-        final Properties absentVarsInSettingsXml = absentVarsInSettingsXml(logger, this.mavenSettingsPathname, systemProperties);
-        PropertiesUtil.merge(absentVarsInSettingsXml, systemProperties);
-
-        gitRepository.downloadMavenToolchainFile(homeDir);
+        ciOpts.createCacheInfrastructure();
+        this.downloadMavenSettingsFile(gitRepository, this.mavenSettingsPathname);
+        this.downloadMavenToolchainFile(gitRepository);
     }
 
     @Override
     public void onSettingsBuildingRequest(
         final SettingsBuildingRequest request,
-        final String homeDir,
         final CiOptionAccessor ciOpts
     ) {
         if (this.mavenSettingsPathname != null) {
@@ -72,5 +68,28 @@ public class MavenSettingsFilesEventAware implements MavenEventAware {
 
             request.setUserSettingsFile(new File(this.mavenSettingsPathname));
         }
+    }
+
+    private void downloadMavenSettingsFile(final GitRepository gitRepository, final String settingsXml) {
+        // settings.xml
+        logger.info(">>>>>>>>>> ---------- run_mvn settings.xml and settings-security.xml ---------- >>>>>>>>>>");
+        if (isNotEmpty(settingsXml) && !new File(settingsXml).exists()) {
+            gitRepository.download(SRC_MAVEN_SETTINGS_XML, settingsXml, true);
+        }
+
+        // settings-security.xml
+        gitRepository.download(SRC_MAVEN_SETTINGS_SECURITY_XML, MavenUtils.settingsSecurityXml(), false);
+        logger.info("<<<<<<<<<< ---------- run_mvn settings.xml and settings-security.xml ---------- <<<<<<<<<<");
+    }
+
+    private void downloadMavenToolchainFile(final GitRepository gitRepository) {
+        // toolchains.xml
+        logger.info(">>>>>>>>>> ---------- download toolchains.xml ---------- >>>>>>>>>>");
+        final String os = os();
+        final String toolchainsSource = "generic".equals(os)
+            ? "src/main/maven/toolchains.xml"
+            : "src/main/maven/toolchains-" + os + ".xml";
+        gitRepository.download(toolchainsSource, MavenUtils.toolchainsXml(), true);
+        logger.info("<<<<<<<<<< ---------- download toolchains.xml ---------- <<<<<<<<<<");
     }
 }
