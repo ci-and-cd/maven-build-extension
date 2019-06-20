@@ -2,7 +2,6 @@ package top.infra.maven.extension.mavenbuild;
 
 import static top.infra.maven.extension.mavenbuild.CiOption.MAVEN_SETTINGS_FILE;
 import static top.infra.maven.extension.mavenbuild.MavenSettingsFilesEventAware.ORDER_MAVEN_SETTINGS_FILES;
-import static top.infra.maven.extension.mavenbuild.MavenSettingsLocalRepositoryEventAware.ORDER_MAVEN_SETTINGS_LOCALREPOSITORY;
 import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.isEmpty;
 import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.isNotEmpty;
 
@@ -20,9 +19,12 @@ import javax.inject.Inject;
 import javax.inject.Named;
 import javax.inject.Singleton;
 
+import org.apache.maven.AbstractMavenLifecycleParticipant;
 import org.apache.maven.eventspy.EventSpy.Context;
 import org.apache.maven.execution.MavenExecutionRequest;
+import org.apache.maven.execution.MavenSession;
 import org.apache.maven.settings.Server;
+import org.apache.maven.settings.Settings;
 import org.apache.maven.settings.crypto.SettingsDecrypter;
 import org.unix4j.Unix4j;
 
@@ -37,7 +39,7 @@ import top.infra.maven.logging.LoggerPlexusImpl;
  */
 @Named
 @Singleton
-public class MavenSettingsServersEventAware implements MavenEventAware {
+public class MavenSettingsServersEventAware extends AbstractMavenLifecycleParticipant implements MavenEventAware {
 
     public static final int ORDER_MAVEN_SETTINGS_SERVERS = ORDER_MAVEN_SETTINGS_FILES + 1;// ORDER_MAVEN_SETTINGS_LOCALREPOSITORY + 1;
 
@@ -64,7 +66,79 @@ public class MavenSettingsServersEventAware implements MavenEventAware {
         this.settingsSecurity = null;
     }
 
-    public List<String> absentEnvVars(final Server server) {
+    /**
+     * Method of {@link AbstractMavenLifecycleParticipant}.
+     *
+     * @param session maven session
+     */
+    @Override
+    public void afterSessionStart(final MavenSession session) {
+        if (session != null) {
+            final Settings settings = session.getSettings();
+            if (settings != null) {
+                final List<String> envVars = settings.getServers()
+                    .stream()
+                    .flatMap(server -> this.absentEnvVars(server).stream())
+                    .distinct()
+                    .collect(Collectors.toList());
+                envVars.forEach(envVar -> {
+                    logger.info(
+                        String.format("Set a value for env variable [%s] (in settings.xml), to avoid passphrase decrypt error.", envVar));
+                    session.getSystemProperties().setProperty(envVar, this.getEncryptedBlankString());
+                });
+
+                this.checkServers(settings.getServers());
+            }
+        }
+    }
+
+    /**
+     * Method of {@link MavenEventAware}.
+     *
+     * @return order
+     */
+    @Override
+    public int getOrder() {
+        return ORDER_MAVEN_SETTINGS_SERVERS;
+    }
+
+    /**
+     * Method of {@link MavenEventAware}.
+     *
+     * @param context context
+     * @param ciOpts  ciOpts
+     */
+    @Override
+    public void afterInit(final Context context, final CiOptionAccessor ciOpts) {
+        final String settingsXmlPathname = ciOpts.getOption(MAVEN_SETTINGS_FILE).orElse(null);
+
+        final Properties systemProperties = (Properties) context.getData().get("systemProperties");
+        // final Properties absentVarsInSettingsXml = absentVarsInSettingsXml(logger, settingsXmlPathname, systemProperties);
+        // PropertiesUtils.merge(absentVarsInSettingsXml, systemProperties);
+
+        final List<String> envVars = absentVarsInSettingsXml(logger, settingsXmlPathname, systemProperties);
+        envVars.forEach(envVar -> {
+            if (!systemProperties.containsKey(envVar)) {
+                logger.warn(String.format(
+                    "Please set a value for env variable [%s] (in settings.xml), to avoid passphrase decrypt error.", envVar));
+            }
+        });
+    }
+
+    /**
+     * Method of {@link MavenEventAware}.
+     *
+     * @param request request
+     * @param ciOpts  ciOpts
+     */
+    @Override
+    public void onMavenExecutionRequest(final MavenExecutionRequest request, final CiOptionAccessor ciOpts) {
+        this.settingsSecurity = new MavenSettingsSecurity(MavenUtils.settingsSecurityXml(), false);
+        this.encryptedBlankString = this.settingsSecurity.encodeText(" ");
+        this.checkServers(request.getServers());
+    }
+
+    private List<String> absentEnvVars(final Server server) {
         final List<String> found = new LinkedList<>();
         if (this.isSystemPropertyNameOfEnvVar(server.getPassphrase())) {
             found.add(server.getPassphrase());
@@ -78,7 +152,7 @@ public class MavenSettingsServersEventAware implements MavenEventAware {
         return found.stream().map(line -> line.substring(2, line.length() - 1)).distinct().collect(Collectors.toList());
     }
 
-    public void checkServers(final List<Server> servers) {
+    private void checkServers(final List<Server> servers) {
         // see: https://github.com/shyiko/servers-maven-extension/blob/master/src/main/java/com/github/shyiko/sme/ServersExtension.java
         for (final Server server : servers) {
 
@@ -98,37 +172,8 @@ public class MavenSettingsServersEventAware implements MavenEventAware {
         }
     }
 
-    public String getEncryptedBlankString() {
+    private String getEncryptedBlankString() {
         return this.encryptedBlankString;
-    }
-
-    @Override
-    public int getOrder() {
-        return ORDER_MAVEN_SETTINGS_SERVERS;
-    }
-
-    @Override
-    public void afterInit(final Context context, final CiOptionAccessor ciOpts) {
-        final String settingsXmlPathname = ciOpts.getOption(MAVEN_SETTINGS_FILE).orElse(null);
-
-        final Properties systemProperties = (Properties) context.getData().get("systemProperties");
-        // final Properties absentVarsInSettingsXml = absentVarsInSettingsXml(logger, settingsXmlPathname, systemProperties);
-        // PropertiesUtils.merge(absentVarsInSettingsXml, systemProperties);
-
-        final List<String> envVars = absentVarsInSettingsXml(logger, settingsXmlPathname, systemProperties);
-        envVars.forEach(envVar -> {
-            if (!systemProperties.containsKey(envVar)) {
-                logger.warn(String.format(
-                    "Please set a value for env variable [%s] (in settings.xml), to avoid passphrase decrypt error.", envVar));
-            }
-        });
-    }
-
-    @Override
-    public void onMavenExecutionRequest(final MavenExecutionRequest request, final CiOptionAccessor ciOpts) {
-        this.settingsSecurity = new MavenSettingsSecurity(MavenUtils.settingsSecurityXml(), false);
-        this.encryptedBlankString = this.settingsSecurity.encodeText(" ");
-        this.checkServers(request.getServers());
     }
 
     private boolean isSystemPropertyNameOfEnvVar(final String str) {
@@ -154,7 +199,7 @@ public class MavenSettingsServersEventAware implements MavenEventAware {
     private void serverPassphrase(final Server server) {
         final String passphrase = this.replaceEmptyValue(server.getPassphrase());
         if (passphrase != null && !passphrase.equals(server.getPassphrase())) {
-            logger.info(String.format("server [%s] has a empty passphrase [%s]", server.getId(), server.getPassphrase()));
+            logger.warn(String.format("server [%s] has a empty passphrase [%s]", server.getId(), server.getPassphrase()));
             server.setPassphrase(passphrase);
         }
     }
@@ -162,7 +207,7 @@ public class MavenSettingsServersEventAware implements MavenEventAware {
     private void serverPassword(final Server server) {
         final String password = this.replaceEmptyValue(server.getPassword());
         if (password != null && !password.equals(server.getPassword())) {
-            logger.info(String.format("server [%s] has a empty password [%s]", server.getId(), server.getPassword()));
+            logger.warn(String.format("server [%s] has a empty password [%s]", server.getId(), server.getPassword()));
             server.setPassword(password);
         }
     }
@@ -170,7 +215,7 @@ public class MavenSettingsServersEventAware implements MavenEventAware {
     private void serverUsername(final Server server) {
         final String username = this.replaceEmptyValue(server.getUsername());
         if (username != null && !username.equals(server.getUsername())) {
-            logger.info(String.format("server [%s] has a empty username [%s]", server.getId(), server.getUsername()));
+            logger.warn(String.format("server [%s] has a empty username [%s]", server.getId(), server.getUsername()));
             server.setUsername(username);
         }
     }

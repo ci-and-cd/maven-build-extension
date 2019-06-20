@@ -28,7 +28,7 @@ public class MavenSettingsFilesEventAware implements MavenEventAware {
 
     private final Logger logger;
 
-    private String mavenSettingsPathname;
+    private String settingsXmlPathname;
 
     @Inject
     public MavenSettingsFilesEventAware(
@@ -36,7 +36,7 @@ public class MavenSettingsFilesEventAware implements MavenEventAware {
     ) {
         this.logger = new LoggerPlexusImpl(logger);
 
-        this.mavenSettingsPathname = null;
+        this.settingsXmlPathname = null;
     }
 
     @Override
@@ -46,13 +46,19 @@ public class MavenSettingsFilesEventAware implements MavenEventAware {
 
     @Override
     public void afterInit(final Context context, final CiOptionAccessor ciOpts) {
-        this.mavenSettingsPathname = ciOpts.getOption(MAVEN_SETTINGS_FILE).orElse(null);
+        this.settingsXmlPathname = ciOpts.getOption(MAVEN_SETTINGS_FILE).orElse(null);
 
         final GitRepository gitRepository = ciOpts.gitRepository();
 
         ciOpts.createCacheInfrastructure();
-        this.downloadMavenSettingsFile(gitRepository, this.mavenSettingsPathname);
-        this.downloadMavenToolchainFile(gitRepository);
+        logger.info(">>>>>>>>>> ---------- download settings.xml and settings-security.xml ---------- >>>>>>>>>>");
+        this.downloadSettingsXml(gitRepository);
+        this.downloadSettingsSecurityXml(gitRepository);
+        logger.info("<<<<<<<<<< ---------- download settings.xml and settings-security.xml ---------- <<<<<<<<<<");
+
+        logger.info(">>>>>>>>>> ---------- download toolchains.xml ---------- >>>>>>>>>>");
+        this.downloadToolchainsXml(gitRepository);
+        logger.info("<<<<<<<<<< ---------- download toolchains.xml ---------- <<<<<<<<<<");
     }
 
     @Override
@@ -60,36 +66,37 @@ public class MavenSettingsFilesEventAware implements MavenEventAware {
         final SettingsBuildingRequest request,
         final CiOptionAccessor ciOpts
     ) {
-        if (this.mavenSettingsPathname != null) {
+        if (this.settingsXmlPathname != null) {
             if (logger.isInfoEnabled()) {
                 logger.info(String.format("Use userSettingsFile [%s] instead of [%s]",
-                    this.mavenSettingsPathname, request.getUserSettingsFile()));
+                    this.settingsXmlPathname, request.getUserSettingsFile()));
             }
 
-            request.setUserSettingsFile(new File(this.mavenSettingsPathname));
+            request.setUserSettingsFile(new File(this.settingsXmlPathname));
         }
     }
 
-    private void downloadMavenSettingsFile(final GitRepository gitRepository, final String settingsXml) {
+    private void downloadSettingsXml(final GitRepository gitRepository) {
         // settings.xml
-        logger.info(">>>>>>>>>> ---------- run_mvn settings.xml and settings-security.xml ---------- >>>>>>>>>>");
+        final String settingsXml = this.settingsXmlPathname;
         if (isNotEmpty(settingsXml) && !new File(settingsXml).exists()) {
             gitRepository.download(SRC_MAVEN_SETTINGS_XML, settingsXml, true);
         }
-
-        // settings-security.xml
-        gitRepository.download(SRC_MAVEN_SETTINGS_SECURITY_XML, MavenUtils.settingsSecurityXml(), false);
-        logger.info("<<<<<<<<<< ---------- run_mvn settings.xml and settings-security.xml ---------- <<<<<<<<<<");
     }
 
-    private void downloadMavenToolchainFile(final GitRepository gitRepository) {
+    private void downloadSettingsSecurityXml(final GitRepository gitRepository) {
+        // settings-security.xml (optional)
+        final String settingsSecurityXml = MavenUtils.settingsSecurityXml();
+        gitRepository.download(SRC_MAVEN_SETTINGS_SECURITY_XML, settingsSecurityXml, false);
+    }
+
+    private void downloadToolchainsXml(final GitRepository gitRepository) {
         // toolchains.xml
-        logger.info(">>>>>>>>>> ---------- download toolchains.xml ---------- >>>>>>>>>>");
         final String os = os();
-        final String toolchainsSource = "generic".equals(os)
+        final String sourceFile = "generic".equals(os)
             ? "src/main/maven/toolchains.xml"
             : "src/main/maven/toolchains-" + os + ".xml";
-        gitRepository.download(toolchainsSource, MavenUtils.toolchainsXml(), true);
-        logger.info("<<<<<<<<<< ---------- download toolchains.xml ---------- <<<<<<<<<<");
+        final String toolchainsXml = MavenUtils.toolchainsXml();
+        gitRepository.download(sourceFile, toolchainsXml, true);
     }
 }

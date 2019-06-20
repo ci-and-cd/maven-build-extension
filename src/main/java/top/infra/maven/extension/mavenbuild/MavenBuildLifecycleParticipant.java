@@ -1,13 +1,8 @@
 package top.infra.maven.extension.mavenbuild;
 
-import java.util.List;
-import java.util.stream.Collectors;
-
 import org.apache.maven.AbstractMavenLifecycleParticipant;
 import org.apache.maven.MavenExecutionException;
 import org.apache.maven.execution.MavenSession;
-import org.apache.maven.rtinfo.RuntimeInformation;
-import org.apache.maven.settings.Settings;
 import org.codehaus.plexus.component.annotations.Component;
 import org.codehaus.plexus.component.annotations.Requirement;
 import org.codehaus.plexus.logging.Logger;
@@ -21,13 +16,8 @@ public class MavenBuildLifecycleParticipant extends AbstractMavenLifecyclePartic
     @Requirement
     private Logger logger;
 
-    @Requirement
-    private RuntimeInformation runtime;
-
-    @Requirement
-    private MavenSettingsServersEventAware mavenServerInterceptor;
-
     public MavenBuildLifecycleParticipant() {
+        // no-op
     }
 
     @Override
@@ -49,28 +39,12 @@ public class MavenBuildLifecycleParticipant extends AbstractMavenLifecyclePartic
             } else {
                 logger.info(String.format("LifecycleParticipant afterSessionStart [%s]", session.getCurrentProject()));
             }
-
-            final Settings settings = session.getSettings();
-            if (settings != null) {
-                final List<String> envVars = settings.getServers()
-                    .stream()
-                    .flatMap(server -> this.mavenServerInterceptor.absentEnvVars(server).stream())
-                    .distinct()
-                    .collect(Collectors.toList());
-                envVars.forEach(envVar -> {
-                    logger.info(
-                        String.format("Set a value for env variable [%s] (in settings.xml), to avoid passphrase decrypt error.", envVar));
-                    session.getSystemProperties().setProperty(envVar, this.mavenServerInterceptor.getEncryptedBlankString());
-                });
-
-                this.mavenServerInterceptor.checkServers(settings.getServers());
-            }
         }
     }
 
     @Override
     public void afterSessionEnd(final MavenSession session) throws MavenExecutionException {
-
+        // no-op
     }
 
     private boolean isOnRootProject(final MavenSession session) {
