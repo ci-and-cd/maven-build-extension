@@ -7,7 +7,9 @@ import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.AbstractMap;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.Optional;
@@ -54,6 +56,62 @@ public abstract class SupportFunction {
 
     public static boolean isNotEmpty(final String str) {
         return str != null && !str.isEmpty();
+    }
+
+    public static List<Entry<String, List<String>>> commonPrefixes(final List<String> names) {
+        final List<Entry<String, List<String>>> result = new LinkedList<>();
+
+        final List<String> randomAccess = new ArrayList<>(names);
+        final int size = randomAccess.size();
+
+        String lastCommonPrefix = "";
+        List<String> currentGroup = new LinkedList<>();
+        for (int idx = 0; idx < size; idx++) {
+            final String current = randomAccess.get(idx);
+            final String next = idx + 1 != size ? randomAccess.get(idx + 1) : null;
+
+            final String cPrefix = commonPrefix(current, next);
+            final boolean hasCommonPrefix;
+            final String ccPrefix;
+            if (cPrefix.isEmpty()) {
+                hasCommonPrefix = false;
+                ccPrefix = "";
+            } else {
+                ccPrefix = lastCommonPrefix.isEmpty() ? cPrefix : commonPrefix(lastCommonPrefix, cPrefix);
+                final boolean containsUnderscore = ccPrefix.contains("_");
+                hasCommonPrefix = ccPrefix.startsWith("env.") ? containsUnderscore : (containsUnderscore || ccPrefix.contains("."));
+            }
+
+            if (hasCommonPrefix) {
+                currentGroup.add(current);
+            } else {
+                currentGroup.add(current);
+                result.add(newTuple(lastCommonPrefix, currentGroup));
+                currentGroup = new LinkedList<>();
+            }
+            lastCommonPrefix = hasCommonPrefix ? ccPrefix : "";
+        }
+
+        return result;
+    }
+
+    private static String commonPrefix(final String o1, final String o2) {
+        final String result;
+        if (o1 != null && o2 != null) {
+            final StringBuilder sb = new StringBuilder();
+            for (int idx = 0; idx < o1.length() && idx < o2.length(); idx++) {
+                final char charAtIdx = o1.charAt(idx);
+                if (charAtIdx == o2.charAt(idx)) {
+                    sb.append(charAtIdx);
+                } else {
+                    break;
+                }
+            }
+            result = sb.toString();
+        } else {
+            result = "";
+        }
+        return result;
     }
 
     public static <F, S> Entry<F, S> newTuple(final F first, final S second) {
