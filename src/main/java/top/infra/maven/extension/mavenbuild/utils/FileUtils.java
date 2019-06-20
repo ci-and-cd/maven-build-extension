@@ -10,8 +10,6 @@ import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
 import java.util.List;
 import java.util.Optional;
-import java.util.regex.Pattern;
-import java.util.stream.Stream;
 
 import top.infra.exception.RuntimeIOException;
 
@@ -23,20 +21,6 @@ public class FileUtils {
         } catch (final IOException ex) {
             throw new RuntimeIOException(ex);
         }
-    }
-
-    /**
-     * Check existence of a program in the path.
-     * see: https://stackoverflow.com/questions/934191/how-to-check-existence-of-a-program-in-the-path/23539220
-     *
-     * @param exec executable name
-     * @return exec exists
-     */
-    public static boolean existsInPath(final String exec) {
-        // return exec(String.format("type -p %s", exec)).getKey() == 0;
-        return Stream.of(System.getenv("PATH").split(Pattern.quote(File.pathSeparator)))
-            .map(Paths::get)
-            .anyMatch(path -> path.resolve(exec).toFile().exists());
     }
 
     public static List<String> find(final String path, final String name) {

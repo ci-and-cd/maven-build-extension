@@ -7,10 +7,13 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
+import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public abstract class SystemUtils {
 
@@ -59,6 +62,20 @@ public abstract class SystemUtils {
         } catch (final IOException ex) {
             return newTuple(-1, "");
         }
+    }
+
+    /**
+     * Check existence of a program in the path.
+     * see: https://stackoverflow.com/questions/934191/how-to-check-existence-of-a-program-in-the-path/23539220
+     *
+     * @param exec executable name
+     * @return exec exists
+     */
+    public static boolean existsInPath(final String exec) {
+        // return exec(String.format("type -p %s", exec)).getKey() == 0;
+        return Stream.of(System.getenv("PATH").split(Pattern.quote(File.pathSeparator)))
+            .map(Paths::get)
+            .anyMatch(path -> path.resolve(exec).toFile().exists());
     }
 
     public static String os() {

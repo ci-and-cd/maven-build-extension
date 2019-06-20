@@ -49,6 +49,42 @@ public class GitRepository {
         this.token = token;
     }
 
+    public void download(
+        final String sourceFile,
+        final String targetFile,
+        final boolean reThrowException,
+        final boolean offline,
+        final boolean update
+    ) {
+        final boolean doDownload;
+
+        final boolean targetFileExists = Paths.get(targetFile).toFile().exists();
+        if (update) {
+            doDownload = true;
+        } else {
+            if (!targetFileExists) {
+                doDownload = !offline;
+            } else {
+                doDownload = false;
+            }
+        }
+
+        if (doDownload) {
+            this.download(sourceFile, targetFile, reThrowException);
+        } else {
+            if (targetFileExists) {
+                logger.info(String.format("Local target file [%s] already exists, skip download unless option '-U' is used.", targetFile));
+            } else {
+                final String errorMsg = String.format(
+                    "Local target file [%s] does not exists and option '-o' (offline mode) is used.",
+                    targetFile
+                );
+                logger.error(errorMsg);
+                throw new IllegalStateException(errorMsg);
+            }
+        }
+    }
+
     /**
      * Download sourceFile from git repository.
      * Throws RuntimeException on error.
@@ -62,6 +98,10 @@ public class GitRepository {
         final String targetFile,
         final boolean reThrowException
     ) {
+        if (logger.isInfoEnabled()) {
+            logger.info(String.format("Download from [%s] to [%s]", sourceFile, targetFile));
+        }
+
         final Entry<Optional<String>, Entry<Optional<Integer>, Optional<Exception>>> result = this.downloadAndDecode(
             sourceFile, targetFile);
 

@@ -18,6 +18,7 @@ import javax.inject.Singleton;
 import org.apache.maven.eventspy.EventSpy.Context;
 import org.apache.maven.rtinfo.RuntimeInformation;
 
+import top.infra.maven.extension.mavenbuild.utils.MavenUtils;
 import top.infra.maven.extension.mavenbuild.utils.PropertiesUtils;
 import top.infra.maven.logging.Logger;
 import top.infra.maven.logging.LoggerPlexusImpl;
@@ -59,8 +60,8 @@ public class PrintInfoEventAware implements MavenEventAware {
         }
 
         final Map<String, Object> contextData = context.getData();
-        final Properties systemProperties = (Properties) contextData.get("systemProperties");
-        final Properties userProperties = (Properties) contextData.get("userProperties");
+        final Properties systemProperties = MavenUtils.systemProperties(context);
+        final Properties userProperties = MavenUtils.userProperties(context);
 
         if (logger.isInfoEnabled()) {
             contextData.keySet().stream().sorted().forEach(k -> {

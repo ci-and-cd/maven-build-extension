@@ -1,5 +1,6 @@
 package top.infra.maven.extension.mavenbuild;
 
+import static java.lang.Boolean.FALSE;
 import static top.infra.maven.extension.mavenbuild.CiOption.CACHE_INFRASTRUCTURE_PATH;
 import static top.infra.maven.extension.mavenbuild.CiOption.CACHE_SESSION_PATH;
 import static top.infra.maven.extension.mavenbuild.CiOption.CI_OPTS_FILE;
@@ -20,7 +21,6 @@ import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.isSeman
 import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.newTuple;
 import static top.infra.maven.extension.mavenbuild.utils.SystemUtils.systemJavaIoTmp;
 
-import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -31,6 +31,7 @@ import java.util.Optional;
 import java.util.Properties;
 
 import top.infra.exception.RuntimeIOException;
+import top.infra.maven.extension.mavenbuild.utils.MavenUtils;
 import top.infra.maven.extension.mavenbuild.utils.PropertiesUtils;
 import top.infra.maven.extension.mavenbuild.utils.SystemUtils;
 import top.infra.maven.logging.Logger;
@@ -149,11 +150,11 @@ public class CiOptionAccessor {
         final Properties properties = new Properties();
 
         this.getOption(CI_OPTS_FILE).ifPresent(ciOptsFile -> {
-            final boolean ciOptsFileExists = new File(ciOptsFile).exists();
-            if (!ciOptsFileExists) {
-                this.createCacheInfrastructure();
-                this.gitRepository().download(SRC_CI_OPTS_PROPERTIES, ciOptsFile, true);
-            }
+            this.createCacheInfrastructure();
+            final boolean offline = MavenUtils.cmdArgOffline(this.systemProperties).orElse(FALSE);
+            final boolean update = MavenUtils.cmdArgUpdate(this.systemProperties).orElse(FALSE);
+            this.gitRepository().download(SRC_CI_OPTS_PROPERTIES, ciOptsFile, true, offline, update);
+            
             try {
                 properties.load(new FileInputStream(ciOptsFile));
             } catch (final IOException ex) {

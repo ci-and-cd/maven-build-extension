@@ -10,7 +10,6 @@ import static top.infra.maven.extension.mavenbuild.CiOption.PATTERN_CI_ENV_VARS;
 import static top.infra.maven.extension.mavenbuild.Constants.INFRASTRUCTURE_OPENSOURCE;
 import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.isEmpty;
 
-import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.Properties;
@@ -21,6 +20,7 @@ import javax.inject.Singleton;
 
 import org.apache.maven.eventspy.EventSpy.Context;
 
+import top.infra.maven.extension.mavenbuild.utils.MavenUtils;
 import top.infra.maven.extension.mavenbuild.utils.PropertiesUtils;
 import top.infra.maven.logging.Logger;
 import top.infra.maven.logging.LoggerPlexusImpl;
@@ -62,9 +62,8 @@ public class CiOptionEventAware implements MavenEventAware {
 
     @Override
     public void onInit(final Context context) {
-        final Map<String, Object> contextData = context.getData();
-        final Properties systemProperties = (Properties) contextData.get("systemProperties");
-        final Properties userProperties = (Properties) contextData.get("userProperties");
+        final Properties systemProperties = MavenUtils.systemProperties(context);
+        final Properties userProperties = MavenUtils.userProperties(context);
         final GitProperties gitProperties = GitProperties.newInstance(logger).orElseGet(() -> GitProperties.newBlankInstance(logger));
         this.ciOpts = new CiOptionAccessor(
             logger,

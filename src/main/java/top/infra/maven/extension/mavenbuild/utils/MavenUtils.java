@@ -5,7 +5,10 @@ import java.io.FileInputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
+import java.util.Optional;
+import java.util.Properties;
 
+import org.apache.maven.eventspy.EventSpy.Context;
 import org.apache.maven.model.InputLocation;
 import org.apache.maven.model.Model;
 import org.apache.maven.model.Profile;
@@ -16,6 +19,24 @@ import org.apache.maven.model.io.xpp3.MavenXpp3Reader;
 import org.apache.maven.model.profile.ProfileActivationContext;
 
 public abstract class MavenUtils {
+
+    public static Optional<Boolean> cmdArgOffline(final Context context) {
+        return cmdArgOffline(systemProperties(context));
+    }
+
+    public static Optional<Boolean> cmdArgOffline(final Properties systemProperties) {
+        final String value = systemProperties != null ? systemProperties.getProperty(ENV_MAVEN_CMD_LINE_ARGS) : null;
+        return Optional.ofNullable(value != null ? value.contains(" -o ") : null);
+    }
+
+    public static Optional<Boolean> cmdArgUpdate(final Context context) {
+        return cmdArgUpdate(systemProperties(context));
+    }
+
+    public static Optional<Boolean> cmdArgUpdate(final Properties systemProperties) {
+        final String value = systemProperties != null ? systemProperties.getProperty(ENV_MAVEN_CMD_LINE_ARGS) : null;
+        return Optional.ofNullable(value != null ? value.contains(" -U ") : null);
+    }
 
     /**
      * Report titled activator problem.
@@ -118,5 +139,15 @@ public abstract class MavenUtils {
      */
     private static String propertyValue(final Profile profile) {
         return profile.getActivation().getProperty().getValue();
+    }
+
+    private static final String ENV_MAVEN_CMD_LINE_ARGS = "env.MAVEN_CMD_LINE_ARGS";
+
+    public static Properties systemProperties(final Context context) {
+        return (Properties) context.getData().get("systemProperties");
+    }
+
+    public static Properties userProperties(final Context context) {
+        return (Properties) context.getData().get("userProperties");
     }
 }

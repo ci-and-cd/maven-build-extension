@@ -20,11 +20,11 @@ import static top.infra.maven.extension.mavenbuild.Constants.SRC_MAVEN_SETTINGS_
 import static top.infra.maven.extension.mavenbuild.Docker.dockerHost;
 import static top.infra.maven.extension.mavenbuild.Docker.dockerfiles;
 import static top.infra.maven.extension.mavenbuild.Gpg.gpgVersionGreater;
-import static top.infra.maven.extension.mavenbuild.utils.FileUtils.existsInPath;
 import static top.infra.maven.extension.mavenbuild.utils.FileUtils.find;
 import static top.infra.maven.extension.mavenbuild.utils.FileUtils.pathname;
 import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.isEmpty;
 import static top.infra.maven.extension.mavenbuild.utils.SystemUtils.exec;
+import static top.infra.maven.extension.mavenbuild.utils.SystemUtils.existsInPath;
 import static top.infra.maven.extension.mavenbuild.utils.SystemUtils.systemJavaIoTmp;
 import static top.infra.maven.extension.mavenbuild.utils.SystemUtils.systemJavaVersion;
 import static top.infra.maven.extension.mavenbuild.utils.SystemUtils.systemUserDir;
@@ -241,7 +241,9 @@ public enum CiOption {
             final Properties userProperties
         ) {
             // We need a stable global cache path
-            return Optional.of(Paths.get(systemUserHome(), ".ci-and-cd").toString());
+            final String infrastructure = INFRASTRUCTURE.getValue(gitProperties, systemProperties, userProperties)
+                .orElse(INFRASTRUCTURE_DEFAULT); // same default value as
+            return Optional.of(Paths.get(systemUserHome(), ".ci-and-cd", infrastructure).toString());
         }
     },
     //
@@ -315,7 +317,7 @@ public enum CiOption {
                 // Unix sock file
                 // [[ -f /var/run/docker.sock ]] || [[ -L /var/run/docker.sock ]]
                 final String dockerSockFile = "/var/run/docker.sock"; // TODO windows ?
-                final boolean dockerSockFilePresent = new File(dockerSockFile).exists();
+                final boolean dockerSockFilePresent = Paths.get(dockerSockFile).toFile().exists();
                 // TCP
                 final boolean envDockerHostPresent = dockerHost(systemProperties).isPresent();
                 // [[ -n "$(find . -name '*Docker*')" ]] || [[ -n "$(find . -name '*docker-compose*.yml')" ]]
@@ -700,7 +702,7 @@ public enum CiOption {
             final Properties userProperties
         ) {
             final String infrastructure = INFRASTRUCTURE.getValue(gitProperties, systemProperties, userProperties)
-                .orElse(INFRASTRUCTURE_OPENSOURCE);
+                .orElse(INFRASTRUCTURE_DEFAULT);
 
             final String repoOwner = "ci-and-cd";
             final String repoName = "maven-build-opts-"
@@ -735,7 +737,7 @@ public enum CiOption {
 
             final Optional<String> result;
 
-            if (new File(settingsFile).exists()) {
+            if (Paths.get(settingsFile).toFile().exists()) {
                 result = Optional.of(settingsFile);
             } else {
                 final String cacheDir = CACHE_INFRASTRUCTURE_PATH.getValue(gitProperties, systemProperties, userProperties)
@@ -765,7 +767,7 @@ public enum CiOption {
             final Optional<String> result = super.setProperties(gitProperties, systemProperties, userProperties, properties);
 
             result.ifPresent(file -> {
-                if (new File(file).exists()) {
+                if (Paths.get(file).toFile().exists()) {
                     properties.setProperty("settings.security", file);
                 }
             });
