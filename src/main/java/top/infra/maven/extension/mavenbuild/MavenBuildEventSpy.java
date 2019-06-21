@@ -10,6 +10,7 @@ import static top.infra.maven.extension.mavenbuild.MavenSettingsFilesEventAware.
 import static top.infra.maven.extension.mavenbuild.MavenSettingsLocalRepositoryEventAware.ORDER_MAVEN_SETTINGS_LOCALREPOSITORY;
 import static top.infra.maven.extension.mavenbuild.MavenSettingsServersEventAware.ORDER_MAVEN_SETTINGS_SERVERS;
 import static top.infra.maven.extension.mavenbuild.PrintInfoEventAware.ORDER_PRINT_INFO;
+import static top.infra.maven.extension.mavenbuild.SystemToUserPropertiesEventAware.ORDER_SYSTEM_TO_USER_PROPERTIES;
 import static top.infra.maven.extension.mavenbuild.model.ProjectBuilderActivatorModelResolver.ORDER_MODEL_RESOLVER;
 
 import java.util.List;
@@ -127,7 +128,9 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
 
     public void onInit(final Context context) {
         // print info
-        assert ORDER_PRINT_INFO < ORDER_CI_OPTION;
+        assert ORDER_PRINT_INFO < ORDER_SYSTEM_TO_USER_PROPERTIES;
+        // move -Dproperty=value in MAVEN_OPTS from systemProperties into userProperties (maven does not do this automatically)
+        assert ORDER_SYSTEM_TO_USER_PROPERTIES < ORDER_CI_OPTION;
         // init ci options
 
         this.eventAwares.forEach(it -> it.onInit(context));

@@ -1,6 +1,7 @@
 package top.infra.maven.extension.mavenbuild;
 
 import static top.infra.maven.extension.mavenbuild.utils.FileUtils.find;
+import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.isEmpty;
 import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.isNotEmpty;
 import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.lines;
 import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.notEmpty;
@@ -9,6 +10,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -21,7 +23,6 @@ import java.util.stream.Stream;
 
 import top.infra.maven.extension.mavenbuild.utils.SupportFunction;
 import top.infra.maven.extension.mavenbuild.utils.SystemUtils;
-import top.infra.maven.logging.Logger;
 
 /**
  * TODO use a java docker client ?
@@ -32,7 +33,6 @@ public class Docker {
 
     private static final Pattern PATTERN_FILE_WITH_EXT = Pattern.compile(".+/.+\\..+");
 
-    private final Logger logger;
     private final Map<String, String> environment;
     private final String homeDir;
     private final String registry;
@@ -41,7 +41,6 @@ public class Docker {
     private final String registryUser;
 
     public Docker(
-        final Logger logger,
         final String dockerHost,
         final String homeDir,
         final String registry,
@@ -49,7 +48,6 @@ public class Docker {
         final String registryUrl,
         final String registryUser
     ) {
-        this.logger = logger;
         this.environment = environment(dockerHost, registry);
         this.homeDir = homeDir;
 
@@ -77,28 +75,26 @@ public class Docker {
         return Optional.ofNullable(systemProperties.getProperty("env.DOCKER_HOST"));
     }
 
-    public void cleanOldImages() {
-        final Entry<Integer, String> dockerImages = this.docker("images");
+    public List<String> imageIdsToClean() {
+        final Entry<Integer, String> returnCodeAndStdout = this.docker("images");
 
-        if (logger.isDebugEnabled()) {
-            logger.debug(String.format("Found dockerImages %s %s", dockerImages.getKey(), dockerImages.getValue()));
+        final List<String> imageIds;
+        if (returnCodeAndStdout.getKey() == 0) {
+            imageIds = imagesToClean(lines(returnCodeAndStdout.getValue()));
+        } else {
+            imageIds = Collections.emptyList();
         }
+        return imageIds;
+    }
 
-        if (dockerImages.getKey() == 0) {
-            final List<String> imageIds = imagesToClean(lines(dockerImages.getValue()));
-
-            if (logger.isInfoEnabled()) {
-                logger.info(String.format("Found imageIds %s", imageIds));
-            }
-
-            imageIds.forEach(imageId -> {
-                logger.info(String.format("Delete old image %s", imageId));
-                final Entry<Integer, String> dockerRmi = this.docker("rmi", imageId);
-                if (dockerRmi.getKey() != 0) {
-                    logger.warn(String.format("Error on remove image %s", imageId));
-                }
-            });
-        }
+    /**
+     * Delete images.
+     *
+     * @param imageIds imageIds
+     * @return imageId, return code map
+     */
+    public Map<String, Integer> deleteImages(final List<String> imageIds) {
+        return imageIds.stream().collect(Collectors.toMap(id -> id, id -> this.docker("rmi", id).getKey()));
     }
 
     private Entry<Integer, String> docker(final String... options) {
@@ -120,7 +116,7 @@ public class Docker {
             .collect(Collectors.toList());
     }
 
-    public void initDockerConfig() {
+    public void initConfigFile() {
         this.docker("version");
 
         // TODO config docker log rotation here ?
@@ -130,22 +126,16 @@ public class Docker {
         }
     }
 
-    public void pullBaseImage() {
-        logger.info(">>>>>>>>>> ---------- pull_base_image ---------- >>>>>>>>>>");
-        final List<String> dockerfiles = dockerfiles();
-
-        if (logger.isInfoEnabled()) {
-            logger.info(String.format("Found dockerfiles %s", dockerfiles));
-        }
-
+    /**
+     * Pull base images found in Dockerfiles.
+     *
+     * @param dockerfiles Dockerfiles to find base images in.
+     * @return base images found / pulled
+     */
+    public List<String> pullBaseImages(final List<String> dockerfiles) {
         final List<String> baseImages = baseImages(dockerfiles);
-
-        if (logger.isInfoEnabled()) {
-            logger.info(String.format("Found baseImages %s", baseImages));
-        }
-
         baseImages.forEach(image -> this.docker("pull", image));
-        logger.info("<<<<<<<<<< ---------- pull_base_image ---------- <<<<<<<<<<");
+        return baseImages;
     }
 
     static List<String> baseImages(final List<String> dockerfiles) {
@@ -178,29 +168,22 @@ public class Docker {
             .collect(Collectors.toList());
     }
 
-    public void dockerLogin() {
-        if (isNotEmpty(this.registry)) {
-            this.dockerLogin(this.registry);
-        } else {
-            this.dockerLogin(this.registryUrl);
-        }
+    public String getLoginTarget() {
+        return isNotEmpty(this.registry) ? this.registry : this.registryUrl;
     }
 
-    private void dockerLogin(final String toRegistry) { // TODO move logs out of this class
-        if (isNotEmpty(this.registryPass) && isNotEmpty(this.registryUser)) { // TODO this.shouldSkipDockerLogin()
-            if (isNotEmpty(toRegistry)) {
-                if (toRegistry.startsWith("https://")) {
-                    logger.info(String.format("docker logging into secure registry %s", toRegistry));
-                } else {
-                    logger.info(String.format("docker logging into insecure registry %s", toRegistry));
-                }
-
-                final List<String> command = dockerCommand("login", "--password-stdin", "-u=" + this.registryUser, toRegistry);
-                final Entry<Integer, String> resultDockerLogin = SystemUtils.exec(this.environment, this.registryPass, command);
-                logger.info(String.format("docker login [%s] result [%s]", toRegistry, resultDockerLogin.getKey()));
-            }
+    public Optional<Integer> login(final String target) {
+        final Optional<Integer> result;
+        if (isNotEmpty(target) && !shouldSkipDockerLogin()) {
+            final List<String> command = dockerCommand("login", "--password-stdin", "-u=" + this.registryUser, target);
+            result = Optional.of(SystemUtils.exec(this.environment, this.registryPass, command).getKey());
         } else {
-            logger.info(String.format("skip docker login [%s]", toRegistry));
+            result = Optional.empty();
         }
+        return result;
+    }
+
+    public boolean shouldSkipDockerLogin() {
+        return isEmpty(this.registryPass) || isEmpty(this.registryUser);
     }
 }

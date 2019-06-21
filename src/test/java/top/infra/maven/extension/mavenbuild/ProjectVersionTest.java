@@ -58,7 +58,6 @@ public class ProjectVersionTest {
         userProperties.setProperty(SITE.getPropertyName(), BOOL_STRING_TRUE);
 
         final CiOptionAccessor ciOpts = new CiOptionAccessor(
-            logger(),
             gitProperties(),
             systemProperties,
             userProperties
@@ -95,7 +94,6 @@ public class ProjectVersionTest {
         userProperties.setProperty(SITE.getPropertyName(), BOOL_STRING_TRUE);
 
         final CiOptionAccessor ciOpts = new CiOptionAccessor(
-            logger(),
             gitProperties(),
             systemProperties,
             userProperties

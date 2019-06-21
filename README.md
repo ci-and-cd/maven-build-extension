@@ -41,3 +41,6 @@ CI_OPT_NEXUS3="https://nexus3.infra.top" CI_OPT_SONAR="true" CI_OPT_SONAR_ORGANI
 
 [pom-manipulation-ext](https://github.com/release-engineering/pom-manipulation-ext/tree/master/ext/src/main/java/org/commonjava/maven/ext/manip)
 [maven-help-plugin](https://github.com/apache/maven-help-plugin/blob/maven-help-plugin-3.2.0)
+
+[faster-maven-builds-with-maven-opts](https://medium.com/@john_freeman/faster-maven-builds-with-maven-opts-822cdc82fa85)
+https://docs.oracle.com/javase/8/docs/technotes/guides/vm/class-data-sharing.html#skip2content

@@ -13,8 +13,10 @@ import static top.infra.maven.extension.mavenbuild.MavenGoalEditor.GOAL_DEPLOY;
 import static top.infra.maven.extension.mavenbuild.MavenGoalEditor.GOAL_INSTALL;
 import static top.infra.maven.extension.mavenbuild.MavenGoalEditor.GOAL_PACKAGE;
 import static top.infra.maven.extension.mavenbuild.MavenGoalEditor.GOAL_SITE;
+import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.isNotEmpty;
 
 import java.util.List;
+import java.util.Optional;
 
 import javax.inject.Inject;
 import javax.inject.Named;
@@ -68,7 +70,6 @@ public class DockerEventAware implements MavenEventAware {
 
         if (dockerEnabled) {
             final Docker docker = new Docker(
-                logger,
                 dockerHost(ciOpts.getSystemProperties()).orElse(null),
                 SystemUtils.systemUserHome(),
                 ciOpts.getOption(DOCKER_REGISTRY).orElse(null),
@@ -77,16 +78,60 @@ public class DockerEventAware implements MavenEventAware {
                 ciOpts.getOption(DOCKER_REGISTRY_USER).orElse(null)
             );
 
-            docker.initDockerConfig();
+            docker.initConfigFile();
 
             if (!ciOpts.getOption(DOCKERFILE_USEMAVENSETTINGSFORAUTH).map(Boolean::parseBoolean).orElse(FALSE)) {
-                docker.dockerLogin();
+                this.login(docker);
             }
 
             if (!ciOpts.getOption(FAST).map(Boolean::parseBoolean).orElse(FALSE)) {
-                docker.cleanOldImages();
-                docker.pullBaseImage();
+                this.cleanOldImages(docker);
+
+                this.pullBaseImages(docker);
             }
         }
+    }
+
+    private void cleanOldImages(final Docker docker) {
+        final List<String> imageIds = docker.imageIdsToClean();
+        if (logger.isInfoEnabled()) {
+            logger.info(String.format("Found imageIdsToClean %s", imageIds));
+        }
+        docker.deleteImages(imageIds).forEach((id, retCode) -> {
+            if (retCode == 0) {
+                logger.info(String.format("Image [%s] deleted.", id));
+            } else {
+                logger.warn(String.format("Failed to delete image [%s].", id));
+            }
+        });
+    }
+
+    private void login(final Docker docker) {
+        final String target = docker.getLoginTarget();
+        if (isNotEmpty(target) && target.startsWith("https://")) {
+            logger.info(String.format("docker logging into secure registry %s", target));
+        } else {
+            logger.info(String.format("docker logging into insecure registry %s", target));
+        }
+
+        final Optional<Integer> result = docker.login(target);
+        if (result.isPresent()) {
+            logger.info(String.format("docker login [%s] result [%s]", target, result.orElse(null)));
+        } else {
+            logger.info(String.format("docker login [%s] skipped", target));
+        }
+    }
+
+    private void pullBaseImages(final Docker docker) {
+        logger.info(">>>>>>>>>> ---------- pull_base_image ---------- >>>>>>>>>>");
+        final List<String> dockerfiles = Docker.dockerfiles();
+        if (logger.isInfoEnabled()) {
+            logger.info(String.format("Found dockerfiles %s", dockerfiles));
+        }
+        final List<String> baseImages = docker.pullBaseImages(dockerfiles);
+        if (logger.isInfoEnabled()) {
+            logger.info(String.format("Found baseImages %s", baseImages));
+        }
+        logger.info("<<<<<<<<<< ---------- pull_base_image ---------- <<<<<<<<<<");
     }
 }

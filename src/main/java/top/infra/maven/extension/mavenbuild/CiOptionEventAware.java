@@ -8,6 +8,7 @@ import static top.infra.maven.extension.mavenbuild.CiOption.INFRASTRUCTURE;
 import static top.infra.maven.extension.mavenbuild.CiOption.ORIGIN_REPO;
 import static top.infra.maven.extension.mavenbuild.CiOption.PATTERN_VARS_ENV_DOT_CI;
 import static top.infra.maven.extension.mavenbuild.Constants.INFRASTRUCTURE_OPENSOURCE;
+import static top.infra.maven.extension.mavenbuild.SystemToUserPropertiesEventAware.ORDER_SYSTEM_TO_USER_PROPERTIES;
 import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.isEmpty;
 
 import java.util.Arrays;
@@ -30,7 +31,7 @@ import top.infra.maven.logging.LoggerPlexusImpl;
 @Singleton
 public class CiOptionEventAware implements MavenEventAware {
 
-    public static final int ORDER_CI_OPTION = PrintInfoEventAware.ORDER_PRINT_INFO + 1;
+    public static final int ORDER_CI_OPTION = ORDER_SYSTEM_TO_USER_PROPERTIES + 1;
 
     private final Logger logger;
 
@@ -58,7 +59,6 @@ public class CiOptionEventAware implements MavenEventAware {
                 final Properties systemProperties = MavenUtils.systemProperties(context);
                 final Properties userProperties = MavenUtils.userProperties(context);
                 final CiOptionAccessor result = new CiOptionAccessor(
-                    logger,
                     this.gitProperties,
                     systemProperties,
                     userProperties
@@ -69,7 +69,7 @@ public class CiOptionEventAware implements MavenEventAware {
                 checkGitAuthToken(logger, result);
 
                 // ci options from file
-                this.loadedProperties = result.ciOptsFromFile();
+                this.loadedProperties = result.ciOptsFromFile(logger);
                 result.updateSystemProperties(this.loadedProperties);
 
                 // github site options

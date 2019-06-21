@@ -83,7 +83,7 @@ public class DockerTests {
         final List<String> imageIds = Docker.imagesToClean(lines);
 
         slf4jLogger.info("lines: {}", lines);
-        slf4jLogger.info("imageIds: {}", imageIds);
+        slf4jLogger.info("imageIdsToClean: {}", imageIds);
         assertEquals(8, imageIds.size());
     }
 }

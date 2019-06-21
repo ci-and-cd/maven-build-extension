@@ -32,14 +32,9 @@ import java.util.Properties;
 import top.infra.exception.RuntimeIOException;
 import top.infra.maven.extension.mavenbuild.utils.MavenUtils;
 import top.infra.maven.extension.mavenbuild.utils.PropertiesUtils;
-import top.infra.maven.extension.mavenbuild.utils.SystemUtils;
 import top.infra.maven.logging.Logger;
 
 public class CiOptionAccessor {
-
-    private static final String PROP_MAVEN_MULTIMODULEPROJECTDIRECTORY = "maven.multiModuleProjectDirectory";
-
-    private final Logger logger;
 
     private final GitProperties gitProperties;
 
@@ -47,29 +42,13 @@ public class CiOptionAccessor {
     private final Properties userProperties;
 
     public CiOptionAccessor(
-        final Logger logger,
         final GitProperties gitProperties,
         final Properties systemProperties,
         final Properties userProperties
     ) {
-        this.logger = logger;
         this.gitProperties = gitProperties;
         this.systemProperties = systemProperties;
         this.userProperties = userProperties;
-
-        if (userProperties.getProperty(PROP_MAVEN_MULTIMODULEPROJECTDIRECTORY) == null) {
-            final String mavenMultiModuleProjectDirectory = systemProperties.getProperty(PROP_MAVEN_MULTIMODULEPROJECTDIRECTORY);
-            if (mavenMultiModuleProjectDirectory != null) {
-                userProperties.setProperty(PROP_MAVEN_MULTIMODULEPROJECTDIRECTORY, mavenMultiModuleProjectDirectory);
-            } else {
-                final String systemUserDir = SystemUtils.systemUserDir();
-                logger.warn(String.format(
-                    "Value of system property [%s] not found, use user.dir [%s] instead.",
-                    PROP_MAVEN_MULTIMODULEPROJECTDIRECTORY, systemUserDir
-                ));
-                userProperties.setProperty(PROP_MAVEN_MULTIMODULEPROJECTDIRECTORY, systemUserDir);
-            }
-        }
     }
 
     private String createCache(final CiOption ciOpt) {
@@ -78,12 +57,10 @@ public class CiOptionAccessor {
             try {
                 Files.createDirectories(Paths.get(pathname));
             } catch (final IOException ex) {
-                logger.error(
-                    String.format(
-                        "Error create [%s] directory '%s'. %s",
-                        ciOpt.getEnvVariableName(), pathname, ex.getMessage()),
-                    ex);
-                throw new RuntimeIOException(ex);
+                final String errorMsg = String.format(
+                    "Error create [%s] directory '%s'. %s",
+                    ciOpt.getEnvVariableName(), pathname, ex.getMessage());
+                throw new RuntimeIOException(errorMsg, ex);
             }
         }
         return pathname;
@@ -119,20 +96,19 @@ public class CiOptionAccessor {
         return newTuple(result, ex);
     }
 
-    public Properties ciOptsFromFile() {
+    public Properties ciOptsFromFile(final Logger logger) {
         final Properties properties = new Properties();
 
         this.getOption(CI_OPTS_FILE).ifPresent(ciOptsFile -> {
             this.createCacheInfrastructure();
             final boolean offline = MavenUtils.cmdArgOffline(this.systemProperties).orElse(FALSE);
             final boolean update = MavenUtils.cmdArgUpdate(this.systemProperties).orElse(FALSE);
-            this.gitRepository().download(SRC_CI_OPTS_PROPERTIES, ciOptsFile, true, offline, update);
+            this.gitRepository(logger).download(SRC_CI_OPTS_PROPERTIES, ciOptsFile, true, offline, update);
 
             try {
                 properties.load(new FileInputStream(ciOptsFile));
             } catch (final IOException ex) {
                 final String errorMsg = String.format("Can not load ci options file %s", ex.getMessage());
-                logger.error(errorMsg);
                 throw new RuntimeIOException(errorMsg, ex);
             }
         });
@@ -156,7 +132,7 @@ public class CiOptionAccessor {
         return this.systemProperties;
     }
 
-    public GitRepository gitRepository() {
+    public GitRepository gitRepository(final Logger logger) {
         return new GitRepository(
             logger,
             this.getOption(MAVEN_BUILD_OPTS_REPO).orElse(null),

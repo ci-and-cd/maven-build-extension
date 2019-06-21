@@ -157,6 +157,9 @@ public enum CiOption {
     MAVEN_INTEGRATIONTEST_SKIP("maven.integration-test.skip", BOOL_STRING_FALSE) { // TODO use -DskipITs instead
 
         // see: https://maven.apache.org/surefire/maven-failsafe-plugin/examples/skipping-tests.html
+        // Since skipTests is also supported by the Surefire Plugin, this will have the effect of not running any tests.
+        // If, instead, you want to skip only the integration tests being run by the Failsafe Plugin,
+        // you would use the skipITs property instead.
         @Override
         protected Optional<String> calculateValue(
             final GitProperties gitProperties,
@@ -236,6 +239,8 @@ public enum CiOption {
 
     /**
      * Keep test-compile but do not run tests.
+     * <p/>
+     * see: https://maven.apache.org/surefire/maven-surefire-plugin/examples/skipping-tests.html
      */
     SKIPTESTS("skipTests") {
         @Override

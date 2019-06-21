@@ -45,7 +45,6 @@ public class CiOptionTests {
         userProperties.setProperty(SITE.getPropertyName(), BOOL_STRING_TRUE);
 
         final CiOptionAccessor ciOpts = new CiOptionAccessor(
-            logger(),
             gitProperties(),
             systemProperties,
             userProperties
@@ -78,7 +77,6 @@ public class CiOptionTests {
         userProperties.setProperty(SITE.getPropertyName(), BOOL_STRING_TRUE);
 
         final CiOptionAccessor ciOpts = new CiOptionAccessor(
-            logger(),
             gitProperties(),
             systemProperties,
             userProperties
@@ -101,7 +99,6 @@ public class CiOptionTests {
         userProperties.setProperty(SITE.getPropertyName(), BOOL_STRING_TRUE);
 
         final CiOptionAccessor ciOpts = new CiOptionAccessor(
-            logger(),
             gitProperties(),
             systemProperties,
             userProperties
@@ -110,7 +107,7 @@ public class CiOptionTests {
         slf4jLogger.info("site {}", ciOpts.getOption(SITE).orElse(null));
         assertEquals(TRUE.toString(), ciOpts.getOption(SITE).orElse(null));
 
-        final Properties loadedProperties = ciOpts.ciOptsFromFile();
+        final Properties loadedProperties = ciOpts.ciOptsFromFile(logger());
         ciOpts.updateSystemProperties(loadedProperties);
 
         slf4jLogger.info("site {}", ciOpts.getOption(SITE).orElse(null));
@@ -136,7 +133,6 @@ public class CiOptionTests {
         final Properties userProperties = new Properties();
 
         final CiOptionAccessor ciOpts = new CiOptionAccessor(
-            logger(),
             gitProperties(),
             systemProperties,
             userProperties

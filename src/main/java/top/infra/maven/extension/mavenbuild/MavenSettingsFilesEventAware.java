@@ -53,7 +53,7 @@ public class MavenSettingsFilesEventAware implements MavenEventAware {
     public void afterInit(final Context context, final CiOptionAccessor ciOpts) {
         this.settingsXmlPathname = ciOpts.getOption(MAVEN_SETTINGS_FILE).orElse(null);
 
-        this.gitRepository = ciOpts.gitRepository();
+        this.gitRepository = ciOpts.gitRepository(logger);
 
         final boolean offline = MavenUtils.cmdArgOffline(context).orElse(FALSE);
         final boolean update = MavenUtils.cmdArgUpdate(context).orElse(FALSE);
