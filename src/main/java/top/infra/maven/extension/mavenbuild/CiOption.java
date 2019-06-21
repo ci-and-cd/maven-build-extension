@@ -105,6 +105,17 @@ public enum CiOption {
 
     FAST("fast"),
 
+    ENFORCER_SKIP("enforcer.skip") {
+        @Override
+        protected Optional<String> calculateValue(
+            final GitProperties gitProperties,
+            final Properties systemProperties,
+            final Properties userProperties
+        ) {
+            return FAST.getValue(gitProperties, systemProperties, userProperties);
+        }
+    },
+
     // /**
     //  * Got warning on maven-surefire-plugin's test goal.
     //  * [WARNING] file.encoding cannot be set as system property, use &lt;argLine&gt;-Dfile.encoding=...&lt;/argLine&gt; instead
@@ -142,7 +153,10 @@ public enum CiOption {
     MAVEN_CLEAN_SKIP("maven.clean.skip", BOOL_STRING_TRUE),
     MAVEN_COMPILER_ENCODING("maven.compiler.encoding", UTF_8.name()),
     MAVEN_INSTALL_SKIP("maven.install.skip"),
-    MAVEN_INTEGRATIONTEST_SKIP("maven.integration-test.skip", BOOL_STRING_FALSE) {
+    @Deprecated
+    MAVEN_INTEGRATIONTEST_SKIP("maven.integration-test.skip", BOOL_STRING_FALSE) { // TODO use -DskipITs instead
+
+        // see: https://maven.apache.org/surefire/maven-failsafe-plugin/examples/skipping-tests.html
         @Override
         protected Optional<String> calculateValue(
             final GitProperties gitProperties,
@@ -212,7 +226,9 @@ public enum CiOption {
         }
     },
     /**
-     * Skip test-compile and skipTests.
+     * Skip test-compile and skipTests and skipITs.
+     * <p/>
+     * maven.test.skip property skips compiling the tests. maven.test.skip is honored by Surefire, Failsafe and the Compiler Plugin.
      */
     MAVEN_TEST_SKIP("maven.test.skip"),
     PROJECT_BUILD_SOURCEENCODING("project.build.sourceEncoding", UTF_8.name()),
@@ -775,7 +791,8 @@ public enum CiOption {
             return result;
         }
     },
-    MAVEN_TESTS_SKIP("maven.tests.skip") {
+    MAVEN_TESTS_SKIP("maven.tests.skip") { // TODO skipTests skipITs but test-compile
+
         @Override
         protected Optional<String> calculateValue(
             final GitProperties gitProperties,
@@ -1145,7 +1162,9 @@ public enum CiOption {
             return MAVEN_QUALITY_SKIP.calculateValue(gitProperties, systemProperties, userProperties);
         }
     },
-    WAGON_MERGEMAVENREPOS_ARTIFACTDIR("wagon.merge-maven-repos.artifactDir", "${project.groupId}/${project.artifactId}"),
+    WAGON_MERGEMAVENREPOS_ARTIFACTDIR("wagon.merge-maven-repos.artifactDir", "${project.groupId}/${project.artifactId}") {
+        // TODO System.setProperty("wagon.merge-maven-repos.artifactDir", "${project.groupId}".replace('.', '/') + "/${project.artifactId}")
+    },
     WAGON_MERGEMAVENREPOS_SOURCE("wagon.merge-maven-repos.source") {
         @Override
         protected Optional<String> calculateValue(
