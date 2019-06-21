@@ -1,6 +1,8 @@
 package top.infra.maven.extension.mavenbuild;
 
 import static java.lang.Integer.parseInt;
+import static top.infra.maven.extension.mavenbuild.utils.MavenUtils.profileId;
+import static top.infra.maven.extension.mavenbuild.utils.MavenUtils.projectName;
 import static top.infra.maven.extension.mavenbuild.utils.PropertiesUtils.mapFromProperties;
 import static top.infra.maven.extension.mavenbuild.utils.SystemUtils.parseJavaVersion;
 
@@ -20,13 +22,13 @@ import org.codehaus.plexus.component.annotations.Component;
 
 import top.infra.maven.extension.mavenbuild.model.ProjectBuilderActivatorModelResolver;
 
-@Component(role = CustomActivator.class, hint = "JavaVersionSensitiveActivator")
-public class JavaVersionSensitiveActivator extends AbstractCustomActivator {
+@Component(role = CustomActivator.class, hint = "JavaVersionActivator")
+public class JavaVersionActivator extends AbstractCustomActivator {
 
     private static final Pattern PATTERN_JAVA_PROFILE = Pattern.compile(".*java[-]?(\\d+)[-]?.*");
 
     @Inject
-    public JavaVersionSensitiveActivator(
+    public JavaVersionActivator(
         final org.codehaus.plexus.logging.Logger logger,
         final ProjectBuilderActivatorModelResolver resolver
     ) {
@@ -44,7 +46,7 @@ public class JavaVersionSensitiveActivator extends AbstractCustomActivator {
 
     @Override
     protected String getName() {
-        return "JavaVersionSensitiveActivator";
+        return "JavaVersionActivator";
     }
 
     @Override
@@ -57,9 +59,11 @@ public class JavaVersionSensitiveActivator extends AbstractCustomActivator {
         final boolean result;
         if (this.supported(profile)) {
             final Optional<Integer> profileJavaVersion = profileJavaVersion(profile.getId());
-            if (logger.isDebugEnabled()) {
-                logger.debug(String.format("found java %s related profile", profileJavaVersion.orElse(null)));
-            }
+
+            // if (logger.isInfoEnabled()) {
+            //     logger.info(String.format("%s project='%s' profile='%s' is java version related profile (java %s)",
+            //         this.getName(), projectName(context), profileId(profile), profileJavaVersion.orElse(null)));
+            // }
 
             final Map<String, Object> projectContext = projectContext(model, context);
 
@@ -81,11 +85,12 @@ public class JavaVersionSensitiveActivator extends AbstractCustomActivator {
 
             result = javaVersionActive;
         } else {
-            if (logger.isDebugEnabled()) {
-                logger.debug("not java related profile");
-            }
-
             result = false;
+
+            if (logger.isDebugEnabled() || profile.getId().contains("java")) {
+                logger.info(String.format("%s project='%s' profile='%s' is not java version related profile",
+                    this.getName(), projectName(context), profileId(profile)));
+            }
         }
 
         return result;

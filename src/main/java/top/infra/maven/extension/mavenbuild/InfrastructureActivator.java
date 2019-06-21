@@ -2,29 +2,35 @@ package top.infra.maven.extension.mavenbuild;
 
 import static java.lang.Boolean.FALSE;
 import static top.infra.maven.extension.mavenbuild.CiOption.INFRASTRUCTURE;
-import static top.infra.maven.extension.mavenbuild.utils.PropertiesUtils.toProperties;
+import static top.infra.maven.extension.mavenbuild.utils.MavenUtils.profileId;
+import static top.infra.maven.extension.mavenbuild.utils.MavenUtils.projectName;
 
 import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import javax.inject.Inject;
+import javax.inject.Named;
+import javax.inject.Singleton;
 
+import org.apache.maven.eventspy.EventSpy.Context;
 import org.apache.maven.model.Model;
 import org.apache.maven.model.Profile;
 import org.apache.maven.model.building.ModelProblemCollector;
 import org.apache.maven.model.profile.ProfileActivationContext;
-import org.codehaus.plexus.component.annotations.Component;
+import org.apache.maven.model.profile.activation.ProfileActivator;
 import org.codehaus.plexus.logging.Logger;
 
 import top.infra.maven.extension.mavenbuild.model.ProjectBuilderActivatorModelResolver;
 
-@Component(role = CustomActivator.class, hint = "InfrastructureActivator")
-public class InfrastructureActivator extends AbstractCustomActivator {
+// @Component(role = CustomActivator.class, hint = "InfrastructureActivator") // This instance has multiple roles
+@Named
+@Singleton
+public class InfrastructureActivator extends AbstractCustomActivator implements MavenEventAware {
 
     private static final Pattern PATTERN_INFRASTRUCTURE_PROFILE = Pattern.compile(".*infrastructure_(\\w+)[-]?.*");
 
-    private final GitProperties gitProperties;
+    private final CiOptionEventAware ciOptsFactory;
 
     private CiOptionAccessor ciOpts;
 
@@ -32,22 +38,57 @@ public class InfrastructureActivator extends AbstractCustomActivator {
     public InfrastructureActivator(
         final Logger logger,
         final ProjectBuilderActivatorModelResolver resolver,
-        final GitPropertiesBean gitProperties
+        final CiOptionEventAware ciOptsFactory
     ) {
         super(logger, resolver);
-        this.gitProperties = gitProperties;
+
+        this.ciOptsFactory = ciOptsFactory;
     }
 
+    /**
+     * Method used by {@link AbstractCustomActivator#isActive(Profile, ProfileActivationContext, ModelProblemCollector)}.
+     *
+     * @return whether this activator caches the result for profiles
+     */
     @Override
     protected boolean cacheResult() {
         return true;
     }
 
+    /**
+     * A {@link AbstractCustomActivator} method.
+     * <p/>
+     * Returns {@link Class#getSimpleName()} by default.
+     *
+     * @return activator name in log
+     */
     @Override
     protected String getName() {
         return "InfrastructureActivator";
     }
 
+    /**
+     * A {@link MavenEventAware} method.
+     *
+     * @return order of this {@link MavenEventAware} instance.
+     */
+    @Override
+    public int getOrder() {
+        return Integer.MAX_VALUE; // make sure instance of InfrastructureActivator runs after bean factory of ciOpts
+    }
+
+    /**
+     * A abstract method declared in {@link AbstractCustomActivator}.
+     * <p/>
+     * Used by method {@link AbstractCustomActivator#isActive(Profile, ProfileActivationContext, ModelProblemCollector)}
+     * which implements {@link ProfileActivator#isActive(Profile, ProfileActivationContext, ModelProblemCollector)}.
+     *
+     * @param model    model
+     * @param profile  profile
+     * @param context  context
+     * @param problems problems
+     * @return is profile active
+     */
     @Override
     protected boolean isActive(
         final Model model,
@@ -55,22 +96,14 @@ public class InfrastructureActivator extends AbstractCustomActivator {
         final ProfileActivationContext context,
         final ModelProblemCollector problems
     ) {
-        if (this.ciOpts == null) {
-            this.ciOpts = new CiOptionAccessor(
-                logger,
-                this.gitProperties,
-                toProperties(context.getSystemProperties()),
-                toProperties(context.getUserProperties())
-            );
-        }
-
         final boolean result;
         if (this.supported(profile)) {
             final Optional<String> profileInfrastructure = profileInfrastructure(profile.getId());
-            if (logger.isDebugEnabled()) {
-                logger.debug(String.format("check profile [%s] against infrastructure [%s]",
-                    profile.getId(), profileInfrastructure.orElse(null)));
-            }
+
+            // if (logger.isInfoEnabled()) {
+            //     logger.info(String.format("%s project='%s' profile='%s' is infrastructure related profile (infrastructure %s)",
+            //         this.getName(), projectName(context), profileId(profile), profileInfrastructure.orElse(null)));
+            // }
 
             final Optional<String> infrastructure = this.ciOpts.getOption(INFRASTRUCTURE);
 
@@ -78,16 +111,33 @@ public class InfrastructureActivator extends AbstractCustomActivator {
                 .map(value -> value.equals(profileInfrastructure.orElse(null)))
                 .orElse(FALSE);
         } else {
-            if (logger.isDebugEnabled()) {
-                logger.debug(String.format("profile [%s] is not infrastructure related", profile.getId()));
-            }
-
             result = false;
+
+            if (logger.isDebugEnabled() || profile.getId().contains("infrastructure")) {
+                logger.info(String.format("%s project='%s' profile='%s' is not infrastructure related profile",
+                    this.getName(), projectName(context), profileId(profile)));
+            }
         }
 
         return result;
     }
 
+    /**
+     * A {@link MavenEventAware} method.
+     *
+     * @param context context of current maven session.
+     */
+    @Override
+    public void onInit(final Context context) {
+        this.ciOpts = this.ciOptsFactory.getCiOpts(null);
+    }
+
+    /**
+     * A {@link CustomActivator} method used by {@link AbstractCustomActivator}.
+     *
+     * @param profile profile
+     * @return is profile supported
+     */
     @Override
     public boolean supported(final Profile profile) {
         return profileInfrastructure(profile.getId()).isPresent();

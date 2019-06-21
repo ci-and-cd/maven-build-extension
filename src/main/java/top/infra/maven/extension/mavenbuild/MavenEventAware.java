@@ -16,7 +16,7 @@ public interface MavenEventAware extends Comparable<MavenEventAware> {
     Comparator<MavenEventAware> MAVEN_EVENT_AWARE_COMPARATOR = (o1, o2) -> {
         final int result;
         if (o1 != null && o2 != null) {
-            result = o1.getOrder() - o2.getOrder();
+            result = Integer.compare(o1.getOrder(), o2.getOrder());
         } else if (o1 != null) {
             result = -1;
         } else if (o2 != null) {
@@ -35,7 +35,7 @@ public interface MavenEventAware extends Comparable<MavenEventAware> {
     /**
      * Smaller one is called more earlier.
      *
-     * @return order
+     * @return order (default method returns last / biggest value)
      */
     default int getOrder() {
         return Integer.MAX_VALUE;

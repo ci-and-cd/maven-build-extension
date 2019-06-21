@@ -51,11 +51,13 @@ public abstract class AbstractCustomActivator implements CustomActivator {
 
         if (found == null) {
             if (!this.presentInConfig(profile, context, problems)) {
+                result = false;
+
                 if (logger.isDebugEnabled()) {
                     logger.debug(String.format("%s profile '%s' not presentInConfig", this.getName(), profileId(profile)));
+                    logger.debug(String.format("%s project='%s' profile='%s' result='false'",
+                        this.getName(), projectName(context), profileId(profile)));
                 }
-
-                result = false;
             } else {
                 // Required project.
                 final Optional<Model> project = this.resolver.resolveModel(profile, context);
@@ -69,14 +71,14 @@ public abstract class AbstractCustomActivator implements CustomActivator {
                 if (this.cacheResult()) {
                     this.profileMemento.put(profile.toString(), result);
                 }
-            }
 
-            if (result && logger.isInfoEnabled()) {
-                logger.info(String.format("%s project='%s' profile='%s' result='true'",
-                    this.getName(), projectName(context), profileId(profile)));
-            } else if (!result && logger.isDebugEnabled()) {
-                logger.debug(String.format("%s project='%s' profile='%s' result='false'",
-                    this.getName(), projectName(context), profileId(profile)));
+                if (result || this.cacheResult()) {
+                    logger.info(String.format("%s project='%s' profile='%s' result='%s'",
+                        this.getName(), projectName(context), profileId(profile), result));
+                } else if (logger.isDebugEnabled()) {
+                    logger.debug(String.format("%s project='%s' profile='%s' result='false'",
+                        this.getName(), projectName(context), profileId(profile)));
+                }
             }
         } else {
             result = found;
@@ -95,7 +97,7 @@ public abstract class AbstractCustomActivator implements CustomActivator {
         final ProfileActivationContext context,
         final ModelProblemCollector problems
     ) {
-        return this.resolver.resolveModel(profile, context).isPresent();
+        return this.supported(profile) && this.resolver.resolveModel(profile, context).isPresent();
     }
 
     protected String getName() {

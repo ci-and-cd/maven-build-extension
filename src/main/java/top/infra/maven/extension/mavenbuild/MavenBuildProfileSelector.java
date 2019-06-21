@@ -60,7 +60,11 @@ public class MavenBuildProfileSelector extends DefaultProfileSelector {
 
         final List<Profile> customActive = supportedProfiles(profiles, this.customActivators).stream()
             .filter(profile -> defaultActiveSupported.contains(profile.toString()) || noAnyCondition(profile))
-            .filter(profile -> this.customActivators.stream().anyMatch(activator -> activator.isActive(profile, context, problems)))
+            .filter(profile ->
+                this.customActivators
+                    .stream()
+                    .filter(activator -> activator.supported(profile))
+                    .allMatch(activator -> activator.isActive(profile, context, problems)))
             .collect(Collectors.toList());
 
         final ArrayList<Profile> activeProfiles = new ArrayList<>();

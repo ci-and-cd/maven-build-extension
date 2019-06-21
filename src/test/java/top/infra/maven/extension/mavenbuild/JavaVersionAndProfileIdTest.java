@@ -2,8 +2,8 @@ package top.infra.maven.extension.mavenbuild;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
-import static top.infra.maven.extension.mavenbuild.JavaVersionSensitiveActivator.isJavaVersionRelatedProfile;
-import static top.infra.maven.extension.mavenbuild.JavaVersionSensitiveActivator.profileJavaVersion;
+import static top.infra.maven.extension.mavenbuild.JavaVersionActivator.isJavaVersionRelatedProfile;
+import static top.infra.maven.extension.mavenbuild.JavaVersionActivator.profileJavaVersion;
 import static top.infra.maven.extension.mavenbuild.utils.SystemUtils.parseJavaVersion;
 
 import org.junit.Test;

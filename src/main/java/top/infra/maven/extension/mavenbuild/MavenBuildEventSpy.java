@@ -1,6 +1,6 @@
 package top.infra.maven.extension.mavenbuild;
 
-import static top.infra.maven.extension.mavenbuild.CiOption.PATTERN_CI_ENV_VARS;
+import static top.infra.maven.extension.mavenbuild.CiOption.PATTERN_VARS_ENV_DOT_CI;
 import static top.infra.maven.extension.mavenbuild.CiOptionEventAware.ORDER_CI_OPTION;
 import static top.infra.maven.extension.mavenbuild.DockerEventAware.ORDER_DOCKER;
 import static top.infra.maven.extension.mavenbuild.GpgEventAware.ORDER_GPG;
@@ -35,7 +35,7 @@ import top.infra.maven.logging.LoggerPlexusImpl;
 /**
  * Main entry point. Reads properties and exposes them as user properties.
  * Existing user properties will not be overwritten.
- *
+ * <p/>
  * see: https://maven.apache.org/examples/maven-3-lifecycle-extensions.html
  */
 // @org.codehaus.plexus.component.annotations.Component(role = org.apache.maven.eventspy.EventSpy.class)
@@ -45,29 +45,29 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
 
     private final Logger logger;
 
-    private final List<MavenEventAware> eventAwares;
+    private final CiOptionEventAware ciOptsFactory;
 
-    private final CiOptionEventAware ciOptionEventAware;
+    private final List<MavenEventAware> eventAwares;
 
     private CiOptionAccessor ciOpts;
 
     /**
      * Constructor.
      *
-     * @param logger             inject logger {@link org.codehaus.plexus.logging.Logger}
-     * @param eventAwares        inject eventAwares
-     * @param ciOptionEventAware ciOptionEventAware
+     * @param logger        inject logger {@link org.codehaus.plexus.logging.Logger}
+     * @param ciOptsFactory ciOptsFactory
+     * @param eventAwares   inject eventAwares
      */
     @Inject
     public MavenBuildEventSpy(
         final org.codehaus.plexus.logging.Logger logger,
-        final List<MavenEventAware> eventAwares,
-        final CiOptionEventAware ciOptionEventAware
+        final CiOptionEventAware ciOptsFactory,
+        final List<MavenEventAware> eventAwares
     ) {
         this.logger = new LoggerPlexusImpl(logger);
 
+        this.ciOptsFactory = ciOptsFactory;
         this.eventAwares = eventAwares.stream().sorted().collect(Collectors.toList());
-        this.ciOptionEventAware = ciOptionEventAware;
 
         this.ciOpts = null;
     }
@@ -132,7 +132,7 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
 
         this.eventAwares.forEach(it -> it.onInit(context));
 
-        this.ciOpts = this.ciOptionEventAware.getCiOpts(null);
+        this.ciOpts = this.ciOptsFactory.getCiOpts(null);
         this.afterInit(context, this.ciOpts);
     }
 
@@ -223,7 +223,7 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
             PropertiesUtils.merge(request.getUserProperties(), projectBuildingRequest.getUserProperties());
             if (logger.isInfoEnabled()) {
                 logger.info("     >>>>> projectBuildingRequest (ProfileActivationContext) systemProperties >>>>>");
-                logger.info(PropertiesUtils.toString(projectBuildingRequest.getSystemProperties(), PATTERN_CI_ENV_VARS));
+                logger.info(PropertiesUtils.toString(projectBuildingRequest.getSystemProperties(), PATTERN_VARS_ENV_DOT_CI));
                 logger.info("     <<<<< projectBuildingRequest (ProfileActivationContext) systemProperties <<<<<");
 
                 logger.info("     >>>>> projectBuildingRequest (ProfileActivationContext) userProperties >>>>>");

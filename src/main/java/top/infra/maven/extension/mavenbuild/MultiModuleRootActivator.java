@@ -1,5 +1,8 @@
 package top.infra.maven.extension.mavenbuild;
 
+import static top.infra.maven.extension.mavenbuild.utils.MavenUtils.profileId;
+import static top.infra.maven.extension.mavenbuild.utils.MavenUtils.projectName;
+
 import javax.inject.Inject;
 
 import org.apache.maven.model.Model;
@@ -41,9 +44,10 @@ public class MultiModuleRootActivator extends AbstractCustomActivator {
     ) {
         final boolean result;
         if (this.supported(profile)) {
-            if (logger.isDebugEnabled()) {
-                logger.debug("found multi-module-root profile");
-            }
+            // if (logger.isInfoEnabled()) {
+            //     logger.info(String.format("%s project='%s' profile='%s' is multi_module_root_only profile",
+            //         this.getName(), projectName(context), profileId(profile)));
+            // }
 
             final MavenProjectInfo rootProjectInfo = this.projectInfoBean.getProjectInfo();
 
@@ -53,11 +57,12 @@ public class MultiModuleRootActivator extends AbstractCustomActivator {
                 && rootProjectInfo.getArtifactId() != null
                 && rootProjectInfo.getArtifactId().equals(model.getArtifactId());
         } else {
-            if (logger.isDebugEnabled()) {
-                logger.debug("not multi-module-root profile");
-            }
-
             result = false;
+
+            if (logger.isDebugEnabled() || (profile.getId().contains("root") && profile.getId().contains("only"))) {
+                logger.info(String.format("%s project='%s' profile='%s' is not multi_module_root_only profile",
+                    this.getName(), projectName(context), profileId(profile)));
+            }
         }
 
         return result;

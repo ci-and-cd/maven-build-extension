@@ -67,7 +67,7 @@ public class ProjectVersionTest {
         final Properties loadedProperties = new Properties();
         ciOpts.updateSystemProperties(loadedProperties);
 
-        final Properties newProperties = ciOpts.mergeCiOptsInto(userProperties);
+        final Properties newProperties = ciOpts.setCiOptPropertiesInto(userProperties);
 
         final Optional<String> gitRefName = ciOpts.getOption(GIT_REF_NAME);
         slf4jLogger.info("{} [{}]", GIT_REF_NAME.getPropertyName(), gitRefName.orElse(null));
@@ -104,7 +104,7 @@ public class ProjectVersionTest {
         final Properties loadedProperties = new Properties();
         ciOpts.updateSystemProperties(loadedProperties);
 
-        final Properties newProperties = ciOpts.mergeCiOptsInto(userProperties);
+        final Properties newProperties = ciOpts.setCiOptPropertiesInto(userProperties);
 
         final Optional<String> gitRefName = ciOpts.getOption(GIT_REF_NAME);
         slf4jLogger.info("{} [{}]", GIT_REF_NAME.getPropertyName(), gitRefName.orElse(null));

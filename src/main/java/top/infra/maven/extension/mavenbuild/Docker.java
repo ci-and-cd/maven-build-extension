@@ -186,8 +186,8 @@ public class Docker {
         }
     }
 
-    private void dockerLogin(final String toRegistry) {
-        if (isNotEmpty(this.registryPass) && isNotEmpty(this.registryUser)) {
+    private void dockerLogin(final String toRegistry) { // TODO move logs out of this class
+        if (isNotEmpty(this.registryPass) && isNotEmpty(this.registryUser)) { // TODO this.shouldSkipDockerLogin()
             if (isNotEmpty(toRegistry)) {
                 if (toRegistry.startsWith("https://")) {
                     logger.info(String.format("docker logging into secure registry %s", toRegistry));

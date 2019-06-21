@@ -14,7 +14,6 @@ import static top.infra.maven.extension.mavenbuild.Constants.BRANCH_PREFIX_FEATU
 import static top.infra.maven.extension.mavenbuild.Constants.GIT_REF_NAME_DEVELOP;
 import static top.infra.maven.extension.mavenbuild.Constants.PUBLISH_CHANNEL_SNAPSHOT;
 import static top.infra.maven.extension.mavenbuild.Constants.SRC_CI_OPTS_PROPERTIES;
-import static top.infra.maven.extension.mavenbuild.utils.PropertiesUtils.maskSecrets;
 import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.exists;
 import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.isEmpty;
 import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.isSemanticSnapshotVersion;
@@ -73,14 +72,6 @@ public class CiOptionAccessor {
         }
     }
 
-    public String createCacheInfrastructure() {
-        return this.createCache(CACHE_INFRASTRUCTURE_PATH);
-    }
-
-    public String createCacheSession() {
-        return this.createCache(CACHE_SESSION_PATH);
-    }
-
     private String createCache(final CiOption ciOpt) {
         final String pathname = this.getOption(ciOpt).orElse(systemJavaIoTmp());
         if (!exists(Paths.get(pathname))) {
@@ -96,24 +87,6 @@ public class CiOptionAccessor {
             }
         }
         return pathname;
-    }
-
-    public Optional<String> getOption(final CiOption ciOption) {
-        return ciOption.getValue(this.gitProperties, this.systemProperties, this.userProperties);
-    }
-
-    public Properties getSystemProperties() {
-        return this.systemProperties;
-    }
-
-    public void updateSystemProperties(final Properties properties) {
-        for (final String name : properties.stringPropertyNames()) {
-            final String key = systemPropertyName(name);
-            final String value = properties.getProperty(name);
-            if (value != null) {
-                this.systemProperties.setProperty(key, value);
-            }
-        }
     }
 
     public Entry<Boolean, RuntimeException> checkProjectVersion(final String projectVersion) {
@@ -154,7 +127,7 @@ public class CiOptionAccessor {
             final boolean offline = MavenUtils.cmdArgOffline(this.systemProperties).orElse(FALSE);
             final boolean update = MavenUtils.cmdArgUpdate(this.systemProperties).orElse(FALSE);
             this.gitRepository().download(SRC_CI_OPTS_PROPERTIES, ciOptsFile, true, offline, update);
-            
+
             try {
                 properties.load(new FileInputStream(ciOptsFile));
             } catch (final IOException ex) {
@@ -167,6 +140,22 @@ public class CiOptionAccessor {
         return properties;
     }
 
+    public String createCacheInfrastructure() {
+        return this.createCache(CACHE_INFRASTRUCTURE_PATH);
+    }
+
+    public String createCacheSession() {
+        return this.createCache(CACHE_SESSION_PATH);
+    }
+
+    public Optional<String> getOption(final CiOption ciOption) {
+        return ciOption.getValue(this.gitProperties, this.systemProperties, this.userProperties);
+    }
+
+    public Properties getSystemProperties() {
+        return this.systemProperties;
+    }
+
     public GitRepository gitRepository() {
         return new GitRepository(
             logger,
@@ -176,22 +165,28 @@ public class CiOptionAccessor {
         );
     }
 
-    public Properties mergeCiOptsInto(final Properties intoProperties) {
-        final Properties newProperties = new Properties();
+    public Properties setCiOptPropertiesInto(final Properties... targetProperties) {
+        final Properties ciOptProperties = new Properties();
 
-        Arrays.stream(CiOption.values()).sorted().forEach(ciOption -> {
-            final Optional<String> result = this.setOption(ciOption, newProperties);
-            if (logger.isInfoEnabled()) {
-                logger.info(maskSecrets(String.format("setOption %s=%s", ciOption.getEnvVariableName(), result.orElse(""))));
-            }
-        });
+        Arrays
+            .stream(CiOption.values())
+            .sorted()
+            .forEach(ciOption -> ciOption.setProperties(this.gitProperties, this.systemProperties, this.userProperties, ciOptProperties));
 
-        PropertiesUtils.merge(newProperties, intoProperties);
+        for (final Properties target : targetProperties) {
+            PropertiesUtils.merge(ciOptProperties, target);
+        }
 
-        return newProperties;
+        return ciOptProperties;
     }
 
-    private Optional<String> setOption(final CiOption ciOption, final Properties properties) {
-        return ciOption.setProperties(this.gitProperties, this.systemProperties, this.userProperties, properties);
+    public void updateSystemProperties(final Properties properties) {
+        for (final String name : properties.stringPropertyNames()) {
+            final String key = systemPropertyName(name);
+            final String value = properties.getProperty(name);
+            if (value != null) {
+                this.systemProperties.setProperty(key, value);
+            }
+        }
     }
 }

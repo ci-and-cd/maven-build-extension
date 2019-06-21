@@ -1,6 +1,6 @@
 package top.infra.maven.extension.mavenbuild;
 
-import static top.infra.maven.extension.mavenbuild.CiOption.PATTERN_CI_ENV_VARS;
+import static top.infra.maven.extension.mavenbuild.CiOption.PATTERN_VARS_ENV_DOT_CI;
 import static top.infra.maven.extension.mavenbuild.utils.SystemUtils.systemUserHome;
 
 import java.io.File;
@@ -78,7 +78,7 @@ public class PrintInfoEventAware implements MavenEventAware {
         this.printClassPath(context);
 
         logger.info(">>>>>>>>>> ---------- init systemProperties ---------- >>>>>>>>>>");
-        logger.info(PropertiesUtils.toString(systemProperties, PATTERN_CI_ENV_VARS));
+        logger.info(PropertiesUtils.toString(systemProperties, PATTERN_VARS_ENV_DOT_CI));
         logger.info("<<<<<<<<<< ---------- init systemProperties ---------- <<<<<<<<<<");
         logger.info(">>>>>>>>>> ---------- init userProperties ---------- >>>>>>>>>>");
         logger.info(PropertiesUtils.toString(userProperties, null));

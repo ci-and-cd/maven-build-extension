@@ -1227,7 +1227,7 @@ public enum CiOption {
     ;
 
 
-    public static final Pattern PATTERN_CI_ENV_VARS = Pattern.compile("^env\\.CI_.+");
+    public static final Pattern PATTERN_VARS_ENV_DOT_CI = Pattern.compile("^env\\.CI_.+");
     public static final Pattern PATTERN_GIT_REPO_SLUG = Pattern.compile(".*[:/]([^/]+(/[^/.]+))(\\.git)?");
     private static final Pattern PATTERN_URL = Pattern.compile("^(.+://|git@)([^/\\:]+(:\\d+)?).*$");
 

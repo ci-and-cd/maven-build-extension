@@ -6,10 +6,11 @@ import static top.infra.maven.extension.mavenbuild.CiOption.GIT_AUTH_TOKEN;
 import static top.infra.maven.extension.mavenbuild.CiOption.GIT_REF_NAME;
 import static top.infra.maven.extension.mavenbuild.CiOption.INFRASTRUCTURE;
 import static top.infra.maven.extension.mavenbuild.CiOption.ORIGIN_REPO;
-import static top.infra.maven.extension.mavenbuild.CiOption.PATTERN_CI_ENV_VARS;
+import static top.infra.maven.extension.mavenbuild.CiOption.PATTERN_VARS_ENV_DOT_CI;
 import static top.infra.maven.extension.mavenbuild.Constants.INFRASTRUCTURE_OPENSOURCE;
 import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.isEmpty;
 
+import java.util.Arrays;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.Properties;
@@ -31,15 +32,22 @@ public class CiOptionEventAware implements MavenEventAware {
 
     public static final int ORDER_CI_OPTION = PrintInfoEventAware.ORDER_PRINT_INFO + 1;
 
-    private Logger logger;
+    private final Logger logger;
+
+    private final GitProperties gitProperties;
 
     private CiOptionAccessor ciOpts;
 
+    private Properties ciOptProperties;
+    private Properties loadedProperties;
+
     @Inject
     public CiOptionEventAware(
-        final org.codehaus.plexus.logging.Logger logger
+        final org.codehaus.plexus.logging.Logger logger,
+        final GitPropertiesBean gitProperties
     ) {
         this.logger = new LoggerPlexusImpl(logger);
+        this.gitProperties = gitProperties;
     }
 
     public CiOptionAccessor getCiOpts(final Context context) {
@@ -47,8 +55,30 @@ public class CiOptionEventAware implements MavenEventAware {
             return this.ciOpts;
         } else {
             if (context != null) {
-                this.onInit(context);
-                return this.ciOpts;
+                final Properties systemProperties = MavenUtils.systemProperties(context);
+                final Properties userProperties = MavenUtils.userProperties(context);
+                final CiOptionAccessor result = new CiOptionAccessor(
+                    logger,
+                    this.gitProperties,
+                    systemProperties,
+                    userProperties
+                );
+                result.createCacheInfrastructure();
+                result.createCacheSession();
+
+                checkGitAuthToken(logger, result);
+
+                // ci options from file
+                this.loadedProperties = result.ciOptsFromFile();
+                result.updateSystemProperties(this.loadedProperties);
+
+                // github site options
+                result.getOption(GITHUB_GLOBAL_REPOSITORYOWNER).ifPresent(owner ->
+                    systemProperties.setProperty(GITHUB_GLOBAL_REPOSITORYOWNER.getSystemPropertyName(), owner));
+
+                // write all ciOpt properties into systemProperties userProperties
+                this.ciOptProperties = result.setCiOptPropertiesInto(userProperties);
+                return result;
             } else {
                 throw new IllegalStateException("ciOpts not initialized.");
             }
@@ -62,52 +92,35 @@ public class CiOptionEventAware implements MavenEventAware {
 
     @Override
     public void onInit(final Context context) {
-        final Properties systemProperties = MavenUtils.systemProperties(context);
-        final Properties userProperties = MavenUtils.userProperties(context);
-        final GitProperties gitProperties = GitProperties.newInstance(logger).orElseGet(() -> GitProperties.newBlankInstance(logger));
-        this.ciOpts = new CiOptionAccessor(
-            logger,
-            gitProperties,
-            systemProperties,
-            userProperties
-        );
-        this.ciOpts.createCacheInfrastructure();
-        this.ciOpts.createCacheSession();
+        this.ciOpts = this.getCiOpts(context);
 
-        checkGitAuthToken(logger, this.ciOpts);
-
-        final Optional<String> gitRefName = this.ciOpts.getOption(GIT_REF_NAME);
+        final Optional<String> gitRefName = ciOpts.getOption(GIT_REF_NAME);
         if ((!gitRefName.isPresent() || isEmpty(gitRefName.get())) && logger.isWarnEnabled()) {
-            logger.warn(String.format("Can not find value of %s (%s)", GIT_REF_NAME.getEnvVariableName(), GIT_REF_NAME.getPropertyName()));
+            logger.warn(String.format(
+                "Can not find value of %s (%s)",
+                GIT_REF_NAME.getEnvVariableName(), GIT_REF_NAME.getPropertyName()
+            ));
         }
 
-        logger.info(">>>>>>>>>> ---------- load options from file ---------- >>>>>>>>>>");
-        // ci options from file
-        final Properties loadedProperties = this.ciOpts.ciOptsFromFile();
-        this.ciOpts.updateSystemProperties(loadedProperties);
         if (logger.isInfoEnabled()) {
+            logger.info(">>>>>>>>>> ---------- load options from file ---------- >>>>>>>>>>");
             logger.info("    >>>>>>>>>> ---------- loadedProperties ---------- >>>>>>>>>>");
-            logger.info(PropertiesUtils.toString(loadedProperties, PATTERN_CI_ENV_VARS));
+            logger.info(PropertiesUtils.toString(this.loadedProperties, null));
             logger.info("    <<<<<<<<<< ---------- loadedProperties ---------- <<<<<<<<<<");
-        }
+            logger.info("<<<<<<<<<< ---------- load options from file ---------- <<<<<<<<<<");
 
-        // github site options
-
-        this.ciOpts.getOption(GITHUB_GLOBAL_REPOSITORYOWNER).ifPresent(owner ->
-            systemProperties.setProperty(GITHUB_GLOBAL_REPOSITORYOWNER.getSystemPropertyName(), owner));
-        logger.info("<<<<<<<<<< ---------- load options from file ---------- <<<<<<<<<<");
-
-        // maven options
-        if (logger.isInfoEnabled()) {
             logger.info(">>>>>>>>>> ---------- set options (update userProperties) ---------- >>>>>>>>>>");
-        }
-
-        final Properties newProperties = this.ciOpts.mergeCiOptsInto(userProperties);
-
-        if (logger.isInfoEnabled()) {
-            logger.info(PropertiesUtils.toString(systemProperties, PATTERN_CI_ENV_VARS));
-            logger.info(PropertiesUtils.toString(userProperties, null));
+            Arrays.stream(CiOption.values()).sorted().forEach(ciOption -> { // TODO better toString methods
+                final String displayName = ciOption.getEnvVariableName();
+                final String displayValue = this.ciOptProperties.getProperty(ciOption.getPropertyName(), "");
+                logger.info(PropertiesUtils.maskSecrets(String.format("setOption %s=%s", displayName, displayValue)));
+            });
             logger.info("<<<<<<<<<< ---------- set options (update userProperties) ---------- <<<<<<<<<<");
+
+            final Properties systemProperties = MavenUtils.systemProperties(context);
+            final Properties userProperties = MavenUtils.userProperties(context);
+            logger.info(PropertiesUtils.toString(systemProperties, PATTERN_VARS_ENV_DOT_CI));
+            logger.info(PropertiesUtils.toString(userProperties, null));
         }
     }
 
