@@ -41,7 +41,7 @@ public abstract class MavenUtils {
     /**
      * Report titled activator problem.
      */
-    private static void reportProblem(
+    public static void reportProblem(
         final String title,
         final Exception error,
         final Profile profile,

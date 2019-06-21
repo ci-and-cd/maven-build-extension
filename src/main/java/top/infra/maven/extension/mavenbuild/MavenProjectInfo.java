@@ -27,15 +27,18 @@ public class MavenProjectInfo {
 
     private final String artifactId;
     private final String groupId;
+    private final String packaging;
     private final String version;
 
     public MavenProjectInfo(
         final String artifactId,
         final String groupId,
+        final String packaging,
         final String version
     ) {
         this.artifactId = artifactId;
         this.groupId = groupId;
+        this.packaging = packaging;
         this.version = version;
 
         if (isEmpty(artifactId) || isEmpty(groupId) || isEmpty(version)) {
@@ -43,9 +46,37 @@ public class MavenProjectInfo {
         }
     }
 
+    /**
+     * Same as {@link Model#getId()}.
+     *
+     * @return id
+     */
+    public String getId() {
+        final StringBuilder id = new StringBuilder(64);
+
+        id.append((getGroupId() == null) ? "[inherited]" : getGroupId());
+        id.append(":");
+        id.append(getArtifactId());
+        id.append(":");
+        id.append(getPackaging());
+        id.append(":");
+        id.append((getVersion() == null) ? "[inherited]" : getVersion());
+
+        return id.toString();
+    }
+
+    public boolean idEquals(final Model model) {
+        return model != null && this.getId().equals(model.getId());
+    }
+
+    /**
+     * Same as {@link Model#toString()}.
+     *
+     * @return id
+     */
     @Override
     public String toString() {
-        return String.format("groupId:artifactId:version %s:%s:%s", this.groupId, this.artifactId, this.version);
+        return this.getId();
     }
 
     public static Optional<MavenProjectInfo> newProjectInfoByReadPom(
@@ -55,33 +86,13 @@ public class MavenProjectInfo {
         final MavenXpp3Reader xpp3Reader = new MavenXpp3Reader();
         try {
             final Model model = xpp3Reader.read(new FileReader(pomFile));
-            return Optional.of(new MavenProjectInfo(model.getArtifactId(), getGroupId(model), getVersion(model)));
+            return Optional.of(new MavenProjectInfo(model.getArtifactId(), model.getGroupId(), model.getPackaging(), model.getVersion()));
         } catch (final IllegalArgumentException | IOException | XmlPullParserException ex) {
             if (logger.isWarnEnabled()) {
                 logger.warn(String.format("Failed to read project info from pomFile [%s] (by MavenXpp3Reader)", pathname(pomFile)), ex);
             }
             return Optional.empty();
         }
-    }
-
-    private static String getGroupId(final Model model) {
-        final String result;
-        if (model.getGroupId() != null) {
-            result = model.getGroupId();
-        } else {
-            result = model.getParent() != null ? model.getParent().getGroupId() : null;
-        }
-        return result;
-    }
-
-    private static String getVersion(final Model model) {
-        final String result;
-        if (model.getVersion() != null) {
-            result = model.getVersion();
-        } else {
-            result = model.getParent() != null ? model.getParent().getVersion() : null;
-        }
-        return result;
     }
 
     public static MavenProjectInfo newProjectInfoByBuildProject(
@@ -94,8 +105,9 @@ public class MavenProjectInfo {
         final Optional<MavenProject> projectOptional = buildProject(logger, pomFile, projectBuilder, projectBuildingRequest);
         final String artifactId = projectOptional.map(MavenProject::getArtifactId).orElse(null);
         final String groupId = projectOptional.map(MavenProject::getGroupId).orElse(null);
+        final String packaging = projectOptional.map(MavenProject::getPackaging).orElse(null);
         final String version = projectOptional.map(MavenProject::getVersion).orElse(null);
-        return new MavenProjectInfo(artifactId, groupId, version);
+        return new MavenProjectInfo(artifactId, groupId, packaging, version);
     }
 
     public static Optional<MavenProject> buildProject(
@@ -128,14 +140,18 @@ public class MavenProjectInfo {
     }
 
     public String getArtifactId() {
-        return artifactId;
+        return this.artifactId;
     }
 
     public String getGroupId() {
-        return groupId;
+        return this.groupId;
+    }
+
+    public String getPackaging() {
+        return this.packaging;
     }
 
     public String getVersion() {
-        return version;
+        return this.version;
     }
 }

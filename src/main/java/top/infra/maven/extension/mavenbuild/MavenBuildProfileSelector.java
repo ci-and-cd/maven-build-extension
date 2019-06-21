@@ -1,12 +1,18 @@
 package top.infra.maven.extension.mavenbuild;
 
+import static java.util.stream.Collectors.toList;
+import static java.util.stream.Collectors.toMap;
+
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import org.apache.maven.model.Activation;
@@ -48,36 +54,62 @@ public class MavenBuildProfileSelector extends DefaultProfileSelector {
         final ProfileActivationContext context,
         final ModelProblemCollector problems
     ) {
-        final List<Profile> defaultActiveAll = super.getActiveProfiles(profiles, context, problems);
-
-        final Set<String> defaultActiveSupported = supportedProfiles(defaultActiveAll, this.customActivators).stream()
+        final List<Profile> defaultActivated = super.getActiveProfiles(profiles, context, problems);
+        final Set<String> customSupported = supportedProfiles(defaultActivated, this.customActivators)
+            .stream()
             .map(Profile::toString)
             .collect(Collectors.toSet());
 
-        final List<Profile> defaultActiveNotSupported = defaultActiveAll.stream()
-            .filter(profile -> !defaultActiveSupported.contains(profile.toString()))
-            .collect(Collectors.toList());
+        if (!customSupported.isEmpty()) {
+            logger.debug(String.format("profiles default activated: %s", defaultActivated));
+            logger.debug(String.format(
+                "profiles default activated and custom supported (need to run custom activators against these): %s",
+                customSupported));
+        }
 
-        final List<Profile> customActive = supportedProfiles(profiles, this.customActivators).stream()
-            .filter(profile -> defaultActiveSupported.contains(profile.toString()) || noAnyCondition(profile))
-            .filter(profile ->
-                this.customActivators
-                    .stream()
-                    .filter(activator -> activator.supported(profile))
-                    .allMatch(activator -> activator.isActive(profile, context, problems)))
-            .collect(Collectors.toList());
+        final List<Profile> defaultActiveNotSupported = defaultActivated
+            .stream()
+            .filter(profile -> !customSupported.contains(profile.toString()))
+            .collect(toList());
 
-        final ArrayList<Profile> activeProfiles = new ArrayList<>();
-        activeProfiles.addAll(defaultActiveNotSupported);
-        activeProfiles.addAll(customActive);
+        final List<Profile> customActivate = supportedProfiles(profiles, this.customActivators)
+            .stream()
+            .filter(profile -> customSupported.contains(profile.toString()) || noAnyCondition(profile))
+            .collect(toList());
+        final Map<Profile, List<CustomActivator>> profileActivators = customActivate
+            .stream()
+            .collect(toMap(
+                Function.identity(),
+                profile -> this.customActivators.stream().filter(activator -> activator.supported(profile)).collect(toList())));
 
-        if (!activeProfiles.isEmpty()) {
-            if (logger.isDebugEnabled()) {
-                logger.debug(String.format("SELECT: %s", Arrays.toString(activeProfiles.toArray())));
+        final Collection<Profile> profilesActivated = new LinkedHashSet<>(defaultActiveNotSupported);
+
+        if (!customActivate.isEmpty()) {
+            logger.debug(String.format("profiles customActivate (need to run custom activators against these): %s",
+                customActivate));
+            profileActivators.forEach((profile, activators) -> logger.debug(String.format(
+                "profile [%s], activators: %s",
+                profile,
+                activators.stream().map(activator -> activator.getClass().getSimpleName()).collect(toList())
+            )));
+
+            final List<Profile> customActivated = customActivate
+                .stream()
+                .filter(profile ->
+                    profileActivators.get(profile).stream().allMatch(activator -> activator.isActive(profile, context, problems)))
+                .collect(toList());
+            profilesActivated.addAll(customActivated);
+
+            if (!customActivated.isEmpty()) {
+                logger.debug(String.format("custom activated profiles: %s", customActivated));
             }
         }
 
-        return activeProfiles;
+        if (!profilesActivated.isEmpty()) {
+            logger.debug(String.format("profiles activated: %s", Arrays.toString(profilesActivated.toArray())));
+        }
+
+        return new ArrayList<>(profilesActivated);
     }
 
     static boolean noAnyCondition(final Profile profile) {
@@ -92,7 +124,7 @@ public class MavenBuildProfileSelector extends DefaultProfileSelector {
     static List<Profile> supportedProfiles(final Collection<Profile> profiles, final Collection<CustomActivator> customActivators) {
         return profiles.stream()
             .filter(profile -> customActivators.stream().anyMatch(activator -> activator.supported(profile)))
-            .collect(Collectors.toList());
+            .collect(toList());
     }
 
     protected boolean superIsActive(

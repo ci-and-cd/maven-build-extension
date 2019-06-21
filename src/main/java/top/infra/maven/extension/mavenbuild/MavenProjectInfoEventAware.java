@@ -14,6 +14,7 @@ import javax.inject.Inject;
 import javax.inject.Named;
 import javax.inject.Singleton;
 
+import org.apache.maven.execution.DefaultMavenExecutionRequest;
 import org.apache.maven.execution.MavenExecutionRequest;
 import org.apache.maven.internal.aether.DefaultRepositorySystemSessionFactory;
 import org.apache.maven.project.ProjectBuilder;
@@ -36,6 +37,10 @@ public class MavenProjectInfoEventAware implements MavenEventAware {
 
     private final DefaultRepositorySystemSessionFactory repositorySessionFactory;
 
+    private CiOptionAccessor ciOpts;
+
+    private MavenExecutionRequest mavenExecutionCopied;
+
     private MavenProjectInfo projectInfo;
 
     @Inject
@@ -55,9 +60,8 @@ public class MavenProjectInfoEventAware implements MavenEventAware {
 
         try {
             final File pomFile = request.getPom();
-            this.projectInfo = newProjectInfoByReadPom(logger, pomFile)
+            return newProjectInfoByReadPom(logger, pomFile)
                 .orElseGet(() -> newProjectInfoByBuildProject(logger, this.projectBuilder, pomFile, projectBuildingRequest));
-            return this.projectInfo;
         } finally {
             if (repositorySystemSessionNull) {
                 projectBuildingRequest.setRepositorySession(null);
@@ -112,6 +116,10 @@ public class MavenProjectInfoEventAware implements MavenEventAware {
     }
 
     public MavenProjectInfo getProjectInfo() {
+        if (this.projectInfo == null && this.ciOpts != null && this.mavenExecutionCopied != null) { // Lazy init
+            this.projectInfo = this.resolveAndCheck(this.ciOpts, this.mavenExecutionCopied);
+        }
+
         return this.projectInfo;
     }
 
@@ -122,37 +130,47 @@ public class MavenProjectInfoEventAware implements MavenEventAware {
         final CiOptionAccessor ciOpts
     ) {
         if (!ciOpts.getOption(FAST).map(Boolean::parseBoolean).orElse(FALSE)) {
-            // Options are not calculated and merged into projectBuildingRequest this time.
-            final MavenProjectInfo mavenProjectInfo = this.getMavenProjectInfo(mavenExecution);
-            if (logger.isInfoEnabled()) {
-                logger.info(">>>>>>>>>> ---------- resolve project version ---------- >>>>>>>>>>");
-                logger.info(mavenProjectInfo.toString());
-                logger.info("<<<<<<<<<< ---------- resolve project version ---------- <<<<<<<<<<");
-            }
-
-            final String gitRefName = ciOpts.getOption(GIT_REF_NAME).orElse("");
-            final Map.Entry<Boolean, RuntimeException> checkResult = ciOpts.checkProjectVersion(mavenProjectInfo.getVersion());
-            final boolean valid = checkResult.getKey();
-            if (logger.isInfoEnabled()) {
-                logger.info(">>>>>>>>>> ---------- check project version ---------- >>>>>>>>>>");
-                logger.info(String.format("%s version [%s] for ref [%s].",
-                    valid ? "Valid" : "Invalid", mavenProjectInfo.getVersion(), gitRefName));
-                logger.info("<<<<<<<<<< ---------- check project version ---------- <<<<<<<<<<");
-            }
-
-            if (!valid) {
-                logger.warn("You should use versions with '-SNAPSHOT' suffix on develop branch or feature branches");
-                logger.warn("You should use versions like 1.0.0-SNAPSHOT develop branch");
-                logger.warn("You should use versions like 1.0.0-feature-SNAPSHOT or 1.0.0-branch-SNAPSHOT on feature branches");
-                logger.warn("You should use versions like 1.0.0 without '-SNAPSHOT' suffix on releases");
-                final RuntimeException ex = checkResult.getValue();
-                if (ex != null) {
-                    logger.error(ex.getMessage());
-                    throw ex;
-                }
-            }
+            this.projectInfo = this.resolveAndCheck(ciOpts, mavenExecution);
         } else {
+            // Lazy mode
+            this.ciOpts = ciOpts;
+            this.mavenExecutionCopied = DefaultMavenExecutionRequest.copy(mavenExecution);
+
             logger.info("Skip resolving and checking project version under fast mode.");
         }
+    }
+
+    private MavenProjectInfo resolveAndCheck(final CiOptionAccessor ciOpts, final MavenExecutionRequest mavenExecution) {
+        final MavenProjectInfo mavenProjectInfo = this.getMavenProjectInfo(mavenExecution);
+
+        if (logger.isInfoEnabled()) {
+            logger.info(">>>>>>>>>> ---------- resolve project version ---------- >>>>>>>>>>");
+            logger.info(mavenProjectInfo.toString());
+            logger.info("<<<<<<<<<< ---------- resolve project version ---------- <<<<<<<<<<");
+        }
+
+        final String gitRefName = ciOpts.getOption(GIT_REF_NAME).orElse("");
+        final Map.Entry<Boolean, RuntimeException> checkResult = ciOpts.checkProjectVersion(mavenProjectInfo.getVersion());
+        final boolean valid = checkResult.getKey();
+        if (logger.isInfoEnabled()) {
+            logger.info(">>>>>>>>>> ---------- check project version ---------- >>>>>>>>>>");
+            logger.info(String.format("%s version [%s] for ref [%s].",
+                valid ? "Valid" : "Invalid", mavenProjectInfo.getVersion(), gitRefName));
+            logger.info("<<<<<<<<<< ---------- check project version ---------- <<<<<<<<<<");
+        }
+
+        if (!valid) {
+            logger.warn("You should use versions with '-SNAPSHOT' suffix on develop branch or feature branches");
+            logger.warn("You should use versions like 1.0.0-SNAPSHOT develop branch");
+            logger.warn("You should use versions like 1.0.0-feature-SNAPSHOT or 1.0.0-branch-SNAPSHOT on feature branches");
+            logger.warn("You should use versions like 1.0.0 without '-SNAPSHOT' suffix on releases");
+            final RuntimeException ex = checkResult.getValue();
+            if (ex != null) {
+                logger.error(ex.getMessage());
+                throw ex;
+            }
+        }
+
+        return mavenProjectInfo;
     }
 }

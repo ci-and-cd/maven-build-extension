@@ -44,18 +44,18 @@ public class MultiModuleRootActivator extends AbstractCustomActivator {
     ) {
         final boolean result;
         if (this.supported(profile)) {
-            // if (logger.isInfoEnabled()) {
-            //     logger.info(String.format("%s project='%s' profile='%s' is multi_module_root_only profile",
+            // if (logger.isDebugEnabled()) {
+            //     logger.debug(String.format("%s project='%s' profile='%s' is multi_module_root_only profile",
             //         this.getName(), projectName(context), profileId(profile)));
             // }
 
             final MavenProjectInfo rootProjectInfo = this.projectInfoBean.getProjectInfo();
 
-            result = rootProjectInfo != null
-                && rootProjectInfo.getGroupId() != null
-                && rootProjectInfo.getGroupId().equals(model.getGroupId())
-                && rootProjectInfo.getArtifactId() != null
-                && rootProjectInfo.getArtifactId().equals(model.getArtifactId());
+            if (logger.isDebugEnabled()) {
+                logger.debug(String.format("%s rootProjectInfo: [%s], model: [%s]", this.getName(), rootProjectInfo, model));
+            }
+
+            result = rootProjectInfo != null && rootProjectInfo.idEquals(model);
         } else {
             result = false;
 

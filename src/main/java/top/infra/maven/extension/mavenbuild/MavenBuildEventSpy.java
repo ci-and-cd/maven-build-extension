@@ -251,6 +251,8 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
             logger.info(String.format("onEvent ProjectBuildingRequest %s", projectBuilding));
         }
 
+        // Options are not calculated and merged into projectBuildingRequest this time.
+
         // final File rootProjectDirectory = ((MavenExecutionRequest) request).getMultiModuleProjectDirectory();
 
         // set projectBuildingRequest into project model resolver
