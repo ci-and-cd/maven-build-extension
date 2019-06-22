@@ -40,10 +40,6 @@ public class MavenProjectInfo {
         this.groupId = groupId;
         this.packaging = packaging;
         this.version = version;
-
-        if (isEmpty(artifactId) || isEmpty(groupId) || isEmpty(version)) {
-            throw new IllegalArgumentException(this.toString());
-        }
     }
 
     /**
