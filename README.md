@@ -44,3 +44,7 @@ CI_OPT_NEXUS3="https://nexus3.infra.top" CI_OPT_SONAR="true" CI_OPT_SONAR_ORGANI
 
 [faster-maven-builds-with-maven-opts](https://medium.com/@john_freeman/faster-maven-builds-with-maven-opts-822cdc82fa85)
 https://docs.oracle.com/javase/8/docs/technotes/guides/vm/class-data-sharing.html#skip2content
+
+[Lifecycles Reference](https://maven.apache.org/ref/3.6.1/maven-core/lifecycles.html)
+[introduction-to-the-lifecycle](https://maven.apache.org/guides/introduction/introduction-to-the-lifecycle.html)
+[standard set of bindings](https://maven.apache.org/ref/3.6.1/maven-core/default-bindings.html)

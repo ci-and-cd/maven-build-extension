@@ -161,7 +161,7 @@ public class MavenGoalEditor {
             }
 
             final Optional<String> requestedInstallGoal = requestedGoals.stream().filter(MavenGoalEditor::isInstallGoal).findAny();
-            if (requestedInstallGoal.isPresent() && resultGoals.contains(GOAL_DEPLOY)) {
+            if (requestedInstallGoal.isPresent() && !resultGoals.contains(GOAL_DEPLOY)) {
                 properties.setProperty(PROP_MVN_DEPLOY_PUBLISH_SEGREGATION_GOAL_INSTALL, BOOL_STRING_TRUE);
                 properties.setProperty(PROP_MVN_DEPLOY_PUBLISH_SEGREGATION_GOAL_PACKAGE, BOOL_STRING_TRUE);
                 properties.setProperty(PROP_MVN_DEPLOY_PUBLISH_SEGREGATION_GOAL, GOAL_INSTALL);
