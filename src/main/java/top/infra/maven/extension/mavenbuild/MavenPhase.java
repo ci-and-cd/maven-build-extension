@@ -78,4 +78,8 @@ public enum MavenPhase {
         this.phase = phase;
         this.description = description;
     }
+
+    public String getPhase() {
+        return this.phase;
+    }
 }

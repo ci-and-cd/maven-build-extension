@@ -1,5 +1,7 @@
 package top.infra.maven.extension.mavenbuild;
 
+import static java.util.stream.Collectors.toCollection;
+import static java.util.stream.Collectors.toMap;
 import static top.infra.maven.extension.mavenbuild.CiOption.GIT_REF_NAME;
 import static top.infra.maven.extension.mavenbuild.CiOption.MAVEN_CLEAN_SKIP;
 import static top.infra.maven.extension.mavenbuild.CiOption.MAVEN_INSTALL_SKIP;
@@ -14,12 +16,17 @@ import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.isNotEm
 import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.newTuple;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.function.Function;
 
 import top.infra.maven.logging.Logger;
 
@@ -142,37 +149,75 @@ public class MavenGoalEditor {
         return resultGoals;
     }
 
-    public Properties additionalUserProperties(final List<String> requestedGoals, final Collection<String> resultGoals) {
+    public Properties additionalUserProperties(final List<String> requested, final Collection<String> result) {
+        final Collection<MavenPhase> requestedPhases = phases(requested);
+        final Collection<MavenPhase> resultPhases = phases(result);
+
         final Properties properties = new Properties();
         properties.setProperty(PROP_MVN_DEPLOY_PUBLISH_SEGREGATION_GOAL_DEPLOY, BOOL_STRING_FALSE);
         properties.setProperty(PROP_MVN_DEPLOY_PUBLISH_SEGREGATION_GOAL_INSTALL, BOOL_STRING_FALSE);
         properties.setProperty(PROP_MVN_DEPLOY_PUBLISH_SEGREGATION_GOAL_PACKAGE, BOOL_STRING_FALSE);
-        if (requestedGoals.contains("clean")) {
+        if (requested.contains("clean")) {
             properties.setProperty(MAVEN_CLEAN_SKIP.getPropertyName(), BOOL_STRING_FALSE);
         }
+
         if (this.mvnDeployPublishSegregation) {
-            if (!requestedGoals.contains(GOAL_INSTALL) && !resultGoals.contains(GOAL_INSTALL)) {
+            if (notIncludes(requestedPhases, MavenPhase.INSTALL) && notIncludes(resultPhases, MavenPhase.INSTALL)) {
                 properties.setProperty(MAVEN_INSTALL_SKIP.getPropertyName(), BOOL_STRING_TRUE);
             }
 
-            if (resultGoals.contains(GOAL_PACKAGE)) {
+            if (includes(resultPhases, MavenPhase.PACKAGE)) {
                 properties.setProperty(PROP_MVN_DEPLOY_PUBLISH_SEGREGATION_GOAL_PACKAGE, BOOL_STRING_TRUE);
                 properties.setProperty(PROP_MVN_DEPLOY_PUBLISH_SEGREGATION_GOAL, GOAL_PACKAGE);
             }
 
-            final Optional<String> requestedInstallGoal = requestedGoals.stream().filter(MavenGoalEditor::isInstallGoal).findAny();
-            if (requestedInstallGoal.isPresent() && !resultGoals.contains(GOAL_DEPLOY)) {
+            final Optional<String> requestedInstallGoal = requested.stream().filter(MavenGoalEditor::isInstallGoal).findAny();
+            if ((requestedInstallGoal.isPresent() || includes(requestedPhases, MavenPhase.INSTALL))
+                && notIncludes(resultPhases, MavenPhase.DEPLOY)) {
                 properties.setProperty(PROP_MVN_DEPLOY_PUBLISH_SEGREGATION_GOAL_INSTALL, BOOL_STRING_TRUE);
                 properties.setProperty(PROP_MVN_DEPLOY_PUBLISH_SEGREGATION_GOAL_PACKAGE, BOOL_STRING_TRUE);
                 properties.setProperty(PROP_MVN_DEPLOY_PUBLISH_SEGREGATION_GOAL, GOAL_INSTALL);
             }
 
-            final Optional<String> requestedDeployGoal = requestedGoals.stream().filter(MavenGoalEditor::isDeployGoal).findAny();
-            if (requestedDeployGoal.isPresent() && this.publishToRepo) {
+            final Optional<String> requestedDeployGoal = requested.stream().filter(MavenGoalEditor::isDeployGoal).findAny();
+            if ((requestedDeployGoal.isPresent() || includes(requestedPhases, MavenPhase.DEPLOY))
+                && this.publishToRepo) {
                 properties.setProperty(PROP_MVN_DEPLOY_PUBLISH_SEGREGATION_GOAL_DEPLOY, BOOL_STRING_TRUE);
                 properties.setProperty(PROP_MVN_DEPLOY_PUBLISH_SEGREGATION_GOAL, GOAL_DEPLOY);
             }
         }
         return properties;
+    }
+
+    private static final Map<String, MavenPhase> phaseMap = Collections.unmodifiableMap(
+        Arrays.stream(MavenPhase.values())
+            .collect(toMap(MavenPhase::getPhase, Function.identity()))
+    );
+
+    private static Collection<String> pluginExecution(final Collection<String> in) {
+        // things like
+        // 'org.apache.maven.plugins:maven-antrun-plugin:run@wagon-repository-clean',
+        // 'org.codehaus.mojo:wagon-maven-plugin:merge-maven-repos@merge-maven-repos-deploy'
+        return in.stream().filter(it -> it.contains("@")).collect(toCollection(LinkedHashSet::new));
+    }
+
+    private static Collection<String> pluginGoal(final Collection<String> in) { // things like 'clean:clean', 'compiler:compile', 'jar:jar'
+        return in.stream().filter(it -> it.contains(":") && !it.contains("@")).collect(toCollection(LinkedHashSet::new));
+    }
+
+    private static Collection<MavenPhase> phases(final Collection<String> in) { // things like 'clean', 'compile', 'package'.
+        return in.stream()
+            .filter(it -> !it.contains(":"))
+            .map(phaseMap::get)
+            .filter(Objects::nonNull)
+            .collect(toCollection(LinkedHashSet::new));
+    }
+
+    private static boolean notIncludes(final Collection<MavenPhase> phases, final MavenPhase phase) {
+        return !includes(phases, phase);
+    }
+
+    private static boolean includes(final Collection<MavenPhase> phases, final MavenPhase phase) {
+        return phases.stream().anyMatch(it -> it.ordinal() >= phase.ordinal());
     }
 }
