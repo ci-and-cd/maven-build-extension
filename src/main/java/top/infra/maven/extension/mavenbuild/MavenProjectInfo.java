@@ -2,7 +2,6 @@ package top.infra.maven.extension.mavenbuild;
 
 import static java.util.Collections.singletonList;
 import static top.infra.maven.extension.mavenbuild.utils.FileUtils.pathname;
-import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.isEmpty;
 import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.stackTrace;
 
 import java.io.File;
@@ -63,6 +62,21 @@ public class MavenProjectInfo {
 
     public boolean idEquals(final Model model) {
         return model != null && this.getId().equals(model.getId());
+    }
+
+    public boolean idEqualsExceptInheritedGroupId(final Model model) {
+        // e.g. [[inherited]:artifact-id:pom:0.0.1-SNAPSHOT], model: [id.group:artifact-id:jar:0.0.1-SNAPSHOT]
+
+        final String id = this.getId();
+
+        final boolean result;
+        if (id.startsWith("[inherited]:") && model != null) {
+            final String modelId = model.getId();
+            result = id.substring(id.indexOf(':')).equals(modelId.substring(modelId.indexOf(':')));
+        } else {
+            result = false;
+        }
+        return result;
     }
 
     /**

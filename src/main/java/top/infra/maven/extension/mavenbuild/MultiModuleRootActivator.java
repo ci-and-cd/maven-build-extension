@@ -55,7 +55,7 @@ public class MultiModuleRootActivator extends AbstractCustomActivator {
                 logger.debug(String.format("%s rootProjectInfo: [%s], model: [%s]", this.getName(), rootProjectInfo, model));
             }
 
-            result = rootProjectInfo != null && rootProjectInfo.idEquals(model);
+            result = rootProjectInfo != null && (rootProjectInfo.idEquals(model) || rootProjectInfo.idEqualsExceptInheritedGroupId(model));
         } else {
             result = false;
 
