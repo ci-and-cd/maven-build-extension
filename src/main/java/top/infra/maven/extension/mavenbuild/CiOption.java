@@ -153,23 +153,6 @@ public enum CiOption {
     MAVEN_CLEAN_SKIP("maven.clean.skip", BOOL_STRING_TRUE),
     MAVEN_COMPILER_ENCODING("maven.compiler.encoding", UTF_8.name()),
     MAVEN_INSTALL_SKIP("maven.install.skip"),
-    @Deprecated
-    MAVEN_INTEGRATIONTEST_SKIP("maven.integration-test.skip", BOOL_STRING_FALSE) { // TODO use -DskipITs instead
-
-        // see: https://maven.apache.org/surefire/maven-failsafe-plugin/examples/skipping-tests.html
-        // Since skipTests is also supported by the Surefire Plugin, this will have the effect of not running any tests.
-        // If, instead, you want to skip only the integration tests being run by the Failsafe Plugin,
-        // you would use the skipITs property instead.
-        @Override
-        protected Optional<String> calculateValue(
-            final GitProperties gitProperties,
-            final Properties systemProperties,
-            final Properties userProperties
-        ) {
-            return MAVEN_TESTS_SKIP.calculateValue(gitProperties, systemProperties, userProperties);
-        }
-    },
-
     MAVEN_JAVADOC_SKIP("maven.javadoc.skip") {
         @Override
         protected Optional<String> calculateValue(
@@ -225,7 +208,7 @@ public enum CiOption {
             final Properties systemProperties,
             final Properties userProperties
         ) {
-            return MAVEN_TESTS_SKIP.calculateValue(gitProperties, systemProperties, userProperties);
+            return FAST.getValue(gitProperties, systemProperties, userProperties);
         }
     },
     /**
@@ -233,23 +216,38 @@ public enum CiOption {
      * <p/>
      * maven.test.skip property skips compiling the tests. maven.test.skip is honored by Surefire, Failsafe and the Compiler Plugin.
      */
-    MAVEN_TEST_SKIP("maven.test.skip"),
+    MAVEN_TEST_SKIP("maven.test.skip", BOOL_STRING_FALSE),
     PROJECT_BUILD_SOURCEENCODING("project.build.sourceEncoding", UTF_8.name()),
     PROJECT_REPORTING_OUTPUTENCODING("project.reporting.outputEncoding", UTF_8.name()),
-
     /**
-     * Keep test-compile but do not run tests.
-     * <p/>
-     * see: https://maven.apache.org/surefire/maven-surefire-plugin/examples/skipping-tests.html
+     * Since skipTests is also supported by the Surefire Plugin, this will have the effect of not running any tests.
+     * If, instead, you want to skip only the integration tests being run by the Failsafe Plugin,
+     * you would use the skipITs property instead.
+     * see: https://maven.apache.org/surefire/maven-failsafe-plugin/examples/skipping-tests.html
      */
-    SKIPTESTS("skipTests") {
+    SKIPITS("skipITs", BOOL_STRING_FALSE) {
         @Override
         protected Optional<String> calculateValue(
             final GitProperties gitProperties,
             final Properties systemProperties,
             final Properties userProperties
         ) {
-            return MAVEN_TESTS_SKIP.calculateValue(gitProperties, systemProperties, userProperties);
+            return FAST.getValue(gitProperties, systemProperties, userProperties);
+        }
+    },
+    /**
+     * Keep test-compile but do not run tests.
+     * <p/>
+     * see: https://maven.apache.org/surefire/maven-surefire-plugin/examples/skipping-tests.html
+     */
+    SKIPTESTS("skipTests", BOOL_STRING_FALSE) {
+        @Override
+        protected Optional<String> calculateValue(
+            final GitProperties gitProperties,
+            final Properties systemProperties,
+            final Properties userProperties
+        ) {
+            return FAST.getValue(gitProperties, systemProperties, userProperties);
         }
     },
 
@@ -652,7 +650,7 @@ public enum CiOption {
             final Properties systemProperties,
             final Properties userProperties
         ) {
-            final boolean skip = MAVEN_INTEGRATIONTEST_SKIP.calculateValue(gitProperties, systemProperties, userProperties)
+            final boolean skip = FAST.getValue(gitProperties, systemProperties, userProperties)
                 .map(Boolean::parseBoolean).orElse(FALSE);
 
             return Optional.ofNullable(skip ? null : BOOL_STRING_TRUE);
@@ -712,7 +710,8 @@ public enum CiOption {
             final Properties systemProperties,
             final Properties userProperties
         ) {
-            return MAVEN_INTEGRATIONTEST_SKIP.calculateValue(gitProperties, systemProperties, userProperties);
+            return Optional.ofNullable(FAST.getValue(gitProperties, systemProperties, userProperties)
+                .map(Boolean::parseBoolean).orElse(FALSE) ? BOOL_STRING_FALSE : null);
         }
     },
     MAVEN_BUILD_OPTS_REPO("maven.build.opts.repo") {
@@ -794,17 +793,6 @@ public enum CiOption {
             });
 
             return result;
-        }
-    },
-    MAVEN_TESTS_SKIP("maven.tests.skip") { // TODO skipTests skipITs but test-compile
-
-        @Override
-        protected Optional<String> calculateValue(
-            final GitProperties gitProperties,
-            final Properties systemProperties,
-            final Properties userProperties
-        ) {
-            return FAST.getValue(gitProperties, systemProperties, userProperties);
         }
     },
     MVN_DEPLOY_PUBLISH_SEGREGATION("mvn.deploy.publish.segregation"),
@@ -1056,17 +1044,7 @@ public enum CiOption {
             return result;
         }
     },
-    SONAR("sonar") {
-        @Override
-        protected Optional<String> calculateValue(
-            final GitProperties gitProperties,
-            final Properties systemProperties,
-            final Properties userProperties
-        ) {
-            return Optional.ofNullable(FAST.getValue(gitProperties, systemProperties, userProperties)
-                .map(Boolean::parseBoolean).orElse(FALSE) ? null : BOOL_STRING_TRUE);
-        }
-    },
+    SONAR("sonar"),
     SONAR_BUILDBREAKER_SKIP("sonar.buildbreaker.skip") {
         @Override
         protected Optional<String> calculateValue(
