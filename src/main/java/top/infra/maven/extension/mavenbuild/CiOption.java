@@ -1,6 +1,7 @@
 package top.infra.maven.extension.mavenbuild;
 
 import static java.lang.Boolean.FALSE;
+import static java.lang.Boolean.TRUE;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static top.infra.maven.extension.mavenbuild.Constants.BOOL_STRING_FALSE;
 import static top.infra.maven.extension.mavenbuild.Constants.BOOL_STRING_TRUE;
@@ -123,19 +124,6 @@ public enum CiOption {
     // @Deprecated
     // FILE_ENCODING("file.encoding", UTF_8.name()),
 
-    GENERATEREPORTS("generateReports") {
-        @Override
-        protected Optional<String> calculateValue(
-            final GitProperties gitProperties,
-            final Properties systemProperties,
-            final Properties userProperties
-        ) {
-            return FAST.getValue(gitProperties, systemProperties, userProperties)
-                .map(Boolean::parseBoolean)
-                .filter(fast -> fast)
-                .map(fast -> BOOL_STRING_FALSE);
-        }
-    },
     /**
      * Custom property.
      * maven.javadoc.skip and maven.source.skip
@@ -169,6 +157,30 @@ public enum CiOption {
                 .orElse(BOOL_STRING_FALSE));
         }
     },
+
+    /**
+     * See: "https://maven.apache.org/plugins/maven-site-plugin/site-mojo.html".
+     * <p/>
+     * Convenience parameter that allows you to disable report generation.
+     */
+    GENERATEREPORTS("generateReports") {
+        @Override
+        protected Optional<String> calculateValue(
+            final GitProperties gitProperties,
+            final Properties systemProperties,
+            final Properties userProperties
+        ) {
+            return FAST.getValue(gitProperties, systemProperties, userProperties)
+                .map(Boolean::parseBoolean)
+                .filter(fast -> fast)
+                .map(fast -> BOOL_STRING_FALSE);
+        }
+    },
+    /**
+     * See: "https://maven.apache.org/plugins/maven-site-plugin/site-mojo.html".
+     * <p/>
+     * Set this to 'true' to skip site generation and staging.
+     */
     MAVEN_SITE_SKIP("maven.site.skip") {
         @Override
         protected Optional<String> calculateValue(
@@ -735,16 +747,6 @@ public enum CiOption {
     MAVEN_BUILD_OPTS_REPO_REF("maven.build.opts.repo.ref", GIT_REF_NAME_MASTER),
     MAVEN_CENTRAL_PASS("maven.central.pass"),
     MAVEN_CENTRAL_USER("maven.central.user"),
-    MAVEN_QUALITY_SKIP("maven.quality.skip", BOOL_STRING_FALSE) {
-        @Override
-        protected Optional<String> calculateValue(
-            final GitProperties gitProperties,
-            final Properties systemProperties,
-            final Properties userProperties
-        ) {
-            return FAST.getValue(gitProperties, systemProperties, userProperties);
-        }
-    },
     MAVEN_SETTINGS_FILE("maven.settings.file") {
         @Override
         protected Optional<String> calculateValue(
@@ -896,7 +898,8 @@ public enum CiOption {
             final Properties systemProperties,
             final Properties userProperties
         ) {
-            return MAVEN_QUALITY_SKIP.calculateValue(gitProperties, systemProperties, userProperties);
+            return Optional.ofNullable(GENERATEREPORTS.calculateValue(gitProperties, systemProperties, userProperties)
+                .map(Boolean::parseBoolean).orElse(TRUE) ? null : BOOL_STRING_TRUE);
         }
     },
 
@@ -1015,9 +1018,8 @@ public enum CiOption {
             final Properties systemProperties,
             final Properties userProperties
         ) {
-            boolean qualitySkip = MAVEN_QUALITY_SKIP.getValue(gitProperties, systemProperties, userProperties)
-                .map(Boolean::parseBoolean).orElse(FALSE);
-            return Optional.ofNullable(qualitySkip ? BOOL_STRING_FALSE : null);
+            return Optional.ofNullable(GENERATEREPORTS.calculateValue(gitProperties, systemProperties, userProperties)
+                .map(Boolean::parseBoolean).orElse(TRUE) ? null : BOOL_STRING_FALSE);
         }
     },
     SITE_PATH("site.path", "${site.path.prefix}/${publish.channel}"),
@@ -1142,7 +1144,8 @@ public enum CiOption {
             final Properties systemProperties,
             final Properties userProperties
         ) {
-            return MAVEN_QUALITY_SKIP.calculateValue(gitProperties, systemProperties, userProperties);
+            return Optional.ofNullable(GENERATEREPORTS.calculateValue(gitProperties, systemProperties, userProperties)
+                .map(Boolean::parseBoolean).orElse(TRUE) ? null : BOOL_STRING_TRUE);
         }
     },
     WAGON_MERGEMAVENREPOS_ARTIFACTDIR("wagon.merge-maven-repos.artifactDir", "${project.groupId}/${project.artifactId}") {
