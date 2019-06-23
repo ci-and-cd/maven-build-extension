@@ -79,9 +79,9 @@ public class MavenGoalEditorEventAware implements MavenEventAware {
             logger,
             ciOpts.getOption(GIT_REF_NAME).orElse(null),
             ciOpts.getOption(MVN_DEPLOY_PUBLISH_SEGREGATION).map(Boolean::parseBoolean).orElse(FALSE),
-            ciOpts.getOption(ORIGIN_REPO).map(Boolean::parseBoolean).orElse(FALSE),
-            ciOpts.getOption(PUBLISH_TO_REPO).map(Boolean::parseBoolean).orElse(FALSE), // make sure version is valid too
-            ciOpts.getOption(SITE).map(Boolean::parseBoolean).orElse(FALSE)
+            ciOpts.getOption(ORIGIN_REPO).map(Boolean::parseBoolean).orElse(null),
+            ciOpts.getOption(PUBLISH_TO_REPO).map(Boolean::parseBoolean).orElse(null), // make sure version is valid too
+            ciOpts.getOption(SITE).map(Boolean::parseBoolean).orElse(null)
         );
         final Entry<List<String>, Properties> goalsAndProps = goalEditor.goalsAndUserProperties(request.getGoals());
         if (logger.isInfoEnabled()) {

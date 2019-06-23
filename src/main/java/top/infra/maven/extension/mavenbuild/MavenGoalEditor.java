@@ -89,21 +89,21 @@ public class MavenGoalEditor {
         for (final String goal : requestedGoals) {
             if (isDeployGoal(goal)) {
                 // deploy, site-deploy
-                if (this.publishToRepo) {
+                if (this.publishToRepo == null || this.publishToRepo) {
                     resultGoals.add(goal);
                 } else {
                     if (logger.isInfoEnabled()) {
                         logger.info(String.format("onMavenExecutionRequest skip goal %s (%s: %s)",
-                            goal, PUBLISH_TO_REPO.getEnvVariableName(), this.publishToRepo.toString()));
+                            goal, PUBLISH_TO_REPO.getEnvVariableName(), this.publishToRepo));
                     }
                 }
             } else if (isSiteGoal(goal)) {
-                if (this.site) {
+                if (this.site == null || this.site) {
                     resultGoals.add(goal);
                 } else {
                     if (logger.isInfoEnabled()) {
                         logger.info(String.format("onMavenExecutionRequest skip goal %s (%s: %s)",
-                            goal, SITE.getEnvVariableName(), this.site.toString()));
+                            goal, SITE.getEnvVariableName(), this.site));
                     }
                 }
             } else if (GOAL_PACKAGE.equals(goal) || isInstallGoal(goal)) {
@@ -132,13 +132,13 @@ public class MavenGoalEditor {
             } else if (goal.endsWith("sonar")) {
                 final Boolean isRefNameDevelop = GIT_REF_NAME_DEVELOP.equals(this.gitRefName);
 
-                if (this.originRepo && isRefNameDevelop) {
+                if (this.originRepo != null && this.originRepo && isRefNameDevelop) {
                     resultGoals.add(goal);
                 } else {
                     if (logger.isInfoEnabled()) {
                         logger.info(String.format("onMavenExecutionRequest skip goal %s (%s: %s, %s: %s)",
                             goal,
-                            ORIGIN_REPO.getEnvVariableName(), this.originRepo.toString(),
+                            ORIGIN_REPO.getEnvVariableName(), this.originRepo,
                             GIT_REF_NAME.getEnvVariableName(), this.gitRefName));
                     }
                 }

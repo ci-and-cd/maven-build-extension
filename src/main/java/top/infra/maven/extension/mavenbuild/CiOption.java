@@ -189,7 +189,7 @@ public enum CiOption {
             final Properties userProperties
         ) {
             return Optional.ofNullable(SITE.getValue(gitProperties, systemProperties, userProperties)
-                .map(Boolean::parseBoolean).orElse(FALSE) ? null : BOOL_STRING_TRUE);
+                .map(Boolean::parseBoolean).orElse(TRUE) ? null : BOOL_STRING_TRUE);
         }
     },
     MAVEN_SITE_DEPLOY_SKIP("maven.site.deploy.skip") {
@@ -1011,7 +1011,7 @@ public enum CiOption {
             return Optional.of(result);
         }
     },
-    SITE("site", BOOL_STRING_FALSE) {
+    SITE("site") {
         @Override
         protected Optional<String> calculateValue(
             final GitProperties gitProperties,

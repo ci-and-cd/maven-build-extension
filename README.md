@@ -35,6 +35,8 @@ CI_OPT_NEXUS3="https://nexus3.infra.top" CI_OPT_SONAR="true" CI_OPT_SONAR_ORGANI
 #CI_OPT_GITHUB_SITE_PUBLISH="false" CI_OPT_INFRASTRUCTURE=opensource CI_OPT_OPENSOURCE_MVNSITE_PASSWORD="${CI_OPT_OPENSOURCE_MVNSITE_PASSWORD}" CI_OPT_OPENSOURCE_MVNSITE_USERNAME="${CI_OPT_OPENSOURCE_MVNSITE_USERNAME}" CI_OPT_NEXUS3="https://nexus3.infra.top" CI_OPT_SITE="true" CI_OPT_SITE_PATH_PREFIX="ci-and-cd/maven-build-extension" ./mvnw -e -U clean install site site:stage site:stage-deploy
 
 ./mvnw dependency:tree
+
+#-Dmaven.wagon.http.ssl.insecure=true -Dmaven.wagon.http.ssl.allowall=true
 ```
 
 ### References
