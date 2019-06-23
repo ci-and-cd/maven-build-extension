@@ -1022,7 +1022,7 @@ public enum CiOption {
                 .map(Boolean::parseBoolean).orElse(TRUE) ? null : BOOL_STRING_FALSE);
         }
     },
-    SITE_PATH("site.path", "${site.path.prefix}/${publish.channel}"),
+    SITE_PATH("site.path", "${publish.channel}/${site.path.prefix}"),
     SITE_PATH_PREFIX("site.path.prefix") {
         @Override
         protected Optional<String> calculateValue(
@@ -1150,6 +1150,7 @@ public enum CiOption {
     },
     WAGON_MERGEMAVENREPOS_ARTIFACTDIR("wagon.merge-maven-repos.artifactDir", "${project.groupId}/${project.artifactId}") {
         // TODO System.setProperty("wagon.merge-maven-repos.artifactDir", "${project.groupId}".replace('.', '/') + "/${project.artifactId}")
+        // TODO Extract all options that depend on project properties to ProjectOption class.
     },
     WAGON_MERGEMAVENREPOS_SOURCE("wagon.merge-maven-repos.source") {
         @Override
