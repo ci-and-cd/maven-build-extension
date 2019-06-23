@@ -160,7 +160,7 @@ public class CiOptionAccessor {
         for (final String name : properties.stringPropertyNames()) {
             final String key = systemPropertyName(name);
             final String value = properties.getProperty(name);
-            if (value != null) {
+            if (value != null && !this.systemProperties.containsKey(key)) {
                 this.systemProperties.setProperty(key, value);
             }
         }
