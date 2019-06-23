@@ -1196,9 +1196,9 @@ public enum CiOption {
             final String result;
             if (infraOpenSource) {
                 if (publishRelease) {
-                    result = "https://oss.sonatype.org/service/local/staging/deploy/maven2";
+                    result = "https://oss.sonatype.org/service/local/staging/deploy/maven2/";
                 } else {
-                    result = "https://oss.sonatype.org/content/repositories/snapshots";
+                    result = "https://oss.sonatype.org/content/repositories/snapshots/";
                 }
             } else {
                 result = infrastructure
