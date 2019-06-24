@@ -1132,9 +1132,19 @@ public enum CiOption {
                 .map(Boolean::parseBoolean).orElse(TRUE) ? null : BOOL_STRING_TRUE);
         }
     },
-    WAGON_MERGEMAVENREPOS_ARTIFACTDIR("wagon.merge-maven-repos.artifactDir", "${project.groupId}/${project.artifactId}") {
-        // TODO System.setProperty("wagon.merge-maven-repos.artifactDir", "${project.groupId}".replace('.', '/') + "/${project.artifactId}")
-        // TODO Extract all options that depend on project properties to ProjectOption class.
+    WAGON_MERGEMAVENREPOS_ARTIFACTDIR("wagon.merge-maven-repos.artifactDir") {
+        @Override
+        protected Optional<String> calculateValue(
+            final GitProperties gitProperties,
+            final Properties systemProperties,
+            final Properties userProperties
+        ) {
+            // TODO System.setProperty("wagon.merge-maven-repos.artifactDir", "${project.groupId}".replace('.', '/') + "/${project.artifactId}")
+            // TODO Extract all options that depend on project properties to ProjectOption class.
+            final boolean segregation = MVN_DEPLOY_PUBLISH_SEGREGATION.getValue(gitProperties, systemProperties, userProperties)
+                .map(Boolean::parseBoolean).orElse(FALSE);
+            return Optional.ofNullable(segregation ? "${project.groupId}/${project.artifactId}" : null);
+        }
     },
     WAGON_MERGEMAVENREPOS_SOURCE("wagon.merge-maven-repos.source") {
         @Override
@@ -1143,12 +1153,19 @@ public enum CiOption {
             final Properties systemProperties,
             final Properties userProperties
         ) {
-            final String commitId = gitProperties.commitId().map(value -> value.substring(0, 8)).orElse("unknown-commit");
+            final boolean segregation = MVN_DEPLOY_PUBLISH_SEGREGATION.getValue(gitProperties, systemProperties, userProperties)
+                .map(Boolean::parseBoolean).orElse(FALSE);
 
-            // final String prefix = Paths.get(systemUserHome(), ".ci-and-cd", "local-deploy").toString();
-            final String prefix = Paths.get(systemUserDir(), ".mvn", "wagonRepository").toString();
-
-            return Optional.of(Paths.get(prefix, commitId).toString());
+            final Optional<String> result;
+            if (segregation) {
+                final String commitId = gitProperties.commitId().map(value -> value.substring(0, 8)).orElse("unknown-commit");
+                // final String prefix = Paths.get(systemUserHome(), ".ci-and-cd", "local-deploy").toString();
+                final String prefix = Paths.get(systemUserDir(), ".mvn", "wagonRepository").toString();
+                result = Optional.of(Paths.get(prefix, commitId).toString());
+            } else {
+                result = Optional.empty();
+            }
+            return result;
         }
 
         @Override
@@ -1172,25 +1189,34 @@ public enum CiOption {
             final Properties systemProperties,
             final Properties userProperties
         ) {
-            final Optional<String> infrastructure = INFRASTRUCTURE.getValue(gitProperties, systemProperties, userProperties);
-            final boolean infraOpenSource = infrastructure.map(INFRASTRUCTURE_OPENSOURCE::equals).orElse(FALSE);
+            final boolean segregation = MVN_DEPLOY_PUBLISH_SEGREGATION.getValue(gitProperties, systemProperties, userProperties)
+                .map(Boolean::parseBoolean).orElse(FALSE);
 
-            final Optional<String> publishChannel = PUBLISH_CHANNEL.getValue(gitProperties, systemProperties, userProperties);
-            final boolean publishRelease = publishChannel.map(PUBLISH_CHANNEL_RELEASE::equals).orElse(FALSE);
+            final Optional<String> result;
+            if (segregation) {
+                final Optional<String> infrastructure = INFRASTRUCTURE.getValue(gitProperties, systemProperties, userProperties);
+                final boolean infraOpenSource = infrastructure.map(INFRASTRUCTURE_OPENSOURCE::equals).orElse(FALSE);
 
-            final String result;
-            if (infraOpenSource) {
-                if (publishRelease) {
-                    result = "https://oss.sonatype.org/service/local/staging/deploy/maven2/";
+                final Optional<String> publishChannel = PUBLISH_CHANNEL.getValue(gitProperties, systemProperties, userProperties);
+                final boolean publishRelease = publishChannel.map(PUBLISH_CHANNEL_RELEASE::equals).orElse(FALSE);
+
+                final String value;
+                if (infraOpenSource) {
+                    if (publishRelease) {
+                        value = "https://oss.sonatype.org/service/local/staging/deploy/maven2/";
+                    } else {
+                        value = "https://oss.sonatype.org/content/repositories/snapshots/";
+                    }
                 } else {
-                    result = "https://oss.sonatype.org/content/repositories/snapshots/";
+                    value = infrastructure
+                        .map(infra -> String.format("${%s.nexus3.repository}/maven-${publish.channel}s", infra))
+                        .orElse(null);
                 }
+                result = Optional.ofNullable(value);
             } else {
-                result = infrastructure
-                    .map(value -> String.format("${%s.nexus3.repository}/maven-${publish.channel}s", value))
-                    .orElse(null);
+                result = Optional.empty();
             }
-            return Optional.ofNullable(result);
+            return result;
         }
     },
     WAGON_MERGEMAVENREPOS_TARGETID("wagon.merge-maven-repos.targetId") {
@@ -1200,18 +1226,27 @@ public enum CiOption {
             final Properties systemProperties,
             final Properties userProperties
         ) {
-            final Optional<String> infrastructure = INFRASTRUCTURE.getValue(gitProperties, systemProperties, userProperties);
-            final boolean infraOpenSource = infrastructure.map(INFRASTRUCTURE_OPENSOURCE::equals).orElse(FALSE);
+            final boolean segregation = MVN_DEPLOY_PUBLISH_SEGREGATION.getValue(gitProperties, systemProperties, userProperties)
+                .map(Boolean::parseBoolean).orElse(FALSE);
 
-            final String result;
-            if (infraOpenSource) {
-                result = "OSSRH-${publish.channel}s";
+            final Optional<String> result;
+            if (segregation) {
+                final Optional<String> infrastructure = INFRASTRUCTURE.getValue(gitProperties, systemProperties, userProperties);
+                final boolean infraOpenSource = infrastructure.map(INFRASTRUCTURE_OPENSOURCE::equals).orElse(FALSE);
+
+                final String value;
+                if (infraOpenSource) {
+                    value = "OSSRH-${publish.channel}s";
+                } else {
+                    value = infrastructure
+                        .map(infra -> String.format("%s-nexus3-${publish.channel}s", infra))
+                        .orElse(null);
+                }
+                result = Optional.ofNullable(value);
             } else {
-                result = infrastructure
-                    .map(value -> String.format("%s-nexus3-${publish.channel}s", value))
-                    .orElse(null);
+                result = Optional.empty();
             }
-            return Optional.ofNullable(result);
+            return result;
         }
     },
     ;
