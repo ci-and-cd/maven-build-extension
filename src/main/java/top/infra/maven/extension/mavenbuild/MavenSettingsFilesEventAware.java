@@ -9,7 +9,6 @@ import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.isNotEm
 import static top.infra.maven.extension.mavenbuild.utils.SystemUtils.os;
 
 import java.io.File;
-import java.nio.file.Paths;
 
 import javax.inject.Inject;
 import javax.inject.Named;
@@ -87,8 +86,7 @@ public class MavenSettingsFilesEventAware implements MavenEventAware {
     private void downloadSettingsXml(final boolean offline, final boolean update) {
         // settings.xml
         final String targetFile = this.settingsXmlPathname;
-        if (isNotEmpty(targetFile) && !Paths.get(targetFile).toFile().exists()) {
-
+        if (isNotEmpty(targetFile)) {
             this.gitRepository.download(SRC_MAVEN_SETTINGS_XML, targetFile, true, offline, update);
         }
     }
