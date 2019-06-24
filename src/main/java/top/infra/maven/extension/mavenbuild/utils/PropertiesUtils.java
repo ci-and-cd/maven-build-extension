@@ -60,6 +60,8 @@ public class PropertiesUtils {
         return "" + text
             .replaceAll("KEYNAME=.+", "KEYNAME=<secret>")
             .replaceAll("keyname=.+", "keyname=<secret>")
+            .replaceAll("LOGIN=.+", "LOGIN=<secret>")
+            .replaceAll("login=.+", "login=<secret>")
             .replaceAll("ORGANIZATION=.+", "ORGANIZATION=<secret>")
             .replaceAll("organization=.+", "organization=<secret>")
             .replaceAll("PASS=.+", "PASS=<secret>")
