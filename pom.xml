@@ -293,6 +293,9 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 
+        <!-- mvn install -Dprofile="profile name" -DprofileFormat=JSON,HTML -->
+        <maven-profiler-report-directory>${project.basedir}/.mvn/profilerReport</maven-profiler-report-directory>
+
         <version.junit.jupiter>5.4.2</version.junit.jupiter>
         <version.junit.legacy>4.12</version.junit.legacy>
         <version.junit.vintage>5.4.2</version.junit.vintage>
