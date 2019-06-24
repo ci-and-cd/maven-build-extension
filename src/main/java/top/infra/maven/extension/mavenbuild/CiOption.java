@@ -796,6 +796,23 @@ public enum CiOption {
         ) {
             return getInfrastructureSpecificValue(NEXUS3, gitProperties, systemProperties, userProperties);
         }
+
+        @Override
+        public Optional<String> setProperties(
+            final GitProperties gitProperties,
+            final Properties systemProperties,
+            final Properties userProperties,
+            final Properties properties
+        ) {
+            final Optional<String> result = super.setProperties(gitProperties, systemProperties, userProperties, properties);
+
+            result.ifPresent(value ->
+                INFRASTRUCTURE.getValue(gitProperties, systemProperties, userProperties).ifPresent(infra ->
+                    properties.setProperty(infra + "." + this.getPropertyName(), value))
+            );
+
+            return result;
+        }
     },
 
     OPENSOURCE_GIT_AUTH_TOKEN("opensource.git.auth.token") {
@@ -1228,7 +1245,7 @@ public enum CiOption {
                     }
                 } else {
                     value = infrastructure
-                        .map(infra -> String.format("${%s.nexus3.repository}/maven-${publish.channel}s", infra))
+                        .map(infra -> String.format("${%s.nexus3}repository/maven-${publish.channel}s", infra))
                         .orElse(null);
                 }
                 result = Optional.ofNullable(value);
