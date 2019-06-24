@@ -64,6 +64,9 @@ public abstract class DownloadUtils {
                 urlConnection.setConnectTimeout((int) TimeUnit.SECONDS.toMillis(10L));
                 urlConnection.setReadTimeout((int) TimeUnit.SECONDS.toMillis(20L));
 
+                if (logger.isDebugEnabled()) {
+                    logger.debug(String.format("HttpURLConnection header names: %s", headers != null ? headers.keySet() : null));
+                }
                 if (headers != null && headers.size() > 0) {
                     headers.forEach(urlConnection::setRequestProperty);
                 }

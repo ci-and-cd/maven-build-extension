@@ -39,7 +39,7 @@ public class FileUtils {
         try {
             return Optional.of(new String(Files.readAllBytes(path), encoding));
         } catch (final IOException ex) {
-            return Optional.empty();
+            throw new RuntimeIOException(ex);
         }
     }
 
@@ -48,7 +48,7 @@ public class FileUtils {
             Files.write(path, bytes, options);
             return true;
         } catch (final IOException ex) {
-            return false;
+            throw new RuntimeIOException(ex);
         }
     }
 }

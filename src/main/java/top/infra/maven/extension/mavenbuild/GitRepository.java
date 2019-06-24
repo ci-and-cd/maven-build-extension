@@ -2,6 +2,9 @@ package top.infra.maven.extension.mavenbuild;
 
 import static java.lang.Boolean.FALSE;
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.nio.file.StandardOpenOption.CREATE;
+import static java.nio.file.StandardOpenOption.SYNC;
+import static java.nio.file.StandardOpenOption.TRUNCATE_EXISTING;
 import static top.infra.maven.extension.mavenbuild.CiOption.GIT_AUTH_TOKEN;
 import static top.infra.maven.extension.mavenbuild.Constants.GIT_REF_NAME_MASTER;
 import static top.infra.maven.extension.mavenbuild.utils.FileUtils.readFile;
@@ -12,7 +15,6 @@ import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.newTupl
 import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.newTupleOptional;
 
 import java.nio.file.Paths;
-import java.nio.file.StandardOpenOption;
 import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -164,13 +166,21 @@ public class GitRepository {
                 final boolean is2xxStatus = status.map(DownloadUtils::is2xxStatus).orElse(FALSE);
                 if (is2xxStatus) {
                     if (logger.isDebugEnabled()) {
-                        logger.debug(String.format("decode %s", saveToFile));
+                        logger.debug(String.format("decode [%s]", saveToFile));
                     }
                     // cat "${target_file}.json" | jq -r ".content" | base64 --decode | tee "${target_file}"
-                    final JSONObject jsonFile = new JSONObject(readFile(Paths.get(saveToFile), UTF_8));
+                    final JSONObject jsonFile = new JSONObject(readFile(Paths.get(saveToFile), UTF_8).orElse("{\"content\": \"\"}"));
                     final String content = jsonFile.getString("content");
                     if (!isEmpty(content)) {
-                        writeFile(Paths.get(targetFile), Base64.getDecoder().decode(content), StandardOpenOption.SYNC);
+                        final byte[] bytes = Base64.getDecoder().decode(content);
+                        if (logger.isDebugEnabled()) {
+                            logger.debug(String.format("Write content into targetFile [%s] (%s bytes)", targetFile, bytes.length));
+                        }
+                        writeFile(Paths.get(targetFile), bytes, CREATE, SYNC, TRUNCATE_EXISTING);
+                    } else {
+                        if (logger.isDebugEnabled()) {
+                            logger.debug(String.format("Content is empty. Skip write content into targetFile [%s]", targetFile));
+                        }
                     }
                 }
             } else {
