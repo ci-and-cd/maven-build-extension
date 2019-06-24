@@ -424,12 +424,16 @@ public enum CiOption {
             final Properties userProperties
         ) {
             return INFRASTRUCTURE.getValue(gitProperties, systemProperties, userProperties)
-                .map(infra ->
-                    Arrays.stream(CiOption.values())
-                        .filter(ciOption -> ciOption.name().equals(infra.toUpperCase() + "_" + GIT_AUTH_TOKEN.name()))
-                        .findFirst()
-                        .map(ciOption -> ciOption.findInProperties(systemProperties, userProperties).orElse(null))
-                        .orElse(null)
+                .map(infra -> Arrays.stream(CiOption.values())
+                    .filter(ciOption -> ciOption.name().equals(infra.toUpperCase() + "_" + GIT_AUTH_TOKEN.name()))
+                    .findFirst()
+                    .map(ciOption -> ciOption.findInProperties(systemProperties, userProperties).orElse(null))
+                    .orElseGet(() -> {
+                        final String propName = infra + "." + GIT_AUTH_TOKEN.getPropertyName();
+                        final String systemPropName = CiOption.systemPropertyName(propName);
+                        return Optional.ofNullable(userProperties.getProperty(propName))
+                            .orElseGet(() -> systemProperties.getProperty(systemPropName));
+                    })
                 );
         }
     },

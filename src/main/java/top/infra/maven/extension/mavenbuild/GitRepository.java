@@ -151,9 +151,12 @@ public class GitRepository {
                 headers.put("PRIVATE-TOKEN", this.token);
             }
 
+            final String sourceFilePath = sourceFile.startsWith("/") ? sourceFile.substring(1) : sourceFile;
+
             final Optional<Integer> status;
             if (PATTERN_GITLAB_URL.matcher(this.repo).matches()) {
-                fromUrl = this.repo + sourceFile.replaceAll("/", "%2F") + "?ref=" + this.repoRef;
+                fromUrl = (this.repo.endsWith("/") ? this.repo : this.repo + "/")
+                    + sourceFilePath.replaceAll("/", "%2F") + "?ref=" + this.repoRef;
                 final String saveToFile = targetFile + ".json";
                 statusOrException = DownloadUtils.download(logger, fromUrl, saveToFile, headers, 3);
                 status = statusOrException.getKey();
@@ -171,7 +174,8 @@ public class GitRepository {
                     }
                 }
             } else {
-                fromUrl = this.repo + "/raw/" + this.repoRef + "/" + sourceFile;
+                fromUrl = (this.repo.endsWith("/") ? this.repo.substring(0, this.repo.length() - 1) : this.repo)
+                    + "/raw/" + this.repoRef + "/" + sourceFilePath;
                 statusOrException = DownloadUtils.download(logger, fromUrl, targetFile, headers, 3);
                 status = statusOrException.getKey();
             }
