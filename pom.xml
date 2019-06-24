@@ -106,7 +106,7 @@
                         <preBuildHookScript>setup</preBuildHookScript>
                         <properties>
                             <infrastructure>opensource</infrastructure>
-                            <private.sonarqube.host.url>http://my-sonarqube:9000</private.sonarqube.host.url>
+                            <private.sonar.host.url>http://my-sonarqube:9000</private.sonar.host.url>
                             <site>true</site>
                         </properties>
                         <projectsDirectory>${project.basedir}/src/it</projectsDirectory>

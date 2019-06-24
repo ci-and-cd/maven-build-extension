@@ -423,18 +423,7 @@ public enum CiOption {
             final Properties systemProperties,
             final Properties userProperties
         ) {
-            return INFRASTRUCTURE.getValue(gitProperties, systemProperties, userProperties)
-                .map(infra -> Arrays.stream(CiOption.values())
-                    .filter(ciOption -> ciOption.name().equals(infra.toUpperCase() + "_" + GIT_AUTH_TOKEN.name()))
-                    .findFirst()
-                    .map(ciOption -> ciOption.findInProperties(systemProperties, userProperties).orElse(null))
-                    .orElseGet(() -> {
-                        final String propName = infra + "." + GIT_AUTH_TOKEN.getPropertyName();
-                        final String systemPropName = CiOption.systemPropertyName(propName);
-                        return Optional.ofNullable(userProperties.getProperty(propName))
-                            .orElseGet(() -> systemProperties.getProperty(systemPropName));
-                    })
-                );
+            return getInfrastructureSpecificValue(GIT_AUTH_TOKEN, gitProperties, systemProperties, userProperties);
         }
     },
     GIT_COMMIT_ID_SKIP("git.commit.id.skip", BOOL_STRING_FALSE),
@@ -449,28 +438,22 @@ public enum CiOption {
             final Properties systemProperties,
             final Properties userProperties
         ) {
+            final Optional<String> found = getInfrastructureSpecificValue(GIT_PREFIX, gitProperties, systemProperties, userProperties);
+
             final Optional<String> result;
-
-            final GitlabCiVariables gitlabCi = new GitlabCiVariables(systemProperties);
-            final Optional<String> infrastructure = INFRASTRUCTURE.findInProperties(systemProperties, userProperties);
-            final boolean infraOpenSource = infrastructure.map(INFRASTRUCTURE_OPENSOURCE::equals).orElse(FALSE);
-            final boolean infraPrivate = infrastructure.map(INFRASTRUCTURE_PRIVATE::equals).orElse(FALSE);
-
-            final Optional<String> gitPrefixFromOriginUrl = gitProperties.remoteOriginUrl()
-                .map(url -> url.startsWith("http")
-                    ? urlWithoutPath(url).orElse(null)
-                    : domainOrHostFromUrl(url).map(value -> "http://" + value).orElse(null));
-
-            if (infraOpenSource) {
-                result = OPENSOURCE_GIT_PREFIX.getValue(gitProperties, systemProperties, userProperties);
-            } else if (infraPrivate) {
-                result = PRIVATE_GIT_PREFIX.getValue(gitProperties, systemProperties, userProperties);
-            } else if (gitlabCi.ciProjectUrl().isPresent()) {
-                result = gitlabCi.ciProjectUrl().map(url -> urlWithoutPath(url).orElse(null));
+            if (found.isPresent()) {
+                result = found;
             } else {
-                result = gitPrefixFromOriginUrl;
+                final GitlabCiVariables gitlabCi = new GitlabCiVariables(systemProperties);
+                if (gitlabCi.ciProjectUrl().isPresent()) {
+                    result = gitlabCi.ciProjectUrl().map(url -> urlWithoutPath(url).orElse(null));
+                } else {
+                    result = gitProperties.remoteOriginUrl()
+                        .map(url -> url.startsWith("http")
+                            ? urlWithoutPath(url).orElse(null)
+                            : domainOrHostFromUrl(url).map(value -> "http://" + value).orElse(null));
+                }
             }
-
             return result;
         }
     },
@@ -800,7 +783,20 @@ public enum CiOption {
                 : super.getValue(gitProperties, systemProperties, userProperties);
         }
     },
-    NEXUS3("nexus3"),
+
+    /**
+     * TODO Replace nexus3 with DAV maven site or something else.
+     */
+    NEXUS3("nexus3") {
+        @Override
+        protected Optional<String> calculateValue(
+            final GitProperties gitProperties,
+            final Properties systemProperties,
+            final Properties userProperties
+        ) {
+            return getInfrastructureSpecificValue(NEXUS3, gitProperties, systemProperties, userProperties);
+        }
+    },
 
     OPENSOURCE_GIT_AUTH_TOKEN("opensource.git.auth.token") {
         @Override
@@ -834,7 +830,7 @@ public enum CiOption {
     },
     // OPENSOURCE_MVNSITE_PASSWORD("opensource.mvnsite.password"),
     // OPENSOURCE_MVNSITE_USERNAME("opensource.mvnsite.username"),
-    OPENSOURCE_NEXUS3_REPOSITORY("opensource.nexus3.repository", "http://nexus3:28081/nexus/repository") {
+    OPENSOURCE_NEXUS3("opensource.nexus3", "http://nexus3:28081/nexus/") {
         @Override
         protected Optional<String> calculateValue(
             final GitProperties gitProperties,
@@ -845,11 +841,25 @@ public enum CiOption {
                 .map(INFRASTRUCTURE_OPENSOURCE::equals).orElse(FALSE);
 
             return infrastructureMatch
-                ? NEXUS3.getValue(gitProperties, systemProperties, userProperties).map(value -> value + "/nexus/repository")
+                ? NEXUS3.getValue(gitProperties, systemProperties, userProperties)
                 : Optional.empty();
         }
     },
-    OPENSOURCE_SONARQUBE_HOST_URL("opensource.sonarqube.host.url", "https://sonarqube.com"),
+    OPENSOURCE_SONAR_HOST_URL("opensource.sonar.host.url", "https://sonarqube.com") {
+        @Override
+        protected Optional<String> calculateValue(
+            final GitProperties gitProperties,
+            final Properties systemProperties,
+            final Properties userProperties
+        ) {
+            final Boolean infrastructureMatch = INFRASTRUCTURE.findInProperties(systemProperties, userProperties)
+                .map(INFRASTRUCTURE_OPENSOURCE::equals).orElse(FALSE);
+
+            return infrastructureMatch
+                ? SONAR_HOST_URL.findInProperties(systemProperties, userProperties)
+                : Optional.empty();
+        }
+    },
     /**
      * Determine current is origin (original) or forked.
      */
@@ -921,7 +931,7 @@ public enum CiOption {
                 : Optional.empty();
         }
     },
-    PRIVATE_NEXUS3_REPOSITORY("private.nexus3.repository", "http://nexus3:28081/nexus/repository") {
+    PRIVATE_NEXUS3("private.nexus3", "http://nexus3:28081/nexus/") {
         @Override
         protected Optional<String> calculateValue(
             final GitProperties gitProperties,
@@ -932,11 +942,25 @@ public enum CiOption {
                 .map(INFRASTRUCTURE_PRIVATE::equals).orElse(FALSE);
 
             return infrastructureMatch
-                ? NEXUS3.getValue(gitProperties, systemProperties, userProperties).map(value -> value + "/nexus/repository")
+                ? NEXUS3.getValue(gitProperties, systemProperties, userProperties)
                 : Optional.empty();
         }
     },
-    PRIVATE_SONARQUBE_HOST_URL("private.sonarqube.host.url", "http://sonarqube:9000"),
+    PRIVATE_SONAR_HOST_URL("private.sonar.host.url", "http://sonarqube:9000") {
+        @Override
+        protected Optional<String> calculateValue(
+            final GitProperties gitProperties,
+            final Properties systemProperties,
+            final Properties userProperties
+        ) {
+            final Boolean infrastructureMatch = INFRASTRUCTURE.findInProperties(systemProperties, userProperties)
+                .map(INFRASTRUCTURE_PRIVATE::equals).orElse(FALSE);
+
+            return infrastructureMatch
+                ? SONAR_HOST_URL.findInProperties(systemProperties, userProperties)
+                : Optional.empty();
+        }
+    },
     /**
      * Auto determine current build publish channel by current build ref name.<br/>
      * snapshot or release
@@ -1056,26 +1080,17 @@ public enum CiOption {
             final boolean sonar = SONAR.getValue(gitProperties, systemProperties, userProperties)
                 .map(Boolean::parseBoolean).orElse(FALSE);
 
-            return sonar
-                ? INFRASTRUCTURE.getValue(gitProperties, systemProperties, userProperties)
-                .map(infrastructure -> {
-                    final String value;
-                    switch (infrastructure) {
-                        case INFRASTRUCTURE_OPENSOURCE:
-                            value = OPENSOURCE_SONARQUBE_HOST_URL
-                                .getValue(gitProperties, systemProperties, userProperties).orElse(null);
-                            break;
-                        case INFRASTRUCTURE_PRIVATE:
-                            value = PRIVATE_SONARQUBE_HOST_URL
-                                .getValue(gitProperties, systemProperties, userProperties).orElse(null);
-                            break;
-                        default:
-                            value = String.format("${%s.sonarqube.host.url}", infrastructure);
-                            break;
-                    }
-                    return value;
-                })
-                : Optional.empty();
+            final Optional<String> result;
+            if (sonar) {
+                result = Optional.ofNullable(
+                    getInfrastructureSpecificValue(SONAR_HOST_URL, gitProperties, systemProperties, userProperties)
+                        .orElseGet(() -> INFRASTRUCTURE.getValue(gitProperties, systemProperties, userProperties)
+                            .map(infra -> String.format("${%s.sonar.host.url}", infra)).orElse(null))
+                );
+            } else {
+                result = Optional.empty();
+            }
+            return result;
         }
     },
     SONAR_LOGIN("sonar.login") {
@@ -1340,6 +1355,26 @@ public enum CiOption {
             result = Optional.empty();
         }
         return result;
+    }
+
+    private static Optional<String> getInfrastructureSpecificValue(
+        final CiOption ciOption,
+        final GitProperties gitProperties,
+        final Properties systemProperties,
+        final Properties userProperties
+    ) {
+        return INFRASTRUCTURE.getValue(gitProperties, systemProperties, userProperties)
+            .map(infra -> Arrays.stream(CiOption.values())
+                .filter(opt -> opt.name().equals(infra.toUpperCase() + "_" + ciOption.name()))
+                .findFirst()
+                .map(opt -> opt.findInProperties(systemProperties, userProperties).orElse(null))
+                .orElseGet(() -> {
+                    final String propName = infra + "." + ciOption.getPropertyName();
+                    final String systemPropName = CiOption.systemPropertyName(propName);
+                    return Optional.ofNullable(userProperties.getProperty(propName))
+                        .orElseGet(() -> systemProperties.getProperty(systemPropName));
+                })
+            );
     }
 
     private static Optional<String> urlWithoutPath(final String url) {

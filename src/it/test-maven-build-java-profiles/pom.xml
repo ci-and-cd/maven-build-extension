@@ -339,7 +339,7 @@
     <properties>
         <git-commit-id-plugin.version>2.2.6</git-commit-id-plugin.version>
 
-        <private.nexus3.repository>http://my-nexus3:28081/nexus/repository</private.nexus3.repository>
+        <private.nexus3>http://my-nexus3:28081/nexus/</private.nexus3>
 
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
