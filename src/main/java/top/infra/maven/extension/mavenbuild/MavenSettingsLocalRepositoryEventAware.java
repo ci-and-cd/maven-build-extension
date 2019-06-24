@@ -1,17 +1,21 @@
 package top.infra.maven.extension.mavenbuild;
 
 import static top.infra.maven.extension.mavenbuild.CiOptionEventAware.ORDER_CI_OPTION;
-import static top.infra.maven.extension.mavenbuild.Constants.USER_PROPERTY_SETTINGS_LOCALREPOSITORY;
+import static top.infra.maven.extension.mavenbuild.SystemToUserPropertiesEventAware.copyOrSetDefaultToUserProps;
 import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.isEmpty;
+
+import java.util.Properties;
 
 import javax.inject.Inject;
 import javax.inject.Named;
 import javax.inject.Singleton;
 
+import org.apache.maven.eventspy.EventSpy.Context;
 import org.apache.maven.execution.MavenExecutionRequest;
 import org.apache.maven.settings.building.SettingsBuildingRequest;
 import org.apache.maven.settings.building.SettingsBuildingResult;
 
+import top.infra.maven.extension.mavenbuild.utils.MavenUtils;
 import top.infra.maven.logging.Logger;
 import top.infra.maven.logging.LoggerPlexusImpl;
 
@@ -23,6 +27,8 @@ import top.infra.maven.logging.LoggerPlexusImpl;
 public class MavenSettingsLocalRepositoryEventAware implements MavenEventAware {
 
     public static final int ORDER_MAVEN_SETTINGS_LOCALREPOSITORY = ORDER_CI_OPTION + 1;
+
+    private static final String USER_PROPERTY_SETTINGS_LOCALREPOSITORY = "settings.localRepository";
 
     private final Logger logger;
 
@@ -43,8 +49,21 @@ public class MavenSettingsLocalRepositoryEventAware implements MavenEventAware {
     }
 
     @Override
+    public void onInit(final Context context) {
+        final Properties systemProperties = MavenUtils.systemProperties(context);
+        final Properties userProperties = MavenUtils.userProperties(context);
+
+        copyOrSetDefaultToUserProps(
+            systemProperties,
+            userProperties,
+            USER_PROPERTY_SETTINGS_LOCALREPOSITORY,
+            null
+        );
+    }
+
+    @Override
     public void onSettingsBuildingRequest(final SettingsBuildingRequest request, final CiOptionAccessor ciOpts) {
-        this.settingsLocalRepository = request.getUserProperties().getProperty(USER_PROPERTY_SETTINGS_LOCALREPOSITORY);
+        // no-op
     }
 
     @Override

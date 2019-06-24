@@ -6,6 +6,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import javax.inject.Inject;
@@ -52,19 +53,19 @@ public class SystemToUserPropertiesEventAware implements MavenEventAware {
         final Properties systemProperties = MavenUtils.systemProperties(context);
         final Properties userProperties = MavenUtils.userProperties(context);
 
-        if (userProperties.getProperty(PROP_MAVEN_MULTIMODULEPROJECTDIRECTORY) == null) {
-            final String mavenMultiModuleProjectDirectory = systemProperties.getProperty(PROP_MAVEN_MULTIMODULEPROJECTDIRECTORY);
-            if (mavenMultiModuleProjectDirectory != null) {
-                userProperties.setProperty(PROP_MAVEN_MULTIMODULEPROJECTDIRECTORY, mavenMultiModuleProjectDirectory);
-            } else {
+        copyOrSetDefaultToUserProps(
+            systemProperties,
+            userProperties,
+            PROP_MAVEN_MULTIMODULEPROJECTDIRECTORY,
+            () -> {
                 final String systemUserDir = SystemUtils.systemUserDir();
                 logger.warn(String.format(
                     "Value of system property [%s] not found, use user.dir [%s] instead.",
                     PROP_MAVEN_MULTIMODULEPROJECTDIRECTORY, systemUserDir
                 ));
-                userProperties.setProperty(PROP_MAVEN_MULTIMODULEPROJECTDIRECTORY, systemUserDir);
+                return systemUserDir;
             }
-        }
+        );
 
         final List<String> propsToCopy = propsToCopy(systemProperties, userProperties);
 
@@ -95,5 +96,34 @@ public class SystemToUserPropertiesEventAware implements MavenEventAware {
                 .filter(name -> !userProperties.containsKey(name))
                 .collect(Collectors.toList()))
             .orElse(Collections.emptyList());
+    }
+
+    static String copyOrSetDefaultToUserProps(
+        final Properties systemProperties,
+        final Properties userProperties,
+        final String name,
+        final Supplier<String> defaultValue
+    ) {
+        final String result;
+
+        final String foundInUserProperties = userProperties.getProperty(name);
+        if (foundInUserProperties == null) {
+            final String foundInSystemProperties = systemProperties.getProperty(name);
+            if (foundInSystemProperties == null) {
+                if (defaultValue != null) {
+                    result = defaultValue.get();
+                    userProperties.setProperty(name, result);
+                } else {
+                    result = null;
+                }
+            } else {
+                result = foundInSystemProperties;
+                userProperties.setProperty(name, result);
+            }
+        } else {
+            result = foundInUserProperties;
+        }
+
+        return result;
     }
 }

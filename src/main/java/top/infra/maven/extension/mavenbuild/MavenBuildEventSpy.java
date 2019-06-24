@@ -140,8 +140,11 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
     }
 
     public void afterInit(final Context context, final CiOptionAccessor ciOpts) {
+        // try to read settings.localRepository from request.userProperties
+        assert ORDER_CI_OPTION < ORDER_MAVEN_SETTINGS_LOCALREPOSITORY;
         // download maven settings.xml, settings-security.xml (optional) and toolchains.xml
         assert ORDER_CI_OPTION < ORDER_MAVEN_SETTINGS_FILES;
+        assert ORDER_MAVEN_SETTINGS_LOCALREPOSITORY < ORDER_MAVEN_SETTINGS_FILES;
         // warn about absent env.VARIABLEs in settings.xml's server tags
         assert ORDER_MAVEN_SETTINGS_FILES < ORDER_MAVEN_SETTINGS_SERVERS;
 
@@ -160,8 +163,6 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
             logger.info(String.format("onEvent SettingsBuildingRequest. userSettingsSource: [%s]", request.getUserSettingsSource()));
         }
 
-        // try to read settings.localRepository from request.userProperties
-        assert ORDER_CI_OPTION < ORDER_MAVEN_SETTINGS_LOCALREPOSITORY;
         // set custom settings file (if present) into request.userSettingsFile
         assert ORDER_MAVEN_SETTINGS_LOCALREPOSITORY < ORDER_MAVEN_SETTINGS_FILES;
 
