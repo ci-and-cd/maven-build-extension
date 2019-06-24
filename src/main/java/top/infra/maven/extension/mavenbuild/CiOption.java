@@ -841,7 +841,7 @@ public enum CiOption {
                 .map(INFRASTRUCTURE_OPENSOURCE::equals).orElse(FALSE);
 
             return infrastructureMatch
-                ? NEXUS3.getValue(gitProperties, systemProperties, userProperties)
+                ? NEXUS3.findInProperties(systemProperties, userProperties)
                 : Optional.empty();
         }
     },
@@ -942,7 +942,7 @@ public enum CiOption {
                 .map(INFRASTRUCTURE_PRIVATE::equals).orElse(FALSE);
 
             return infrastructureMatch
-                ? NEXUS3.getValue(gitProperties, systemProperties, userProperties)
+                ? NEXUS3.findInProperties(systemProperties, userProperties)
                 : Optional.empty();
         }
     },
@@ -1367,7 +1367,7 @@ public enum CiOption {
             .map(infra -> Arrays.stream(CiOption.values())
                 .filter(opt -> opt.name().equals(infra.toUpperCase() + "_" + ciOption.name()))
                 .findFirst()
-                .map(opt -> opt.findInProperties(systemProperties, userProperties).orElse(null))
+                .map(opt -> opt.getValue(gitProperties, systemProperties, userProperties).orElse(null))
                 .orElseGet(() -> {
                     final String propName = infra + "." + ciOption.getPropertyName();
                     final String systemPropName = CiOption.systemPropertyName(propName);
