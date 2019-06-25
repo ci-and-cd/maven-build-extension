@@ -110,19 +110,17 @@ public class MavenGoalEditor {
                 // goals need to alter
                 if (mvnDeployPublishSegregation) {
                     if (GOAL_PACKAGE.equals(goal)) {
-                        resultGoals.add(goal);
                         resultGoals.add(GOAL_DEPLOY); // deploy artifacts into -DaltDeploymentRepository=wagonRepository
                         if (logger.isInfoEnabled()) {
-                            logger.info(String.format("onMavenExecutionRequest add goal %s after %s (%s: %s)",
-                                GOAL_DEPLOY, goal,
+                            logger.info(String.format("onMavenExecutionRequest replace goal %s to %s (%s: %s)",
+                                goal, GOAL_DEPLOY,
                                 MVN_DEPLOY_PUBLISH_SEGREGATION.getEnvVariableName(), this.mvnDeployPublishSegregation.toString()));
                         }
                     } else {
-                        resultGoals.add(goal);
                         resultGoals.add(GOAL_DEPLOY); // deploy artifacts into -DaltDeploymentRepository=wagonRepository
                         if (logger.isInfoEnabled()) {
-                            logger.info(String.format("onMavenExecutionRequest add goal %s after %s (%s: %s)",
-                                GOAL_DEPLOY, goal,
+                            logger.info(String.format("onMavenExecutionRequest replace goal %s to %s (%s: %s)",
+                                goal, GOAL_DEPLOY,
                                 MVN_DEPLOY_PUBLISH_SEGREGATION.getEnvVariableName(), this.mvnDeployPublishSegregation.toString()));
                         }
                     }
