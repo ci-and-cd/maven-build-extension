@@ -425,6 +425,23 @@ public enum CiOption {
         ) {
             return getInfrastructureSpecificValue(GIT_AUTH_TOKEN, gitProperties, systemProperties, userProperties);
         }
+
+        @Override
+        public Optional<String> setProperties(
+            final GitProperties gitProperties,
+            final Properties systemProperties,
+            final Properties userProperties,
+            final Properties properties
+        ) {
+            final Optional<String> result = super.setProperties(gitProperties, systemProperties, userProperties, properties);
+
+            result.ifPresent(value ->
+                INFRASTRUCTURE.getValue(gitProperties, systemProperties, userProperties).ifPresent(infra ->
+                    properties.setProperty(infra + "." + this.getPropertyName(), value))
+            );
+
+            return result;
+        }
     },
     GIT_COMMIT_ID_SKIP("git.commit.id.skip", BOOL_STRING_FALSE),
     /**
@@ -454,6 +471,23 @@ public enum CiOption {
                             : domainOrHostFromUrl(url).map(value -> "http://" + value).orElse(null));
                 }
             }
+            return result;
+        }
+
+        @Override
+        public Optional<String> setProperties(
+            final GitProperties gitProperties,
+            final Properties systemProperties,
+            final Properties userProperties,
+            final Properties properties
+        ) {
+            final Optional<String> result = super.setProperties(gitProperties, systemProperties, userProperties, properties);
+
+            result.ifPresent(value ->
+                INFRASTRUCTURE.getValue(gitProperties, systemProperties, userProperties).ifPresent(infra ->
+                    properties.setProperty(infra + "." + this.getPropertyName(), value))
+            );
+
             return result;
         }
     },
@@ -830,7 +864,7 @@ public enum CiOption {
                 : Optional.empty();
         }
     },
-    OPENSOURCE_GIT_PREFIX("opensource.git.prefix", "https://github.com") {
+    OPENSOURCE_GIT_PREFIX("opensource.git.prefix") {
         @Override
         protected Optional<String> calculateValue(
             final GitProperties gitProperties,
@@ -841,13 +875,13 @@ public enum CiOption {
                 .map(INFRASTRUCTURE_OPENSOURCE::equals).orElse(FALSE);
 
             return infrastructureMatch
-                ? GIT_PREFIX.findInProperties(systemProperties, userProperties)
+                ? Optional.of(GIT_PREFIX.findInProperties(systemProperties, userProperties).orElse("https://github.com"))
                 : Optional.empty();
         }
     },
     // OPENSOURCE_MVNSITE_PASSWORD("opensource.mvnsite.password"),
     // OPENSOURCE_MVNSITE_USERNAME("opensource.mvnsite.username"),
-    OPENSOURCE_NEXUS3("opensource.nexus3", "http://nexus3:28081/nexus/") {
+    OPENSOURCE_NEXUS3("opensource.nexus3") {
         @Override
         protected Optional<String> calculateValue(
             final GitProperties gitProperties,
@@ -858,11 +892,11 @@ public enum CiOption {
                 .map(INFRASTRUCTURE_OPENSOURCE::equals).orElse(FALSE);
 
             return infrastructureMatch
-                ? NEXUS3.findInProperties(systemProperties, userProperties)
+                ? Optional.of(NEXUS3.findInProperties(systemProperties, userProperties).orElse("http://nexus3:28081/nexus/"))
                 : Optional.empty();
         }
     },
-    OPENSOURCE_SONAR_HOST_URL("opensource.sonar.host.url", "https://sonarqube.com") {
+    OPENSOURCE_SONAR_HOST_URL("opensource.sonar.host.url") {
         @Override
         protected Optional<String> calculateValue(
             final GitProperties gitProperties,
@@ -873,7 +907,7 @@ public enum CiOption {
                 .map(INFRASTRUCTURE_OPENSOURCE::equals).orElse(FALSE);
 
             return infrastructureMatch
-                ? SONAR_HOST_URL.findInProperties(systemProperties, userProperties)
+                ? Optional.of(SONAR_HOST_URL.findInProperties(systemProperties, userProperties).orElse("https://sonarqube.com"))
                 : Optional.empty();
         }
     },
@@ -933,7 +967,7 @@ public enum CiOption {
                 : Optional.empty();
         }
     },
-    PRIVATE_GIT_PREFIX("private.git.prefix", "http://gitlab") {
+    PRIVATE_GIT_PREFIX("private.git.prefix") {
         @Override
         protected Optional<String> calculateValue(
             final GitProperties gitProperties,
@@ -944,11 +978,11 @@ public enum CiOption {
                 .map(INFRASTRUCTURE_PRIVATE::equals).orElse(FALSE);
 
             return infrastructureMatch
-                ? GIT_PREFIX.findInProperties(systemProperties, userProperties)
+                ? Optional.of(GIT_PREFIX.findInProperties(systemProperties, userProperties).orElse("http://gitlab"))
                 : Optional.empty();
         }
     },
-    PRIVATE_NEXUS3("private.nexus3", "http://nexus3:28081/nexus/") {
+    PRIVATE_NEXUS3("private.nexus3") {
         @Override
         protected Optional<String> calculateValue(
             final GitProperties gitProperties,
@@ -959,11 +993,11 @@ public enum CiOption {
                 .map(INFRASTRUCTURE_PRIVATE::equals).orElse(FALSE);
 
             return infrastructureMatch
-                ? NEXUS3.findInProperties(systemProperties, userProperties)
+                ? Optional.of(NEXUS3.findInProperties(systemProperties, userProperties).orElse("http://nexus3:28081/nexus/"))
                 : Optional.empty();
         }
     },
-    PRIVATE_SONAR_HOST_URL("private.sonar.host.url", "http://sonarqube:9000") {
+    PRIVATE_SONAR_HOST_URL("private.sonar.host.url") {
         @Override
         protected Optional<String> calculateValue(
             final GitProperties gitProperties,
@@ -974,7 +1008,7 @@ public enum CiOption {
                 .map(INFRASTRUCTURE_PRIVATE::equals).orElse(FALSE);
 
             return infrastructureMatch
-                ? SONAR_HOST_URL.findInProperties(systemProperties, userProperties)
+                ? Optional.of(SONAR_HOST_URL.findInProperties(systemProperties, userProperties).orElse("http://sonarqube:9000"))
                 : Optional.empty();
         }
     },
@@ -1107,6 +1141,23 @@ public enum CiOption {
             } else {
                 result = Optional.empty();
             }
+            return result;
+        }
+
+        @Override
+        public Optional<String> setProperties(
+            final GitProperties gitProperties,
+            final Properties systemProperties,
+            final Properties userProperties,
+            final Properties properties
+        ) {
+            final Optional<String> result = super.setProperties(gitProperties, systemProperties, userProperties, properties);
+
+            result.ifPresent(value ->
+                INFRASTRUCTURE.getValue(gitProperties, systemProperties, userProperties).ifPresent(infra ->
+                    properties.setProperty(infra + "." + this.getPropertyName(), value))
+            );
+
             return result;
         }
     },
