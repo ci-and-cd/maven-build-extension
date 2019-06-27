@@ -58,7 +58,7 @@ public class MavenSettingsFilesEventAware implements MavenEventAware {
         final boolean offline = MavenUtils.cmdArgOffline(context).orElse(FALSE);
         final boolean update = MavenUtils.cmdArgUpdate(context).orElse(FALSE);
 
-        ciOpts.createCacheInfrastructure();
+        ciOpts.createSettingsCache();
         logger.info(">>>>>>>>>> ---------- download settings.xml and settings-security.xml ---------- >>>>>>>>>>");
         this.downloadSettingsXml(offline, update);
         this.downloadSettingsSecurityXml(offline, update);

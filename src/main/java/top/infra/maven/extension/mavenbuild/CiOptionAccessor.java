@@ -104,7 +104,7 @@ public class CiOptionAccessor {
         final Properties properties = new Properties();
 
         this.getOption(InfraOption.CI_OPTS_FILE).ifPresent(ciOptsFile -> {
-            this.createCacheInfrastructure();
+            this.createSettingsCache();
             final boolean offline = MavenUtils.cmdArgOffline(this.systemProperties).orElse(FALSE);
             final boolean update = MavenUtils.cmdArgUpdate(this.systemProperties).orElse(FALSE);
             this.gitRepository(logger).ifPresent(repo -> {
@@ -122,12 +122,12 @@ public class CiOptionAccessor {
         return properties;
     }
 
-    public String createCacheInfrastructure() {
-        return this.createCache(InfraOption.CACHE_SETTINGS_PATH);
+    public String createSessionCache() {
+        return this.createCache(CACHE_SESSION_PATH);
     }
 
-    public String createCacheSession() {
-        return this.createCache(CACHE_SESSION_PATH);
+    public String createSettingsCache() {
+        return this.createCache(InfraOption.CACHE_SETTINGS_PATH);
     }
 
     public Optional<String> getOption(final CiOption ciOption) {

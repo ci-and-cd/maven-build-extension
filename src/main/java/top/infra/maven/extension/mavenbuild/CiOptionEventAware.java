@@ -64,8 +64,8 @@ public class CiOptionEventAware implements MavenEventAware {
                     systemProperties,
                     userProperties
                 );
-                result.createCacheInfrastructure();
-                result.createCacheSession();
+                result.createSettingsCache();
+                result.createSessionCache();
 
                 checkGitAuthToken(logger, result);
 
