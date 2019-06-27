@@ -294,9 +294,6 @@ public enum MavenOption implements CiOption {
                 .map(Boolean::parseBoolean).orElse(FALSE) ? BOOL_STRING_TRUE : null);
         }
     },
-    SONAR_LOGIN("sonar.login"),
-    SONAR_ORGANIZATION("sonar.organization"),
-    SONAR_PASSWORD("sonar.password"),
     SPOTBUGS_SKIP("spotbugs.skip") {
         @Override
         public Optional<String> calculateValue(

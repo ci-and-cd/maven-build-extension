@@ -13,8 +13,8 @@ before_install:
   # More options -> Settings -> Environment variables -> Add
   # CI_OPT_GPG_KEYNAME
   # CI_OPT_GPG_PASSPHRASE
-  # CI_OPT_MAVEN_CENTRAL_PASS
-  # CI_OPT_MAVEN_CENTRAL_USER
+  # CI_OPT_OSSRH_NEXUS2_PASS
+  # CI_OPT_OSSRH_NEXUS2_USER
   # on gpg-2.1.11 'pinentry-mode loopback' is invalid option
   #- printf '%s\n' "pinentry-mode loopback" | tee -a ~/.gnupg/gpg.conf;
   - export GPG_TTY=$(tty || echo "");

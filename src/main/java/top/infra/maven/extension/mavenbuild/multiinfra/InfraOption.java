@@ -65,8 +65,7 @@ public enum InfraOption implements CiOption {
             final Properties systemProperties,
             final Properties userProperties
         ) {
-            final Optional<String> dockerRegistryUrl = getInfrastructureSpecificValue(
-                DOCKER_REGISTRY_URL, gitProperties, systemProperties, userProperties);
+            final Optional<String> dockerRegistryUrl = DOCKER_REGISTRY_URL.calculateValue(gitProperties, systemProperties, userProperties);
             return dockerRegistryUrl
                 .flatMap(UrlUtils::domainOrHostFromUrl)
                 .flatMap(value -> Optional.ofNullable(value.endsWith("docker.io") ? null : value));
@@ -389,6 +388,87 @@ public enum InfraOption implements CiOption {
     // OSSRH_MVNSITE_PASSWORD("ossrh.mvnsite.password"),
     // OSSRH_MVNSITE_USERNAME("ossrh.mvnsite.username"),
     SONAR_HOST_URL("sonar.host.url") {
+        @Override
+        public Optional<String> calculateValue(
+            final GitProperties gitProperties,
+            final Properties systemProperties,
+            final Properties userProperties
+        ) {
+            return getInfrastructureSpecificValue(this, gitProperties, systemProperties, userProperties);
+        }
+
+        @Override
+        public Optional<String> setProperties(
+            final GitProperties gitProperties,
+            final Properties systemProperties,
+            final Properties userProperties,
+            final Properties properties
+        ) {
+            final Optional<String> result = super.setProperties(gitProperties, systemProperties, userProperties, properties);
+
+            result.ifPresent(value ->
+                INFRASTRUCTURE.getValue(gitProperties, systemProperties, userProperties).ifPresent(infra ->
+                    properties.setProperty(infra + "." + this.getPropertyName(), value))
+            );
+
+            return result;
+        }
+    },
+    SONAR_LOGIN("sonar.login") {
+        @Override
+        public Optional<String> calculateValue(
+            final GitProperties gitProperties,
+            final Properties systemProperties,
+            final Properties userProperties
+        ) {
+            return getInfrastructureSpecificValue(this, gitProperties, systemProperties, userProperties);
+        }
+
+        @Override
+        public Optional<String> setProperties(
+            final GitProperties gitProperties,
+            final Properties systemProperties,
+            final Properties userProperties,
+            final Properties properties
+        ) {
+            final Optional<String> result = super.setProperties(gitProperties, systemProperties, userProperties, properties);
+
+            result.ifPresent(value ->
+                INFRASTRUCTURE.getValue(gitProperties, systemProperties, userProperties).ifPresent(infra ->
+                    properties.setProperty(infra + "." + this.getPropertyName(), value))
+            );
+
+            return result;
+        }
+    },
+    SONAR_ORGANIZATION("sonar.organization") {
+        @Override
+        public Optional<String> calculateValue(
+            final GitProperties gitProperties,
+            final Properties systemProperties,
+            final Properties userProperties
+        ) {
+            return getInfrastructureSpecificValue(this, gitProperties, systemProperties, userProperties);
+        }
+
+        @Override
+        public Optional<String> setProperties(
+            final GitProperties gitProperties,
+            final Properties systemProperties,
+            final Properties userProperties,
+            final Properties properties
+        ) {
+            final Optional<String> result = super.setProperties(gitProperties, systemProperties, userProperties, properties);
+
+            result.ifPresent(value ->
+                INFRASTRUCTURE.getValue(gitProperties, systemProperties, userProperties).ifPresent(infra ->
+                    properties.setProperty(infra + "." + this.getPropertyName(), value))
+            );
+
+            return result;
+        }
+    },
+    SONAR_PASSWORD("sonar.password") {
         @Override
         public Optional<String> calculateValue(
             final GitProperties gitProperties,

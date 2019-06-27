@@ -8,10 +8,10 @@ import static top.infra.maven.extension.mavenbuild.Constants.BOOL_STRING_TRUE;
 import static top.infra.maven.extension.mavenbuild.multiinfra.InfraOption.DOCKER_REGISTRY;
 import static top.infra.maven.extension.mavenbuild.multiinfra.InfraOption.DOCKER_REGISTRY_URL;
 import static top.infra.maven.extension.mavenbuild.multiinfra.InfraOption.SONAR_HOST_URL;
+import static top.infra.maven.extension.mavenbuild.multiinfra.InfraOption.SONAR_ORGANIZATION;
 import static top.infra.maven.extension.mavenbuild.options.MavenBuildPomOption.GITHUB_GLOBAL_REPOSITORYOWNER;
 import static top.infra.maven.extension.mavenbuild.options.MavenBuildPomOption.SONAR;
 import static top.infra.maven.extension.mavenbuild.options.MavenOption.GENERATEREPORTS;
-import static top.infra.maven.extension.mavenbuild.options.MavenOption.SONAR_ORGANIZATION;
 
 import java.util.Properties;
 
