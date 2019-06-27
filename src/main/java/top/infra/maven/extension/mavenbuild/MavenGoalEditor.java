@@ -2,13 +2,6 @@ package top.infra.maven.extension.mavenbuild;
 
 import static java.util.stream.Collectors.toCollection;
 import static java.util.stream.Collectors.toMap;
-import static top.infra.maven.extension.mavenbuild.CiOption.GIT_REF_NAME;
-import static top.infra.maven.extension.mavenbuild.CiOption.MAVEN_CLEAN_SKIP;
-import static top.infra.maven.extension.mavenbuild.CiOption.MAVEN_INSTALL_SKIP;
-import static top.infra.maven.extension.mavenbuild.CiOption.MVN_DEPLOY_PUBLISH_SEGREGATION;
-import static top.infra.maven.extension.mavenbuild.CiOption.ORIGIN_REPO;
-import static top.infra.maven.extension.mavenbuild.CiOption.PUBLISH_TO_REPO;
-import static top.infra.maven.extension.mavenbuild.CiOption.SITE;
 import static top.infra.maven.extension.mavenbuild.Constants.BOOL_STRING_FALSE;
 import static top.infra.maven.extension.mavenbuild.Constants.BOOL_STRING_TRUE;
 import static top.infra.maven.extension.mavenbuild.Constants.GIT_REF_NAME_DEVELOP;
@@ -28,6 +21,8 @@ import java.util.Optional;
 import java.util.Properties;
 import java.util.function.Function;
 
+import top.infra.maven.extension.mavenbuild.options.MavenBuildExtensionOption;
+import top.infra.maven.extension.mavenbuild.options.MavenOption;
 import top.infra.maven.logging.Logger;
 
 public class MavenGoalEditor {
@@ -43,27 +38,27 @@ public class MavenGoalEditor {
     private static final String PROP_MVN_DEPLOY_PUBLISH_SEGREGATION_GOAL_PACKAGE = "mvn.deploy.publish.segregation.goal.package";
 
     private final Logger logger;
+    private final Boolean generateReports;
     private final String gitRefName;
     private final Boolean mvnDeployPublishSegregation;
     private final Boolean originRepo;
     private final Boolean publishToRepo;
-    private final Boolean site;
 
     public MavenGoalEditor(
         final Logger logger,
+        final Boolean generateReports,
         final String gitRefName,
         final Boolean mvnDeployPublishSegregation,
         final Boolean originRepo,
-        final Boolean publishToRepo,
-        final Boolean site
+        final Boolean publishToRepo
     ) {
         this.logger = logger;
 
+        this.generateReports = generateReports;
         this.gitRefName = gitRefName;
         this.mvnDeployPublishSegregation = mvnDeployPublishSegregation;
         this.originRepo = originRepo;
         this.publishToRepo = publishToRepo;
-        this.site = site;
     }
 
     private static boolean isSiteGoal(final String goal) {
@@ -94,16 +89,16 @@ public class MavenGoalEditor {
                 } else {
                     if (logger.isInfoEnabled()) {
                         logger.info(String.format("onMavenExecutionRequest skip goal %s (%s: %s)",
-                            goal, PUBLISH_TO_REPO.getEnvVariableName(), this.publishToRepo));
+                            goal, MavenBuildExtensionOption.PUBLISH_TO_REPO.getEnvVariableName(), this.publishToRepo));
                     }
                 }
             } else if (isSiteGoal(goal)) {
-                if (this.site == null || this.site) {
+                if (this.generateReports == null || this.generateReports) {
                     resultGoals.add(goal);
                 } else {
                     if (logger.isInfoEnabled()) {
                         logger.info(String.format("onMavenExecutionRequest skip goal %s (%s: %s)",
-                            goal, SITE.getEnvVariableName(), this.site));
+                            goal, MavenOption.GENERATEREPORTS.getEnvVariableName(), this.generateReports));
                     }
                 }
             } else if (GOAL_PACKAGE.equals(goal) || isInstallGoal(goal)) {
@@ -114,14 +109,16 @@ public class MavenGoalEditor {
                         if (logger.isInfoEnabled()) {
                             logger.info(String.format("onMavenExecutionRequest replace goal %s to %s (%s: %s)",
                                 goal, GOAL_DEPLOY,
-                                MVN_DEPLOY_PUBLISH_SEGREGATION.getEnvVariableName(), this.mvnDeployPublishSegregation.toString()));
+                                MavenBuildExtensionOption.MVN_DEPLOY_PUBLISH_SEGREGATION.getEnvVariableName(),
+                                this.mvnDeployPublishSegregation.toString()));
                         }
                     } else {
                         resultGoals.add(GOAL_DEPLOY); // deploy artifacts into -DaltDeploymentRepository=wagonRepository
                         if (logger.isInfoEnabled()) {
                             logger.info(String.format("onMavenExecutionRequest replace goal %s to %s (%s: %s)",
                                 goal, GOAL_DEPLOY,
-                                MVN_DEPLOY_PUBLISH_SEGREGATION.getEnvVariableName(), this.mvnDeployPublishSegregation.toString()));
+                                MavenBuildExtensionOption.MVN_DEPLOY_PUBLISH_SEGREGATION.getEnvVariableName(),
+                                this.mvnDeployPublishSegregation.toString()));
                         }
                     }
                 } else {
@@ -136,8 +133,8 @@ public class MavenGoalEditor {
                     if (logger.isInfoEnabled()) {
                         logger.info(String.format("onMavenExecutionRequest skip goal %s (%s: %s, %s: %s)",
                             goal,
-                            ORIGIN_REPO.getEnvVariableName(), this.originRepo,
-                            GIT_REF_NAME.getEnvVariableName(), this.gitRefName));
+                            MavenBuildExtensionOption.ORIGIN_REPO.getEnvVariableName(), this.originRepo,
+                            MavenBuildExtensionOption.GIT_REF_NAME.getEnvVariableName(), this.gitRefName));
                     }
                 }
             } else {
@@ -156,12 +153,12 @@ public class MavenGoalEditor {
         properties.setProperty(PROP_MVN_DEPLOY_PUBLISH_SEGREGATION_GOAL_INSTALL, BOOL_STRING_FALSE);
         properties.setProperty(PROP_MVN_DEPLOY_PUBLISH_SEGREGATION_GOAL_PACKAGE, BOOL_STRING_FALSE);
         if (requested.contains("clean")) {
-            properties.setProperty(MAVEN_CLEAN_SKIP.getPropertyName(), BOOL_STRING_FALSE);
+            properties.setProperty(MavenOption.MAVEN_CLEAN_SKIP.getPropertyName(), BOOL_STRING_FALSE);
         }
 
         if (this.mvnDeployPublishSegregation) {
             if (notIncludes(requestedPhases, MavenPhase.INSTALL) && notIncludes(resultPhases, MavenPhase.INSTALL)) {
-                properties.setProperty(MAVEN_INSTALL_SKIP.getPropertyName(), BOOL_STRING_TRUE);
+                properties.setProperty(MavenOption.MAVEN_INSTALL_SKIP.getPropertyName(), BOOL_STRING_TRUE);
             }
 
             if (includes(resultPhases, MavenPhase.PACKAGE)) {

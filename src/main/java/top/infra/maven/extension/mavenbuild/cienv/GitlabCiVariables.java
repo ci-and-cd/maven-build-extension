@@ -1,4 +1,4 @@
-package top.infra.maven.extension.mavenbuild;
+package top.infra.maven.extension.mavenbuild.cienv;
 
 import java.util.Optional;
 import java.util.Properties;

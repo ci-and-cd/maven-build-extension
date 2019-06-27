@@ -1,17 +1,17 @@
 package top.infra.maven.extension.mavenbuild;
 
-import static top.infra.maven.extension.mavenbuild.CiOption.PATTERN_VARS_ENV_DOT_CI;
 import static top.infra.maven.extension.mavenbuild.CiOptionEventAware.ORDER_CI_OPTION;
 import static top.infra.maven.extension.mavenbuild.DockerEventAware.ORDER_DOCKER;
 import static top.infra.maven.extension.mavenbuild.GpgEventAware.ORDER_GPG;
 import static top.infra.maven.extension.mavenbuild.MavenGoalEditorEventAware.ORDER_GOAL_EDITOR;
 import static top.infra.maven.extension.mavenbuild.MavenProjectInfoEventAware.ORDER_MAVEN_PROJECT_INFO;
-import static top.infra.maven.extension.mavenbuild.MavenSettingsFilesEventAware.ORDER_MAVEN_SETTINGS_FILES;
 import static top.infra.maven.extension.mavenbuild.MavenSettingsLocalRepositoryEventAware.ORDER_MAVEN_SETTINGS_LOCALREPOSITORY;
 import static top.infra.maven.extension.mavenbuild.MavenSettingsServersEventAware.ORDER_MAVEN_SETTINGS_SERVERS;
 import static top.infra.maven.extension.mavenbuild.PrintInfoEventAware.ORDER_PRINT_INFO;
 import static top.infra.maven.extension.mavenbuild.SystemToUserPropertiesEventAware.ORDER_SYSTEM_TO_USER_PROPERTIES;
 import static top.infra.maven.extension.mavenbuild.model.ProjectBuilderActivatorModelResolver.ORDER_MODEL_RESOLVER;
+import static top.infra.maven.extension.mavenbuild.multiinfra.MavenSettingsFilesEventAware.ORDER_MAVEN_SETTINGS_FILES;
+import static top.infra.maven.extension.mavenbuild.options.CiOptionNames.PATTERN_VARS_ENV_DOT_CI;
 
 import java.util.List;
 import java.util.stream.Collectors;

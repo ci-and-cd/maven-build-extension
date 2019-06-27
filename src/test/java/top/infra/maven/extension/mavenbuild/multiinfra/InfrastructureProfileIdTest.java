@@ -1,9 +1,9 @@
-package top.infra.maven.extension.mavenbuild;
+package top.infra.maven.extension.mavenbuild.multiinfra;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
-import static top.infra.maven.extension.mavenbuild.InfrastructureActivator.profileInfrastructure;
+import static top.infra.maven.extension.mavenbuild.multiinfra.InfrastructureActivator.profileInfrastructure;
 
 import java.util.Optional;
 
@@ -16,10 +16,10 @@ public class InfrastructureProfileIdTest {
 
     @Test
     public void testInfrastructureProfileIds() {
-        this.assertProfile("opensource", "infrastructure_opensource");
-        this.assertProfile("opensource", "infrastructure_opensource-github_site");
-        this.assertProfile("opensource", "infrastructure_opensource-nexus2-staging");
-        this.assertProfile("opensource", "infrastructure_opensource-site");
+        this.assertProfile("ossrh", "infrastructure_ossrh");
+        this.assertProfile("ossrh", "infrastructure_ossrh-github_site");
+        this.assertProfile("ossrh", "infrastructure_ossrh-nexus2_staging");
+        this.assertProfile("ossrh", "infrastructure_ossrh-site");
 
         this.assertProfile("private", "infrastructure_private");
         this.assertProfile("private", "infrastructure_private-site");

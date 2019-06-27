@@ -1,11 +1,11 @@
 package top.infra.maven.extension.mavenbuild;
 
-import static top.infra.maven.extension.mavenbuild.CiOption.PATTERN_VARS_ENV_DOT_CI;
 import static top.infra.maven.extension.mavenbuild.utils.SystemUtils.systemUserHome;
 
 import java.io.File;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.nio.file.Path;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -18,6 +18,11 @@ import javax.inject.Singleton;
 import org.apache.maven.eventspy.EventSpy.Context;
 import org.apache.maven.rtinfo.RuntimeInformation;
 
+import top.infra.maven.extension.mavenbuild.cienv.AppveyorVariables;
+import top.infra.maven.extension.mavenbuild.cienv.GitlabCiVariables;
+import top.infra.maven.extension.mavenbuild.cienv.TravisCiVariables;
+import top.infra.maven.extension.mavenbuild.options.CiOptionNames;
+import top.infra.maven.extension.mavenbuild.options.MavenOption;
 import top.infra.maven.extension.mavenbuild.utils.MavenUtils;
 import top.infra.maven.extension.mavenbuild.utils.PropertiesUtils;
 import top.infra.maven.logging.Logger;
@@ -34,8 +39,6 @@ public class PrintInfoEventAware implements MavenEventAware {
     // @org.codehaus.plexus.component.annotations.Requirement
     private final RuntimeInformation runtime;
 
-    private String rootProjectPathname;
-
     @Inject
     public PrintInfoEventAware(
         final org.codehaus.plexus.logging.Logger logger,
@@ -44,8 +47,6 @@ public class PrintInfoEventAware implements MavenEventAware {
         this.logger = new LoggerPlexusImpl(logger);
 
         this.runtime = runtime;
-
-        this.rootProjectPathname = null;
     }
 
     @Override
@@ -78,14 +79,14 @@ public class PrintInfoEventAware implements MavenEventAware {
         this.printClassPath(context);
 
         logger.info(">>>>>>>>>> ---------- init systemProperties ---------- >>>>>>>>>>");
-        logger.info(PropertiesUtils.toString(systemProperties, PATTERN_VARS_ENV_DOT_CI));
+        logger.info(PropertiesUtils.toString(systemProperties, CiOptionNames.PATTERN_VARS_ENV_DOT_CI));
         logger.info("<<<<<<<<<< ---------- init systemProperties ---------- <<<<<<<<<<");
         logger.info(">>>>>>>>>> ---------- init userProperties ---------- >>>>>>>>>>");
         logger.info(PropertiesUtils.toString(userProperties, null));
         logger.info("<<<<<<<<<< ---------- init userProperties ---------- <<<<<<<<<<");
 
-        this.rootProjectPathname = CiOption.rootProjectPathname(systemProperties);
-        final String artifactId = new File(this.rootProjectPathname).getName();
+        final Path rootProjectPath = MavenOption.rootProjectPath(systemProperties).toAbsolutePath();
+        final String artifactId = new File(rootProjectPath.toString()).getName();
         if (logger.isInfoEnabled()) {
             logger.info(String.format("artifactId: [%s]", artifactId));
         }
@@ -97,7 +98,7 @@ public class PrintInfoEventAware implements MavenEventAware {
             logger.info(String.format("USER [%s]", System.getProperty("user.name")));
             logger.info(String.format("HOME [%s]", systemUserHome()));
             logger.info(String.format("JAVA_HOME [%s]", System.getProperty("java.home")));
-            logger.info(String.format("PWD [%s]", this.rootProjectPathname));
+            logger.info(String.format("PWD [%s]", rootProjectPath));
 
             final String runtimeImplVersion = Runtime.class.getPackage().getImplementationVersion();
             final String javaVersion = runtimeImplVersion != null ? runtimeImplVersion : System.getProperty("java.runtime.version");

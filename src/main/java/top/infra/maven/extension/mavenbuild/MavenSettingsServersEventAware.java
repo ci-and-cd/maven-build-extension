@@ -1,7 +1,7 @@
 package top.infra.maven.extension.mavenbuild;
 
-import static top.infra.maven.extension.mavenbuild.CiOption.MAVEN_SETTINGS_FILE;
-import static top.infra.maven.extension.mavenbuild.MavenSettingsFilesEventAware.ORDER_MAVEN_SETTINGS_FILES;
+import static top.infra.maven.extension.mavenbuild.multiinfra.InfraOption.MAVEN_SETTINGS_FILE;
+import static top.infra.maven.extension.mavenbuild.multiinfra.MavenSettingsFilesEventAware.ORDER_MAVEN_SETTINGS_FILES;
 import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.isEmpty;
 import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.isNotEmpty;
 

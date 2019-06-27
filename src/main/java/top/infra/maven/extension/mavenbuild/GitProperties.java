@@ -1,7 +1,7 @@
 package top.infra.maven.extension.mavenbuild;
 
 import static org.eclipse.jgit.lib.Repository.shortenRefName;
-import static top.infra.maven.extension.mavenbuild.CiOption.GIT_REF_NAME;
+import static top.infra.maven.extension.mavenbuild.options.MavenBuildExtensionOption.GIT_REF_NAME;
 import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.isEmpty;
 import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.notEmpty;
 

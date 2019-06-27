@@ -1,20 +1,16 @@
 package top.infra.maven.extension.mavenbuild;
 
-import static java.lang.Boolean.FALSE;
-import static top.infra.maven.extension.mavenbuild.CiOption.GITHUB_GLOBAL_REPOSITORYOWNER;
-import static top.infra.maven.extension.mavenbuild.CiOption.GIT_AUTH_TOKEN;
-import static top.infra.maven.extension.mavenbuild.CiOption.GIT_REF_NAME;
-import static top.infra.maven.extension.mavenbuild.CiOption.INFRASTRUCTURE;
-import static top.infra.maven.extension.mavenbuild.CiOption.ORIGIN_REPO;
-import static top.infra.maven.extension.mavenbuild.CiOption.PATTERN_VARS_ENV_DOT_CI;
-import static top.infra.maven.extension.mavenbuild.Constants.INFRASTRUCTURE_OPENSOURCE;
 import static top.infra.maven.extension.mavenbuild.SystemToUserPropertiesEventAware.ORDER_SYSTEM_TO_USER_PROPERTIES;
+import static top.infra.maven.extension.mavenbuild.multiinfra.InfraOption.GIT_AUTH_TOKEN;
+import static top.infra.maven.extension.mavenbuild.options.CiOptionNames.PATTERN_VARS_ENV_DOT_CI;
+import static top.infra.maven.extension.mavenbuild.options.MavenBuildExtensionOption.GIT_REF_NAME;
+import static top.infra.maven.extension.mavenbuild.options.MavenBuildPomOption.GITHUB_GLOBAL_REPOSITORYOWNER;
 import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.isEmpty;
 
 import java.util.Arrays;
-import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.stream.Stream;
 
 import javax.inject.Inject;
 import javax.inject.Named;
@@ -22,6 +18,11 @@ import javax.inject.Singleton;
 
 import org.apache.maven.eventspy.EventSpy.Context;
 
+import top.infra.maven.extension.mavenbuild.multiinfra.GitPropertiesBean;
+import top.infra.maven.extension.mavenbuild.multiinfra.InfraOption;
+import top.infra.maven.extension.mavenbuild.options.MavenBuildExtensionOption;
+import top.infra.maven.extension.mavenbuild.options.MavenBuildPomOption;
+import top.infra.maven.extension.mavenbuild.options.MavenOption;
 import top.infra.maven.extension.mavenbuild.utils.MavenUtils;
 import top.infra.maven.extension.mavenbuild.utils.PropertiesUtils;
 import top.infra.maven.logging.Logger;
@@ -110,11 +111,17 @@ public class CiOptionEventAware implements MavenEventAware {
             logger.info("<<<<<<<<<< ---------- load options from file ---------- <<<<<<<<<<");
 
             logger.info(">>>>>>>>>> ---------- set options (update userProperties) ---------- >>>>>>>>>>");
-            Arrays.stream(CiOption.values()).sorted().forEach(ciOption -> { // TODO better toString methods
-                final String displayName = ciOption.getEnvVariableName();
-                final String displayValue = this.ciOptProperties.getProperty(ciOption.getPropertyName(), "");
-                logger.info(PropertiesUtils.maskSecrets(String.format("setOption %s=%s", displayName, displayValue)));
-            });
+            Stream.of(
+                Arrays.asList(InfraOption.values()),
+                Arrays.asList(MavenBuildExtensionOption.values()),
+                Arrays.asList(MavenOption.values()),
+                Arrays.asList(MavenBuildPomOption.values()))
+                .flatMap(collection -> collection.stream().sorted())
+                .forEach(ciOption -> { // TODO better toString methods
+                    final String displayName = ciOption.getEnvVariableName();
+                    final String displayValue = this.ciOptProperties.getProperty(ciOption.getPropertyName(), "");
+                    logger.info(PropertiesUtils.maskSecrets(String.format("setOption %s=%s", displayName, displayValue)));
+                });
             logger.info("<<<<<<<<<< ---------- set options (update userProperties) ---------- <<<<<<<<<<");
 
             final Properties systemProperties = MavenUtils.systemProperties(context);
@@ -125,24 +132,11 @@ public class CiOptionEventAware implements MavenEventAware {
     }
 
     private static void checkGitAuthToken(final Logger logger, final CiOptionAccessor ciOpts) {
-        logger.info(">>>>>>>>>> ---------- check GIT_AUTH_TOKEN  ---------- >>>>>>>>>>");
         if (isEmpty(ciOpts.getOption(GIT_AUTH_TOKEN).orElse(null))) {
-            final boolean openSource = ciOpts.getOption(INFRASTRUCTURE).map(INFRASTRUCTURE_OPENSOURCE::equals).orElse(FALSE);
-            final Boolean originRepo = ciOpts.getOption(ORIGIN_REPO).map(Boolean::parseBoolean).orElse(FALSE);
-            if (originRepo && !openSource) {
-                final String errorMsg = String.format(
-                    "%s not set when using a private git repo, exit.",
-                    GIT_AUTH_TOKEN.getEnvVariableName());
-                final NoSuchElementException error = new NoSuchElementException(errorMsg);
-                logger.error(errorMsg);
-                throw error;
-            } else {
-                // For PR build on travis-ci or appveyor
-                if (logger.isWarnEnabled()) {
-                    logger.warn(String.format("%s not set.", GIT_AUTH_TOKEN.getEnvVariableName()));
-                }
+            // if (!originRepo) { // For PR build on travis-ci or appveyor }
+            if (logger.isWarnEnabled()) {
+                logger.warn(String.format("%s not set.", GIT_AUTH_TOKEN.getEnvVariableName()));
             }
         }
-        logger.info("<<<<<<<<<< ---------- check GIT_AUTH_TOKEN ---------- <<<<<<<<<<");
     }
 }

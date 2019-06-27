@@ -16,7 +16,6 @@ import java.io.IOException;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.util.Arrays;
@@ -46,8 +45,8 @@ public class Gpg {
 
     private final Logger logger;
 
-    private final String homeDir;
-    private final String workingDir;
+    private final Path homeDir;
+    private final Path workingDir;
     private final String keyId;
     private final String keyName;
     private final String passphrase;
@@ -57,8 +56,8 @@ public class Gpg {
 
     public Gpg(
         final Logger logger,
-        final String homeDir,
-        final String workingDir,
+        final Path homeDir,
+        final Path workingDir,
         final String executable,
         final String keyId,
         final String keyName,
@@ -88,7 +87,7 @@ public class Gpg {
         this.environment = Collections.unmodifiableMap(env);
     }
 
-    static boolean gpgVersionGreater(
+    public static boolean gpgVersionGreater(
         final String gpgVersionInfo,
         final String thanVersion
     ) {
@@ -136,8 +135,8 @@ public class Gpg {
         final Entry<Integer, String> resultGpgVersion = this.exec(this.cmdGpgBatch("--version"));
         logger.info(resultGpgVersion.getValue());
 
-        final Path dotGnupg = Paths.get(homeDir, DOT_GNUPG);
-        final Path dotGnupgGpgConf = Paths.get(homeDir, DOT_GNUPG, "gpg.conf");
+        final Path dotGnupg = this.homeDir.resolve(DOT_GNUPG);
+        final Path dotGnupgGpgConf = dotGnupg.resolve("gpg.conf");
         if (gpgVersionGreater(resultGpgVersion.getValue(), "2.1")) {
             logger.info("gpg version greater than 2.1");
             try {
@@ -177,7 +176,7 @@ public class Gpg {
             // echo GPG_OPTS: ${GPG_OPTS}
 
             logger.info("add 'allow-loopback-pinentry' to '~/.gnupg/gpg-agent.conf'");
-            final Path dotGnupgGpgAgentConf = Paths.get(homeDir, DOT_GNUPG, "gpg-agent.conf");
+            final Path dotGnupgGpgAgentConf = dotGnupg.resolve("gpg-agent.conf");
             writeFile(dotGnupgGpgAgentConf, "allow-loopback-pinentry\n".getBytes(UTF_8),
                 StandardOpenOption.CREATE, StandardOpenOption.SYNC, StandardOpenOption.TRUNCATE_EXISTING);
             if (logger.isInfoEnabled()) {
@@ -240,7 +239,7 @@ public class Gpg {
                     final List<String> exportKey = this.cmdGpgBatch("--keyring", "secring.gpg", "--export-secret-key", this.keyId);
                     final Entry<Integer, String> resultExportKey = this.exec("", exportKey);
                     if (resultExportKey.getKey() == 0) {
-                        final Path secringGpg = Paths.get(this.workingDir, "secring.gpg");
+                        final Path secringGpg = this.workingDir.resolve("secring.gpg");
                         writeFile(secringGpg, resultExportKey.getValue().getBytes(UTF_8), StandardOpenOption.SYNC);
                     }
                 }
@@ -360,6 +359,6 @@ public class Gpg {
     }
 
     private boolean isFilePresent(final String file) {
-        return exists(Paths.get(this.workingDir, file));
+        return exists(this.workingDir.resolve(file));
     }
 }

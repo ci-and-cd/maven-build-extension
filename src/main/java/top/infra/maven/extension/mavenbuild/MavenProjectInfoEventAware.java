@@ -1,11 +1,11 @@
 package top.infra.maven.extension.mavenbuild;
 
 import static java.lang.Boolean.FALSE;
-import static top.infra.maven.extension.mavenbuild.CiOption.FAST;
-import static top.infra.maven.extension.mavenbuild.CiOption.GIT_REF_NAME;
 import static top.infra.maven.extension.mavenbuild.GpgEventAware.ORDER_GPG;
 import static top.infra.maven.extension.mavenbuild.MavenProjectInfo.newProjectInfoByBuildProject;
 import static top.infra.maven.extension.mavenbuild.MavenProjectInfo.newProjectInfoByReadPom;
+import static top.infra.maven.extension.mavenbuild.options.MavenBuildExtensionOption.FAST;
+import static top.infra.maven.extension.mavenbuild.options.MavenBuildExtensionOption.GIT_REF_NAME;
 
 import java.io.File;
 import java.util.Map;

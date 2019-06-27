@@ -1,7 +1,6 @@
-package top.infra.maven.extension.mavenbuild;
+package top.infra.maven.extension.mavenbuild.multiinfra;
 
 import static java.lang.Boolean.FALSE;
-import static top.infra.maven.extension.mavenbuild.CiOption.INFRASTRUCTURE;
 import static top.infra.maven.extension.mavenbuild.utils.MavenUtils.profileId;
 import static top.infra.maven.extension.mavenbuild.utils.MavenUtils.projectName;
 
@@ -21,6 +20,11 @@ import org.apache.maven.model.profile.ProfileActivationContext;
 import org.apache.maven.model.profile.activation.ProfileActivator;
 import org.codehaus.plexus.logging.Logger;
 
+import top.infra.maven.extension.mavenbuild.AbstractCustomActivator;
+import top.infra.maven.extension.mavenbuild.CiOptionAccessor;
+import top.infra.maven.extension.mavenbuild.CiOptionEventAware;
+import top.infra.maven.extension.mavenbuild.CustomActivator;
+import top.infra.maven.extension.mavenbuild.MavenEventAware;
 import top.infra.maven.extension.mavenbuild.model.ProjectBuilderActivatorModelResolver;
 
 // @Component(role = CustomActivator.class, hint = "InfrastructureActivator") // This instance has multiple roles
@@ -105,7 +109,7 @@ public class InfrastructureActivator extends AbstractCustomActivator implements 
             //         this.getName(), projectName(context), profileId(profile), profileInfrastructure.orElse(null)));
             // }
 
-            final Optional<String> infrastructure = this.ciOpts.getOption(INFRASTRUCTURE);
+            final Optional<String> infrastructure = this.ciOpts.getOption(InfraOption.INFRASTRUCTURE);
 
             result = infrastructure
                 .map(value -> value.equals(profileInfrastructure.orElse(null)))

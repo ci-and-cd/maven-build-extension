@@ -141,9 +141,9 @@
         </profile>
 
         <profile>
-            <id>infrastructure_opensource</id>
+            <id>infrastructure_ossrh</id>
             <properties>
-                <magic.file.parent-infrastructure_opensource>${project.basedir}/target/parent-infrastructure_opensource.md</magic.file.parent-infrastructure_opensource>
+                <magic.file.parent-infrastructure_ossrh>${project.basedir}/target/parent-infrastructure_ossrh.md</magic.file.parent-infrastructure_ossrh>
             </properties>
             <build>
                 <plugins>
@@ -152,11 +152,11 @@
                         <executions>
                             <execution>
                                 <configuration>
-                                    <target name="magic-file-parent-infrastructure_opensource">
-                                        <echo file="${magic.file.parent-infrastructure_opensource}" append="false">${magic.file.parent-infrastructure_opensource}</echo>
+                                    <target name="magic-file-parent-infrastructure_ossrh">
+                                        <echo file="${magic.file.parent-infrastructure_ossrh}" append="false">${magic.file.parent-infrastructure_ossrh}</echo>
                                     </target>
                                 </configuration>
-                                <id>parent-infrastructure_opensource-magic-file</id>
+                                <id>parent-infrastructure_ossrh-magic-file</id>
                                 <goals><goal>run</goal></goals>
                                 <phase>validate</phase>
                             </execution>
@@ -167,10 +167,10 @@
         </profile>
 
         <profile>
-            <id>infrastructure_opensource-nexus2-staging</id>
-            <activation><property><name>nexus2-staging</name><value>true</value></property></activation>
+            <id>infrastructure_ossrh-nexus2_staging</id>
+            <activation><property><name>nexus2_staging</name><value>true</value></property></activation>
             <properties>
-                <magic.file.parent-infrastructure_opensource-nexus2-staging>${project.basedir}/target/parent-infrastructure_opensource-nexus2-staging.md</magic.file.parent-infrastructure_opensource-nexus2-staging>
+                <magic.file.parent-infrastructure_ossrh-nexus2_staging>${project.basedir}/target/parent-infrastructure_ossrh-nexus2_staging.md</magic.file.parent-infrastructure_ossrh-nexus2_staging>
             </properties>
             <build>
                 <plugins>
@@ -179,11 +179,11 @@
                         <executions>
                             <execution>
                                 <configuration>
-                                    <target name="magic-file-parent-infrastructure_opensource-nexus2-staging">
-                                        <echo file="${magic.file.parent-infrastructure_opensource-nexus2-staging}" append="false">${magic.file.parent-infrastructure_opensource-nexus2-staging}</echo>
+                                    <target name="magic-file-parent-infrastructure_ossrh-nexus2_staging">
+                                        <echo file="${magic.file.parent-infrastructure_ossrh-nexus2_staging}" append="false">${magic.file.parent-infrastructure_ossrh-nexus2_staging}</echo>
                                     </target>
                                 </configuration>
-                                <id>parent-infrastructure_opensource-nexus2-staging-magic-file</id>
+                                <id>parent-infrastructure_ossrh-nexus2_staging-magic-file</id>
                                 <goals><goal>run</goal></goals>
                                 <phase>validate</phase>
                             </execution>

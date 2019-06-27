@@ -1,7 +1,7 @@
-package top.infra.maven.extension.mavenbuild;
+package top.infra.maven.extension.mavenbuild.cienv;
 
 import static java.lang.Boolean.FALSE;
-import static top.infra.maven.extension.mavenbuild.GitlabCiVariables.NA;
+import static top.infra.maven.extension.mavenbuild.cienv.GitlabCiVariables.NA;
 
 import java.util.Optional;
 import java.util.Properties;

@@ -4,16 +4,14 @@ import static java.lang.Boolean.TRUE;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
-import static top.infra.maven.extension.mavenbuild.CiOption.DOCKER_REGISTRY;
-import static top.infra.maven.extension.mavenbuild.CiOption.DOCKER_REGISTRY_URL;
-import static top.infra.maven.extension.mavenbuild.CiOption.GITHUB_GLOBAL_REPOSITORYOWNER;
-import static top.infra.maven.extension.mavenbuild.CiOption.INFRASTRUCTURE;
-import static top.infra.maven.extension.mavenbuild.CiOption.SITE;
-import static top.infra.maven.extension.mavenbuild.CiOption.SONAR;
-import static top.infra.maven.extension.mavenbuild.CiOption.SONAR_HOST_URL;
-import static top.infra.maven.extension.mavenbuild.CiOption.SONAR_ORGANIZATION;
 import static top.infra.maven.extension.mavenbuild.Constants.BOOL_STRING_TRUE;
-import static top.infra.maven.extension.mavenbuild.Constants.INFRASTRUCTURE_OPENSOURCE;
+import static top.infra.maven.extension.mavenbuild.multiinfra.InfraOption.DOCKER_REGISTRY;
+import static top.infra.maven.extension.mavenbuild.multiinfra.InfraOption.DOCKER_REGISTRY_URL;
+import static top.infra.maven.extension.mavenbuild.multiinfra.InfraOption.SONAR_HOST_URL;
+import static top.infra.maven.extension.mavenbuild.options.MavenBuildPomOption.GITHUB_GLOBAL_REPOSITORYOWNER;
+import static top.infra.maven.extension.mavenbuild.options.MavenBuildPomOption.SONAR;
+import static top.infra.maven.extension.mavenbuild.options.MavenOption.GENERATEREPORTS;
+import static top.infra.maven.extension.mavenbuild.options.MavenOption.SONAR_ORGANIZATION;
 
 import java.util.Properties;
 
@@ -41,8 +39,7 @@ public class CiOptionTests {
         final Properties systemProperties = new Properties();
 
         final Properties userProperties = new Properties();
-        userProperties.setProperty(INFRASTRUCTURE.getPropertyName(), INFRASTRUCTURE_OPENSOURCE);
-        userProperties.setProperty(SITE.getPropertyName(), BOOL_STRING_TRUE);
+        userProperties.setProperty(GENERATEREPORTS.getPropertyName(), BOOL_STRING_TRUE);
 
         final CiOptionAccessor ciOpts = new CiOptionAccessor(
             gitProperties(),
@@ -73,8 +70,7 @@ public class CiOptionTests {
         final Properties systemProperties = new Properties();
 
         final Properties userProperties = new Properties();
-        userProperties.setProperty(INFRASTRUCTURE.getPropertyName(), INFRASTRUCTURE_OPENSOURCE);
-        userProperties.setProperty(SITE.getPropertyName(), BOOL_STRING_TRUE);
+        userProperties.setProperty(GENERATEREPORTS.getPropertyName(), BOOL_STRING_TRUE);
 
         final CiOptionAccessor ciOpts = new CiOptionAccessor(
             gitProperties(),
@@ -91,12 +87,11 @@ public class CiOptionTests {
     }
 
     @Test
-    public void testSite() {
+    public void testGenerateReports() {
         final Properties systemProperties = new Properties();
 
         final Properties userProperties = new Properties();
-        userProperties.setProperty(INFRASTRUCTURE.getPropertyName(), INFRASTRUCTURE_OPENSOURCE);
-        userProperties.setProperty(SITE.getPropertyName(), BOOL_STRING_TRUE);
+        userProperties.setProperty(GENERATEREPORTS.getPropertyName(), BOOL_STRING_TRUE);
 
         final CiOptionAccessor ciOpts = new CiOptionAccessor(
             gitProperties(),
@@ -104,19 +99,19 @@ public class CiOptionTests {
             userProperties
         );
 
-        slf4jLogger.info("site {}", ciOpts.getOption(SITE).orElse(null));
-        assertEquals(TRUE.toString(), ciOpts.getOption(SITE).orElse(null));
+        slf4jLogger.info("generateReports {}", ciOpts.getOption(GENERATEREPORTS).orElse(null));
+        assertEquals(TRUE.toString(), ciOpts.getOption(GENERATEREPORTS).orElse(null));
 
         final Properties loadedProperties = ciOpts.ciOptsFromFile(logger());
         ciOpts.updateSystemProperties(loadedProperties);
 
-        slf4jLogger.info("site {}", ciOpts.getOption(SITE).orElse(null));
-        assertEquals(TRUE.toString(), ciOpts.getOption(SITE).orElse(null));
+        slf4jLogger.info("generateReports {}", ciOpts.getOption(GENERATEREPORTS).orElse(null));
+        assertEquals(TRUE.toString(), ciOpts.getOption(GENERATEREPORTS).orElse(null));
 
         ciOpts.setCiOptPropertiesInto(userProperties);
 
-        slf4jLogger.info("site {}", ciOpts.getOption(SITE).orElse(null));
-        assertEquals(TRUE.toString(), ciOpts.getOption(SITE).orElse(null));
+        slf4jLogger.info("generateReports {}", ciOpts.getOption(GENERATEREPORTS).orElse(null));
+        assertEquals(TRUE.toString(), ciOpts.getOption(GENERATEREPORTS).orElse(null));
     }
 
     @Test
@@ -125,8 +120,7 @@ public class CiOptionTests {
         final String expectedSonarOrganization = "home1-oss-github";
 
         final Properties systemProperties = new Properties();
-        systemProperties.setProperty(INFRASTRUCTURE.getSystemPropertyName(), INFRASTRUCTURE_OPENSOURCE);
-        systemProperties.setProperty(SITE.getSystemPropertyName(), BOOL_STRING_TRUE);
+        systemProperties.setProperty(GENERATEREPORTS.getSystemPropertyName(), BOOL_STRING_TRUE);
         systemProperties.setProperty(SONAR.getSystemPropertyName(), BOOL_STRING_TRUE);
         systemProperties.setProperty(SONAR_ORGANIZATION.getSystemPropertyName(), expectedSonarOrganization);
 

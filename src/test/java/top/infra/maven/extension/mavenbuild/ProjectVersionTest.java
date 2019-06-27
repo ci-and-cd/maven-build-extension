@@ -3,14 +3,12 @@ package top.infra.maven.extension.mavenbuild;
 import static java.lang.Boolean.FALSE;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
-import static top.infra.maven.extension.mavenbuild.CiOption.GIT_REF_NAME;
-import static top.infra.maven.extension.mavenbuild.CiOption.INFRASTRUCTURE;
-import static top.infra.maven.extension.mavenbuild.CiOption.ORIGIN_REPO;
-import static top.infra.maven.extension.mavenbuild.CiOption.PUBLISH_TO_REPO;
-import static top.infra.maven.extension.mavenbuild.CiOption.SITE;
 import static top.infra.maven.extension.mavenbuild.Constants.BOOL_STRING_TRUE;
 import static top.infra.maven.extension.mavenbuild.Constants.GIT_REF_NAME_DEVELOP;
-import static top.infra.maven.extension.mavenbuild.Constants.INFRASTRUCTURE_OPENSOURCE;
+import static top.infra.maven.extension.mavenbuild.options.MavenBuildExtensionOption.GIT_REF_NAME;
+import static top.infra.maven.extension.mavenbuild.options.MavenBuildExtensionOption.ORIGIN_REPO;
+import static top.infra.maven.extension.mavenbuild.options.MavenBuildExtensionOption.PUBLISH_TO_REPO;
+import static top.infra.maven.extension.mavenbuild.options.MavenOption.GENERATEREPORTS;
 import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.isSemanticSnapshotVersion;
 
 import java.util.Map;
@@ -54,8 +52,7 @@ public class ProjectVersionTest {
         systemProperties.setProperty(ORIGIN_REPO.getSystemPropertyName(), BOOL_STRING_TRUE);
 
         final Properties userProperties = new Properties();
-        userProperties.setProperty(INFRASTRUCTURE.getPropertyName(), INFRASTRUCTURE_OPENSOURCE);
-        userProperties.setProperty(SITE.getPropertyName(), BOOL_STRING_TRUE);
+        userProperties.setProperty(GENERATEREPORTS.getPropertyName(), BOOL_STRING_TRUE);
 
         final CiOptionAccessor ciOpts = new CiOptionAccessor(
             gitProperties(),
@@ -90,8 +87,7 @@ public class ProjectVersionTest {
         systemProperties.setProperty(ORIGIN_REPO.getSystemPropertyName(), BOOL_STRING_TRUE);
 
         final Properties userProperties = new Properties();
-        userProperties.setProperty(INFRASTRUCTURE.getPropertyName(), INFRASTRUCTURE_OPENSOURCE);
-        userProperties.setProperty(SITE.getPropertyName(), BOOL_STRING_TRUE);
+        userProperties.setProperty(GENERATEREPORTS.getPropertyName(), BOOL_STRING_TRUE);
 
         final CiOptionAccessor ciOpts = new CiOptionAccessor(
             gitProperties(),

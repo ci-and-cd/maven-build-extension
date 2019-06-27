@@ -1,6 +1,7 @@
 package top.infra.maven.extension.mavenbuild;
 
 import static top.infra.maven.extension.mavenbuild.PrintInfoEventAware.ORDER_PRINT_INFO;
+import static top.infra.maven.extension.mavenbuild.options.MavenOption.PROP_MAVEN_MULTIMODULEPROJECTDIRECTORY;
 
 import java.util.Collections;
 import java.util.List;
@@ -31,8 +32,6 @@ public class SystemToUserPropertiesEventAware implements MavenEventAware {
 
     private static final String ENV_MAVEN_OPTS = "env.MAVEN_OPTS";
     public static final int ORDER_SYSTEM_TO_USER_PROPERTIES = ORDER_PRINT_INFO + 1;
-
-    private static final String PROP_MAVEN_MULTIMODULEPROJECTDIRECTORY = "maven.multiModuleProjectDirectory";
 
     private final Logger logger;
 

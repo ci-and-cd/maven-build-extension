@@ -1,18 +1,18 @@
 package top.infra.maven.extension.mavenbuild;
 
 import static java.lang.Boolean.FALSE;
-import static top.infra.maven.extension.mavenbuild.CiOption.DOCKER;
-import static top.infra.maven.extension.mavenbuild.CiOption.DOCKERFILE_USEMAVENSETTINGSFORAUTH;
-import static top.infra.maven.extension.mavenbuild.CiOption.DOCKER_REGISTRY;
-import static top.infra.maven.extension.mavenbuild.CiOption.DOCKER_REGISTRY_PASS;
-import static top.infra.maven.extension.mavenbuild.CiOption.DOCKER_REGISTRY_URL;
-import static top.infra.maven.extension.mavenbuild.CiOption.DOCKER_REGISTRY_USER;
-import static top.infra.maven.extension.mavenbuild.CiOption.FAST;
 import static top.infra.maven.extension.mavenbuild.Docker.dockerHost;
 import static top.infra.maven.extension.mavenbuild.MavenGoalEditor.GOAL_DEPLOY;
 import static top.infra.maven.extension.mavenbuild.MavenGoalEditor.GOAL_INSTALL;
 import static top.infra.maven.extension.mavenbuild.MavenGoalEditor.GOAL_PACKAGE;
 import static top.infra.maven.extension.mavenbuild.MavenGoalEditor.GOAL_SITE;
+import static top.infra.maven.extension.mavenbuild.multiinfra.InfraOption.DOCKER_REGISTRY;
+import static top.infra.maven.extension.mavenbuild.multiinfra.InfraOption.DOCKER_REGISTRY_PASS;
+import static top.infra.maven.extension.mavenbuild.multiinfra.InfraOption.DOCKER_REGISTRY_URL;
+import static top.infra.maven.extension.mavenbuild.multiinfra.InfraOption.DOCKER_REGISTRY_USER;
+import static top.infra.maven.extension.mavenbuild.options.MavenBuildExtensionOption.DOCKER;
+import static top.infra.maven.extension.mavenbuild.options.MavenBuildExtensionOption.FAST;
+import static top.infra.maven.extension.mavenbuild.options.MavenBuildPomOption.DOCKERFILE_USEMAVENSETTINGSFORAUTH;
 import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.isNotEmpty;
 
 import java.util.List;

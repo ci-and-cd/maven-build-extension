@@ -78,7 +78,9 @@ public class JavaVersionActivator extends AbstractCustomActivator {
             if (javaVersionForce.isPresent()) {
                 javaVersionActive = javaVersionForce.get().equals(profileJavaVersion.orElse(null));
             } else {
-                final Optional<Integer> projectJavaVersion = parseJavaVersion(String.format("%s", projectContext.get("java.version")));
+                // final String javaDotVersion = String.format("%s", projectContext.get("java.version"));
+                final String javaDotVersion = context.getSystemProperties().get("java.version");
+                final Optional<Integer> projectJavaVersion = parseJavaVersion(javaDotVersion);
                 javaVersionActive = projectJavaVersion
                     .map(integer -> integer.equals(profileJavaVersion.orElse(null))).orElse(false);
             }

@@ -160,7 +160,7 @@ public class Docker {
         }
     }
 
-    static List<String> dockerfiles() {
+    public static List<String> dockerfiles() {
         return find(".", "*Docker*")
             .stream()
             .filter(line -> !line.contains("/target/classes/")) // TODO windows ?

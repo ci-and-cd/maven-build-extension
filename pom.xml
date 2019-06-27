@@ -5,7 +5,7 @@
 
     <groupId>top.infra</groupId>
     <artifactId>maven-build-extension</artifactId>
-    <version>0.0.1-SNAPSHOT</version>
+    <version>0.0.1-newoptions-SNAPSHOT</version>
     <packaging>jar</packaging>
 
     <build>
@@ -63,7 +63,7 @@
                     <autoReleaseAfterClose>false</autoReleaseAfterClose>
                     <detectBuildFailures>true</detectBuildFailures>
                     <nexusUrl>https://oss.sonatype.org/</nexusUrl>
-                    <serverId>OSSRH-staging</serverId>
+                    <serverId>ossrh-staging</serverId>
                     <!--<sslAllowAll>true</sslAllowAll>-->
                     <stagingProgressPauseDurationSeconds>30</stagingProgressPauseDurationSeconds>
                     <stagingProgressTimeoutMinutes>60</stagingProgressTimeoutMinutes>
@@ -105,7 +105,7 @@
                         <postBuildHookScript>verify</postBuildHookScript>
                         <preBuildHookScript>setup</preBuildHookScript>
                         <properties>
-                            <infrastructure>opensource</infrastructure>
+                            <infrastructure>ossrh</infrastructure>
                             <private.sonar.host.url>http://my-sonarqube:9000</private.sonar.host.url>
                             <site>true</site>
                         </properties>
@@ -232,8 +232,8 @@
 
     <!-- @formatter:off -->
     <distributionManagement>
-        <repository><id>OSSRH-staging</id><url>https://oss.sonatype.org/service/local/staging/deploy/maven2</url></repository>
-        <snapshotRepository><id>OSSRH-snapshots</id><url>https://oss.sonatype.org/content/repositories/snapshots</url></snapshotRepository>
+        <repository><id>ossrh-staging</id><url>https://oss.sonatype.org/service/local/staging/deploy/maven2</url></repository>
+        <snapshotRepository><id>ossrh-snapshots</id><url>https://oss.sonatype.org/content/repositories/snapshots</url></snapshotRepository>
     </distributionManagement>
     <!-- @formatter:on -->
 
@@ -309,11 +309,11 @@
     <!-- @formatter:off -->
     <repositories>
         <repository>
-            <id>OSSRH-releases</id><name>central releases</name><url>https://oss.sonatype.org/content/repositories/releases/</url>
+            <id>ossrh-releases</id><name>central releases</name><url>https://oss.sonatype.org/content/repositories/releases/</url>
             <releases><enabled>true</enabled><updatePolicy>never</updatePolicy></releases><snapshots><enabled>false</enabled></snapshots>
         </repository>
         <repository>
-            <id>OSSRH-snapshots</id><name>central snapshots</name><url>https://oss.sonatype.org/content/repositories/snapshots/</url>
+            <id>ossrh-snapshots</id><name>central snapshots</name><url>https://oss.sonatype.org/content/repositories/snapshots/</url>
             <releases><enabled>false</enabled></releases><snapshots><enabled>true</enabled><updatePolicy>daily</updatePolicy></snapshots>
         </repository>
     </repositories>

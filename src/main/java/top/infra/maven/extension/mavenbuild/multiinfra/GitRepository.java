@@ -1,11 +1,10 @@
-package top.infra.maven.extension.mavenbuild;
+package top.infra.maven.extension.mavenbuild.multiinfra;
 
 import static java.lang.Boolean.FALSE;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.nio.file.StandardOpenOption.CREATE;
 import static java.nio.file.StandardOpenOption.SYNC;
 import static java.nio.file.StandardOpenOption.TRUNCATE_EXISTING;
-import static top.infra.maven.extension.mavenbuild.CiOption.GIT_AUTH_TOKEN;
 import static top.infra.maven.extension.mavenbuild.Constants.GIT_REF_NAME_MASTER;
 import static top.infra.maven.extension.mavenbuild.utils.FileUtils.readFile;
 import static top.infra.maven.extension.mavenbuild.utils.FileUtils.writeFile;
@@ -199,7 +198,7 @@ public class GitRepository {
                         logger.warn(String.format("Can not download %s.", targetFile));
                         logger.warn(String.format(
                             "Please make sure: 1. Resource exists 2. You have permission to access resources and %s is set.",
-                            GIT_AUTH_TOKEN.getEnvVariableName())
+                            InfraOption.GIT_AUTH_TOKEN.getEnvVariableName())
                         );
                     }
                 }

@@ -9,8 +9,8 @@ def asssertMagicFileNotExists(filename) {
     assert !magicFile.exists()
 }
 
-asssertMagicFileExists('/target/parent-infrastructure_opensource.md')
-asssertMagicFileNotExists('/target/parent-infrastructure_opensource-nexus2-staging.md')
+asssertMagicFileExists('/target/parent-infrastructure_ossrh.md')
+asssertMagicFileNotExists('/target/parent-infrastructure_ossrh-nexus2_staging.md')
 asssertMagicFileExists('/target/parent-java8-profile1.md')
 asssertMagicFileExists('/target/parent-java-8-profile2.md')
 asssertMagicFileExists('/target/parent-profile-sonar.md')

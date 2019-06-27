@@ -1,11 +1,6 @@
 package top.infra.maven.extension.mavenbuild;
 
 import static java.lang.Boolean.FALSE;
-import static top.infra.maven.extension.mavenbuild.CiOption.GIT_REF_NAME;
-import static top.infra.maven.extension.mavenbuild.CiOption.MVN_DEPLOY_PUBLISH_SEGREGATION;
-import static top.infra.maven.extension.mavenbuild.CiOption.ORIGIN_REPO;
-import static top.infra.maven.extension.mavenbuild.CiOption.PUBLISH_TO_REPO;
-import static top.infra.maven.extension.mavenbuild.CiOption.SITE;
 import static top.infra.maven.extension.mavenbuild.MavenProjectInfoEventAware.ORDER_MAVEN_PROJECT_INFO;
 
 import java.util.ArrayList;
@@ -21,6 +16,8 @@ import javax.inject.Singleton;
 import org.apache.maven.execution.MavenExecutionRequest;
 import org.apache.maven.project.ProjectBuildingRequest;
 
+import top.infra.maven.extension.mavenbuild.options.MavenBuildExtensionOption;
+import top.infra.maven.extension.mavenbuild.options.MavenOption;
 import top.infra.maven.extension.mavenbuild.utils.PropertiesUtils;
 import top.infra.maven.logging.Logger;
 import top.infra.maven.logging.LoggerPlexusImpl;
@@ -77,11 +74,11 @@ public class MavenGoalEditorEventAware implements MavenEventAware {
 
         final MavenGoalEditor goalEditor = new MavenGoalEditor(
             logger,
-            ciOpts.getOption(GIT_REF_NAME).orElse(null),
-            ciOpts.getOption(MVN_DEPLOY_PUBLISH_SEGREGATION).map(Boolean::parseBoolean).orElse(FALSE),
-            ciOpts.getOption(ORIGIN_REPO).map(Boolean::parseBoolean).orElse(null),
-            ciOpts.getOption(PUBLISH_TO_REPO).map(Boolean::parseBoolean).orElse(null), // make sure version is valid too
-            ciOpts.getOption(SITE).map(Boolean::parseBoolean).orElse(null)
+            ciOpts.getOption(MavenOption.GENERATEREPORTS).map(Boolean::parseBoolean).orElse(null),
+            ciOpts.getOption(MavenBuildExtensionOption.GIT_REF_NAME).orElse(null),
+            ciOpts.getOption(MavenBuildExtensionOption.MVN_DEPLOY_PUBLISH_SEGREGATION).map(Boolean::parseBoolean).orElse(FALSE),
+            ciOpts.getOption(MavenBuildExtensionOption.ORIGIN_REPO).map(Boolean::parseBoolean).orElse(null),
+            ciOpts.getOption(MavenBuildExtensionOption.PUBLISH_TO_REPO).map(Boolean::parseBoolean).orElse(null) // make sure version is valid too
         );
         final Entry<List<String>, Properties> goalsAndProps = goalEditor.goalsAndUserProperties(request.getGoals());
         if (logger.isInfoEnabled()) {
