@@ -2,7 +2,7 @@ package top.infra.maven.extension.mavenbuild;
 
 import static java.util.Collections.singletonList;
 import static top.infra.maven.extension.mavenbuild.utils.FileUtils.pathname;
-import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.stackTrace;
+import static top.infra.maven.utils.SupportFunction.stackTrace;
 
 import java.io.File;
 import java.io.FileReader;
@@ -99,7 +99,9 @@ public class MavenProjectInfo {
             return Optional.of(new MavenProjectInfo(model.getArtifactId(), model.getGroupId(), model.getPackaging(), model.getVersion()));
         } catch (final IllegalArgumentException | IOException | XmlPullParserException ex) {
             if (logger.isWarnEnabled()) {
-                logger.warn(String.format("Failed to read project info from pomFile [%s] (by MavenXpp3Reader)", pathname(pomFile)), ex);
+                logger.warn(String.format("Failed to read project info from pomFile [%s] (by MavenXpp3Reader)",
+                    pathname(pomFile)),
+                    ex);
             }
             return Optional.empty();
         }

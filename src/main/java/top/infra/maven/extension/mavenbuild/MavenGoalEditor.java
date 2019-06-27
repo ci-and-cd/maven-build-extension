@@ -5,8 +5,8 @@ import static java.util.stream.Collectors.toMap;
 import static top.infra.maven.extension.mavenbuild.Constants.BOOL_STRING_FALSE;
 import static top.infra.maven.extension.mavenbuild.Constants.BOOL_STRING_TRUE;
 import static top.infra.maven.extension.mavenbuild.Constants.GIT_REF_NAME_DEVELOP;
-import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.isNotEmpty;
-import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.newTuple;
+import static top.infra.maven.utils.SupportFunction.isNotEmpty;
+import static top.infra.maven.utils.SupportFunction.newTuple;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -21,6 +21,7 @@ import java.util.Optional;
 import java.util.Properties;
 import java.util.function.Function;
 
+import top.infra.maven.MavenPhase;
 import top.infra.maven.extension.mavenbuild.options.MavenBuildExtensionOption;
 import top.infra.maven.extension.mavenbuild.options.MavenOption;
 import top.infra.maven.logging.Logger;

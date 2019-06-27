@@ -1,10 +1,10 @@
 package top.infra.maven.extension.mavenbuild;
 
 import static java.lang.Integer.parseInt;
-import static top.infra.maven.extension.mavenbuild.utils.MavenUtils.profileId;
-import static top.infra.maven.extension.mavenbuild.utils.MavenUtils.projectName;
-import static top.infra.maven.extension.mavenbuild.utils.PropertiesUtils.mapFromProperties;
-import static top.infra.maven.extension.mavenbuild.utils.SystemUtils.parseJavaVersion;
+import static top.infra.maven.utils.MavenUtils.profileId;
+import static top.infra.maven.utils.MavenUtils.projectName;
+import static top.infra.maven.utils.PropertiesUtils.mapFromProperties;
+import static top.infra.maven.utils.SystemUtils.parseJavaVersion;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -20,7 +20,9 @@ import org.apache.maven.model.building.ModelProblemCollector;
 import org.apache.maven.model.profile.ProfileActivationContext;
 import org.codehaus.plexus.component.annotations.Component;
 
-import top.infra.maven.extension.mavenbuild.model.ProjectBuilderActivatorModelResolver;
+import top.infra.maven.extension.activator.AbstractCustomActivator;
+import top.infra.maven.extension.activator.CustomActivator;
+import top.infra.maven.extension.activator.model.ProjectBuilderActivatorModelResolver;
 
 @Component(role = CustomActivator.class, hint = "JavaVersionActivator")
 public class JavaVersionActivator extends AbstractCustomActivator {

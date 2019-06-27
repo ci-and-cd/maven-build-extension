@@ -11,8 +11,8 @@ import static top.infra.maven.extension.mavenbuild.Constants.GIT_REF_NAME_DEVELO
 import static top.infra.maven.extension.mavenbuild.Docker.dockerHost;
 import static top.infra.maven.extension.mavenbuild.Docker.dockerfiles;
 import static top.infra.maven.extension.mavenbuild.utils.FileUtils.find;
-import static top.infra.maven.extension.mavenbuild.utils.SystemUtils.existsInPath;
-import static top.infra.maven.extension.mavenbuild.utils.SystemUtils.systemUserHome;
+import static top.infra.maven.utils.SystemUtils.existsInPath;
+import static top.infra.maven.utils.SystemUtils.systemUserHome;
 
 import java.nio.file.Paths;
 import java.util.Optional;
@@ -20,11 +20,13 @@ import java.util.Properties;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import top.infra.maven.extension.mavenbuild.GitProperties;
+import top.infra.maven.core.CiOption;
+import top.infra.maven.core.CiOptionNames;
+import top.infra.maven.core.GitProperties;
 import top.infra.maven.extension.mavenbuild.cienv.AppveyorVariables;
 import top.infra.maven.extension.mavenbuild.cienv.GitlabCiVariables;
 import top.infra.maven.extension.mavenbuild.cienv.TravisCiVariables;
-import top.infra.maven.extension.mavenbuild.utils.SupportFunction;
+import top.infra.maven.utils.SupportFunction;
 
 public enum MavenBuildExtensionOption implements CiOption {
     CACHE_SESSION_PATH("cache.session.path") {

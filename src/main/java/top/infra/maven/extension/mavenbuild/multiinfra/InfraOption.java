@@ -3,10 +3,10 @@ package top.infra.maven.extension.mavenbuild.multiinfra;
 import static top.infra.maven.extension.mavenbuild.Constants.GIT_REF_NAME_MASTER;
 import static top.infra.maven.extension.mavenbuild.Constants.SRC_CI_OPTS_PROPERTIES;
 import static top.infra.maven.extension.mavenbuild.Constants.SRC_MAVEN_SETTINGS_XML;
-import static top.infra.maven.extension.mavenbuild.utils.SystemUtils.systemJavaIoTmp;
-import static top.infra.maven.extension.mavenbuild.utils.SystemUtils.systemUserHome;
-import static top.infra.maven.extension.mavenbuild.utils.UrlUtils.domainOrHostFromUrl;
-import static top.infra.maven.extension.mavenbuild.utils.UrlUtils.urlWithoutPath;
+import static top.infra.maven.utils.SystemUtils.systemJavaIoTmp;
+import static top.infra.maven.utils.SystemUtils.systemUserHome;
+import static top.infra.maven.utils.UrlUtils.domainOrHostFromUrl;
+import static top.infra.maven.utils.UrlUtils.urlWithoutPath;
 
 import java.io.File;
 import java.nio.file.Path;
@@ -14,12 +14,12 @@ import java.nio.file.Paths;
 import java.util.Optional;
 import java.util.Properties;
 
-import top.infra.maven.extension.mavenbuild.GitProperties;
+import top.infra.maven.core.GitProperties;
 import top.infra.maven.extension.mavenbuild.cienv.GitlabCiVariables;
-import top.infra.maven.extension.mavenbuild.options.CiOption;
-import top.infra.maven.extension.mavenbuild.options.CiOptionNames;
+import top.infra.maven.core.CiOption;
+import top.infra.maven.core.CiOptionNames;
 import top.infra.maven.extension.mavenbuild.options.MavenOption;
-import top.infra.maven.extension.mavenbuild.utils.UrlUtils;
+import top.infra.maven.utils.UrlUtils;
 
 public enum InfraOption implements CiOption {
     //

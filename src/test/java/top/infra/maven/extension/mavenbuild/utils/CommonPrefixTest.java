@@ -10,6 +10,7 @@ import org.junit.Test;
 import org.slf4j.LoggerFactory;
 
 import top.infra.maven.extension.mavenbuild.CiOptionTests;
+import top.infra.maven.utils.SupportFunction;
 
 public class CommonPrefixTest {
 

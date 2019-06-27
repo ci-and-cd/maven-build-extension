@@ -1,7 +1,7 @@
 package top.infra.maven.extension.mavenbuild;
 
 import static org.junit.Assert.assertEquals;
-import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.lines;
+import static top.infra.maven.utils.SupportFunction.lines;
 
 import java.util.List;
 

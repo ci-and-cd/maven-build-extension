@@ -207,7 +207,6 @@
 
         <dependency><groupId>org.apache.maven</groupId><artifactId>maven-artifact</artifactId><version>${version.maven}</version><scope>provided</scope></dependency>
         <dependency><groupId>org.apache.maven</groupId><artifactId>maven-core</artifactId><version>${version.maven}</version><scope>provided</scope></dependency>
-        <dependency><groupId>org.apache.maven</groupId><artifactId>maven-model</artifactId><version>${version.maven}</version><scope>provided</scope></dependency>
         <dependency><groupId>org.codehaus.plexus</groupId><artifactId>plexus-component-annotations</artifactId><version>1.7.1</version><scope>provided</scope></dependency>
 
         <dependency><groupId>cn.home1.tools</groupId><artifactId>maven-settings-decoder-core</artifactId><version>1.1.0-SNAPSHOT</version></dependency>
@@ -215,9 +214,10 @@
         <dependency><groupId>org.sonatype.plexus</groupId><artifactId>plexus-cipher</artifactId><version>${version.plexus-cipher}</version><scope>provided</scope></dependency>
 
         <!--<dependency><groupId>com.squareup.okhttp3</groupId><artifactId>okhttp</artifactId><version>3.14.2</version></dependency>-->
-        <dependency><groupId>org.eclipse.jgit</groupId><artifactId>org.eclipse.jgit</artifactId><version>5.1.3.201810200350-r</version></dependency>
         <dependency><groupId>org.json</groupId><artifactId>json</artifactId><version>20180813</version></dependency>
         <dependency><groupId>org.unix4j</groupId><artifactId>unix4j-command</artifactId><version>0.5</version></dependency>
+
+        <dependency><groupId>top.infra</groupId><artifactId>extension-core</artifactId></dependency>
 
         <dependency><groupId>ch.qos.logback</groupId><artifactId>logback-classic</artifactId><version>${version.logback}</version><scope>test</scope></dependency>
         <dependency><groupId>junit</groupId><artifactId>junit</artifactId><version>${version.junit.legacy}</version><scope>test</scope></dependency>
@@ -226,6 +226,8 @@
         <dependencies>
             <dependency><groupId>com.google.code.findbugs</groupId><artifactId>annotations</artifactId><version>3.0.1u2</version></dependency>
             <dependency><groupId>org.jetbrains</groupId><artifactId>annotations</artifactId><version>16.0.3</version></dependency>
+
+            <dependency><groupId>top.infra</groupId><artifactId>extension-core</artifactId><version>0.0.1-SNAPSHOT</version></dependency>
         </dependencies>
     </dependencyManagement>
     <!-- @formatter:on -->

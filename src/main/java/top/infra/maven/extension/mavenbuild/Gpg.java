@@ -6,11 +6,11 @@ import static java.util.regex.Pattern.DOTALL;
 import static java.util.regex.Pattern.MULTILINE;
 import static top.infra.maven.extension.mavenbuild.utils.FileUtils.readFile;
 import static top.infra.maven.extension.mavenbuild.utils.FileUtils.writeFile;
-import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.concat;
-import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.exists;
-import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.isEmpty;
-import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.lines;
-import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.stackTrace;
+import static top.infra.maven.utils.SupportFunction.concat;
+import static top.infra.maven.utils.SupportFunction.exists;
+import static top.infra.maven.utils.SupportFunction.isEmpty;
+import static top.infra.maven.utils.SupportFunction.lines;
+import static top.infra.maven.utils.SupportFunction.stackTrace;
 
 import java.io.IOException;
 import java.nio.file.FileAlreadyExistsException;
@@ -31,8 +31,8 @@ import java.util.stream.Collectors;
 
 import org.apache.maven.artifact.versioning.DefaultArtifactVersion;
 
-import top.infra.maven.extension.mavenbuild.utils.SupportFunction;
-import top.infra.maven.extension.mavenbuild.utils.SystemUtils;
+import top.infra.maven.utils.SupportFunction;
+import top.infra.maven.utils.SystemUtils;
 import top.infra.maven.logging.Logger;
 
 public class Gpg {

@@ -16,9 +16,10 @@ import javax.inject.Singleton;
 
 import org.apache.maven.eventspy.EventSpy.Context;
 
-import top.infra.maven.extension.mavenbuild.utils.MavenUtils;
-import top.infra.maven.extension.mavenbuild.utils.PropertiesUtils;
-import top.infra.maven.extension.mavenbuild.utils.SystemUtils;
+import top.infra.maven.extension.MavenEventAware;
+import top.infra.maven.utils.MavenUtils;
+import top.infra.maven.utils.PropertiesUtils;
+import top.infra.maven.utils.SystemUtils;
 import top.infra.maven.logging.Logger;
 import top.infra.maven.logging.LoggerPlexusImpl;
 

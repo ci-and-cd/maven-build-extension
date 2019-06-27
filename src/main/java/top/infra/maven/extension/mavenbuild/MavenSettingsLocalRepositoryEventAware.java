@@ -2,7 +2,7 @@ package top.infra.maven.extension.mavenbuild;
 
 import static top.infra.maven.extension.mavenbuild.CiOptionEventAware.ORDER_CI_OPTION;
 import static top.infra.maven.extension.mavenbuild.SystemToUserPropertiesEventAware.copyOrSetDefaultToUserProps;
-import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.isEmpty;
+import static top.infra.maven.utils.SupportFunction.isEmpty;
 
 import java.util.Properties;
 
@@ -15,7 +15,9 @@ import org.apache.maven.execution.MavenExecutionRequest;
 import org.apache.maven.settings.building.SettingsBuildingRequest;
 import org.apache.maven.settings.building.SettingsBuildingResult;
 
-import top.infra.maven.extension.mavenbuild.utils.MavenUtils;
+import top.infra.maven.core.CiOptions;
+import top.infra.maven.extension.MavenEventAware;
+import top.infra.maven.utils.MavenUtils;
 import top.infra.maven.logging.Logger;
 import top.infra.maven.logging.LoggerPlexusImpl;
 
@@ -62,12 +64,12 @@ public class MavenSettingsLocalRepositoryEventAware implements MavenEventAware {
     }
 
     @Override
-    public void onSettingsBuildingRequest(final SettingsBuildingRequest request, final CiOptionAccessor ciOpts) {
+    public void onSettingsBuildingRequest(final SettingsBuildingRequest request, final CiOptions ciOpts) {
         // no-op
     }
 
     @Override
-    public void onSettingsBuildingResult(final SettingsBuildingResult result, final CiOptionAccessor ciOpts) {
+    public void onSettingsBuildingResult(final SettingsBuildingResult result, final CiOptions ciOpts) {
         // Allow override value of localRepository in settings.xml by user property settings.localRepository.
         // e.g. ./mvnw -Dsettings.localRepository=${HOME}/.m3/repository clean install
         if (!isEmpty(this.settingsLocalRepository)) {
@@ -81,7 +83,7 @@ public class MavenSettingsLocalRepositoryEventAware implements MavenEventAware {
     }
 
     @Override
-    public void onMavenExecutionRequest(final MavenExecutionRequest request, final CiOptionAccessor ciOpts) {
+    public void onMavenExecutionRequest(final MavenExecutionRequest request, final CiOptions ciOpts) {
         if (isEmpty(this.settingsLocalRepository)) {
             this.settingsLocalRepository = request.getLocalRepository().getBasedir();
             if (logger.isInfoEnabled()) {

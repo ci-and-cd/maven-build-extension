@@ -4,8 +4,9 @@ import static java.lang.Boolean.FALSE;
 import static top.infra.maven.extension.mavenbuild.Constants.SRC_MAVEN_SETTINGS_SECURITY_XML;
 import static top.infra.maven.extension.mavenbuild.Constants.SRC_MAVEN_SETTINGS_XML;
 import static top.infra.maven.extension.mavenbuild.MavenSettingsLocalRepositoryEventAware.ORDER_MAVEN_SETTINGS_LOCALREPOSITORY;
-import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.isNotEmpty;
-import static top.infra.maven.extension.mavenbuild.utils.SystemUtils.os;
+import static top.infra.maven.extension.mavenbuild.multiinfra.InfraOption.CACHE_SETTINGS_PATH;
+import static top.infra.maven.utils.SupportFunction.isNotEmpty;
+import static top.infra.maven.utils.SystemUtils.os;
 
 import java.io.File;
 
@@ -16,11 +17,12 @@ import javax.inject.Singleton;
 import org.apache.maven.eventspy.EventSpy.Context;
 import org.apache.maven.settings.building.SettingsBuildingRequest;
 
-import top.infra.maven.extension.mavenbuild.CiOptionAccessor;
-import top.infra.maven.extension.mavenbuild.MavenEventAware;
-import top.infra.maven.extension.mavenbuild.utils.MavenUtils;
+import top.infra.maven.core.CiOptions;
+import top.infra.maven.extension.MavenEventAware;
+import top.infra.maven.extension.mavenbuild.utils.FileUtils;
 import top.infra.maven.logging.Logger;
 import top.infra.maven.logging.LoggerPlexusImpl;
+import top.infra.maven.utils.MavenUtils;
 
 @Named
 @Singleton
@@ -50,15 +52,15 @@ public class MavenSettingsFilesEventAware implements MavenEventAware {
     }
 
     @Override
-    public void afterInit(final Context context, final CiOptionAccessor ciOpts) {
+    public void afterInit(final Context context, final CiOptions ciOpts) {
         this.settingsXmlPathname = ciOpts.getOption(InfraOption.MAVEN_SETTINGS_FILE).orElse(null);
 
-        this.gitRepository = ciOpts.gitRepository(logger).orElse(null);
+        this.gitRepository = GitRepository.newGitRepository(ciOpts, logger).orElse(null);
 
         final boolean offline = MavenUtils.cmdArgOffline(context).orElse(FALSE);
         final boolean update = MavenUtils.cmdArgUpdate(context).orElse(FALSE);
 
-        ciOpts.createSettingsCache();
+        ciOpts.getOption(CACHE_SETTINGS_PATH).ifPresent(FileUtils::createDirectories);
         logger.info(">>>>>>>>>> ---------- download settings.xml and settings-security.xml ---------- >>>>>>>>>>");
         this.downloadSettingsXml(offline, update);
         this.downloadSettingsSecurityXml(offline, update);
@@ -72,7 +74,7 @@ public class MavenSettingsFilesEventAware implements MavenEventAware {
     @Override
     public void onSettingsBuildingRequest(
         final SettingsBuildingRequest request,
-        final CiOptionAccessor ciOpts
+        final CiOptions ciOpts
     ) {
         if (this.settingsXmlPathname != null) {
             if (logger.isInfoEnabled()) {

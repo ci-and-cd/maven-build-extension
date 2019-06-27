@@ -16,8 +16,8 @@ import static top.infra.maven.extension.mavenbuild.multiinfra.InfraOption.GIT_AU
 import static top.infra.maven.extension.mavenbuild.multiinfra.InfraOption.INFRASTRUCTURE;
 import static top.infra.maven.extension.mavenbuild.multiinfra.InfraOption.NEXUS2;
 import static top.infra.maven.extension.mavenbuild.options.MavenBuildExtensionOption.FAST;
-import static top.infra.maven.extension.mavenbuild.utils.SystemUtils.exec;
-import static top.infra.maven.extension.mavenbuild.utils.SystemUtils.systemUserDir;
+import static top.infra.maven.utils.SystemUtils.exec;
+import static top.infra.maven.utils.SystemUtils.systemUserDir;
 
 import java.nio.file.Paths;
 import java.util.Arrays;
@@ -26,7 +26,9 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
 
-import top.infra.maven.extension.mavenbuild.GitProperties;
+import top.infra.maven.core.CiOption;
+import top.infra.maven.core.CiOptionNames;
+import top.infra.maven.core.GitProperties;
 
 public enum MavenBuildPomOption implements CiOption {
     CHECKSTYLE_CONFIG_LOCATION("checkstyle.config.location",

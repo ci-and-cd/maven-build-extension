@@ -18,6 +18,8 @@ import java.util.Properties;
 import org.junit.Test;
 import org.slf4j.LoggerFactory;
 
+import top.infra.maven.core.CiOptions;
+import top.infra.maven.core.GitProperties;
 import top.infra.maven.logging.Logger;
 import top.infra.maven.logging.LoggerSlf4jImpl;
 
@@ -41,7 +43,7 @@ public class CiOptionTests {
         final Properties userProperties = new Properties();
         userProperties.setProperty(GENERATEREPORTS.getPropertyName(), BOOL_STRING_TRUE);
 
-        final CiOptionAccessor ciOpts = new CiOptionAccessor(
+        final CiOptions ciOpts = new CiOptions(
             gitProperties(),
             systemProperties,
             userProperties
@@ -54,7 +56,7 @@ public class CiOptionTests {
         // ciOpts.githubSiteRepoOwner().ifPresent(githubSiteRepoOwner ->
         //     ciOpts.setSystemProperty(GITHUB_GLOBAL_REPOSITORYOWNER, githubSiteRepoOwner));
 
-        final Properties newProperties = ciOpts.setCiOptPropertiesInto(userProperties);
+        final Properties newProperties = CiOptionEventAware.setCiOptPropertiesInto(ciOpts, userProperties);
 
         slf4jLogger.info("{} {}", DOCKER_REGISTRY_URL.getPropertyName(), ciOpts.getOption(DOCKER_REGISTRY_URL).orElse(null));
         slf4jLogger.info("{} {}", DOCKER_REGISTRY.getPropertyName(), ciOpts.getOption(DOCKER_REGISTRY).orElse(null));
@@ -72,7 +74,7 @@ public class CiOptionTests {
         final Properties userProperties = new Properties();
         userProperties.setProperty(GENERATEREPORTS.getPropertyName(), BOOL_STRING_TRUE);
 
-        final CiOptionAccessor ciOpts = new CiOptionAccessor(
+        final CiOptions ciOpts = new CiOptions(
             gitProperties(),
             systemProperties,
             userProperties
@@ -93,7 +95,7 @@ public class CiOptionTests {
         final Properties userProperties = new Properties();
         userProperties.setProperty(GENERATEREPORTS.getPropertyName(), BOOL_STRING_TRUE);
 
-        final CiOptionAccessor ciOpts = new CiOptionAccessor(
+        final CiOptions ciOpts = new CiOptions(
             gitProperties(),
             systemProperties,
             userProperties
@@ -102,13 +104,13 @@ public class CiOptionTests {
         slf4jLogger.info("generateReports {}", ciOpts.getOption(GENERATEREPORTS).orElse(null));
         assertEquals(TRUE.toString(), ciOpts.getOption(GENERATEREPORTS).orElse(null));
 
-        final Properties loadedProperties = ciOpts.ciOptsFromFile(logger());
+        final Properties loadedProperties = CiOptionEventAware.ciOptsFromFile(ciOpts, logger());
         ciOpts.updateSystemProperties(loadedProperties);
 
         slf4jLogger.info("generateReports {}", ciOpts.getOption(GENERATEREPORTS).orElse(null));
         assertEquals(TRUE.toString(), ciOpts.getOption(GENERATEREPORTS).orElse(null));
 
-        ciOpts.setCiOptPropertiesInto(userProperties);
+        CiOptionEventAware.setCiOptPropertiesInto(ciOpts, userProperties);
 
         slf4jLogger.info("generateReports {}", ciOpts.getOption(GENERATEREPORTS).orElse(null));
         assertEquals(TRUE.toString(), ciOpts.getOption(GENERATEREPORTS).orElse(null));
@@ -126,7 +128,7 @@ public class CiOptionTests {
 
         final Properties userProperties = new Properties();
 
-        final CiOptionAccessor ciOpts = new CiOptionAccessor(
+        final CiOptions ciOpts = new CiOptions(
             gitProperties(),
             systemProperties,
             userProperties
@@ -136,7 +138,7 @@ public class CiOptionTests {
         loadedProperties.setProperty(SONAR_HOST_URL.getEnvVariableName(), expectedSonarHostUrl);
         ciOpts.updateSystemProperties(loadedProperties);
 
-        final Properties newProperties = ciOpts.setCiOptPropertiesInto(userProperties);
+        final Properties newProperties = CiOptionEventAware.setCiOptPropertiesInto(ciOpts, userProperties);
 
         slf4jLogger.info("{} {}", SONAR_HOST_URL.getEnvVariableName(), ciOpts.getOption(SONAR_HOST_URL).orElse(null));
         slf4jLogger.info("{} {}", SONAR_HOST_URL.getPropertyName(), userProperties.getProperty(SONAR_HOST_URL.getPropertyName()));

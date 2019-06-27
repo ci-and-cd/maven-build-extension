@@ -1,7 +1,7 @@
 package top.infra.maven.extension.mavenbuild;
 
-import static top.infra.maven.extension.mavenbuild.utils.MavenUtils.profileId;
-import static top.infra.maven.extension.mavenbuild.utils.MavenUtils.projectName;
+import static top.infra.maven.utils.MavenUtils.profileId;
+import static top.infra.maven.utils.MavenUtils.projectName;
 
 import javax.inject.Inject;
 
@@ -12,7 +12,9 @@ import org.apache.maven.model.profile.ProfileActivationContext;
 import org.codehaus.plexus.component.annotations.Component;
 import org.codehaus.plexus.logging.Logger;
 
-import top.infra.maven.extension.mavenbuild.model.ProjectBuilderActivatorModelResolver;
+import top.infra.maven.extension.activator.AbstractCustomActivator;
+import top.infra.maven.extension.activator.CustomActivator;
+import top.infra.maven.extension.activator.model.ProjectBuilderActivatorModelResolver;
 
 @Component(role = CustomActivator.class, hint = "MultiModuleRootActivator")
 public class MultiModuleRootActivator extends AbstractCustomActivator {

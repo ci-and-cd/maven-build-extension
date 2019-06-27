@@ -6,12 +6,15 @@ import static java.nio.file.StandardOpenOption.CREATE;
 import static java.nio.file.StandardOpenOption.SYNC;
 import static java.nio.file.StandardOpenOption.TRUNCATE_EXISTING;
 import static top.infra.maven.extension.mavenbuild.Constants.GIT_REF_NAME_MASTER;
+import static top.infra.maven.extension.mavenbuild.multiinfra.InfraOption.GIT_AUTH_TOKEN;
+import static top.infra.maven.extension.mavenbuild.multiinfra.InfraOption.MAVEN_BUILD_OPTS_REPO;
+import static top.infra.maven.extension.mavenbuild.multiinfra.InfraOption.MAVEN_BUILD_OPTS_REPO_REF;
 import static top.infra.maven.extension.mavenbuild.utils.FileUtils.readFile;
 import static top.infra.maven.extension.mavenbuild.utils.FileUtils.writeFile;
-import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.isEmpty;
-import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.isNotEmpty;
-import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.newTuple;
-import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.newTupleOptional;
+import static top.infra.maven.utils.SupportFunction.isEmpty;
+import static top.infra.maven.utils.SupportFunction.isNotEmpty;
+import static top.infra.maven.utils.SupportFunction.newTuple;
+import static top.infra.maven.utils.SupportFunction.newTupleOptional;
 
 import java.nio.file.Paths;
 import java.util.Base64;
@@ -23,9 +26,10 @@ import java.util.regex.Pattern;
 
 import org.json.JSONObject;
 
-import top.infra.maven.extension.mavenbuild.utils.DownloadUtils;
-import top.infra.maven.extension.mavenbuild.utils.DownloadUtils.DownloadException;
+import top.infra.maven.core.CiOptions;
 import top.infra.maven.logging.Logger;
+import top.infra.maven.utils.DownloadUtils;
+import top.infra.maven.utils.DownloadUtils.DownloadException;
 
 public class GitRepository {
 
@@ -209,5 +213,14 @@ public class GitRepository {
         }
 
         return newTuple(Optional.ofNullable(fromUrl), statusOrException);
+    }
+
+    public static Optional<GitRepository> newGitRepository(final CiOptions ciOpts, final Logger logger) {
+        return ciOpts.getOption(MAVEN_BUILD_OPTS_REPO).map(repo -> new GitRepository(
+            logger,
+            repo,
+            ciOpts.getOption(MAVEN_BUILD_OPTS_REPO_REF).orElse(null),
+            ciOpts.getOption(GIT_AUTH_TOKEN).orElse(null)
+        ));
     }
 }

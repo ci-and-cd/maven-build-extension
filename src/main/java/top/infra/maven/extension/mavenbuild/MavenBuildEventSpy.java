@@ -1,5 +1,6 @@
 package top.infra.maven.extension.mavenbuild;
 
+import static top.infra.maven.core.CiOptionNames.PATTERN_VARS_ENV_DOT_CI;
 import static top.infra.maven.extension.mavenbuild.CiOptionEventAware.ORDER_CI_OPTION;
 import static top.infra.maven.extension.mavenbuild.DockerEventAware.ORDER_DOCKER;
 import static top.infra.maven.extension.mavenbuild.GpgEventAware.ORDER_GPG;
@@ -7,11 +8,10 @@ import static top.infra.maven.extension.mavenbuild.MavenGoalEditorEventAware.ORD
 import static top.infra.maven.extension.mavenbuild.MavenProjectInfoEventAware.ORDER_MAVEN_PROJECT_INFO;
 import static top.infra.maven.extension.mavenbuild.MavenSettingsLocalRepositoryEventAware.ORDER_MAVEN_SETTINGS_LOCALREPOSITORY;
 import static top.infra.maven.extension.mavenbuild.MavenSettingsServersEventAware.ORDER_MAVEN_SETTINGS_SERVERS;
+import static top.infra.maven.extension.mavenbuild.ModelResolverEventAware.ORDER_MODEL_RESOLVER;
 import static top.infra.maven.extension.mavenbuild.PrintInfoEventAware.ORDER_PRINT_INFO;
 import static top.infra.maven.extension.mavenbuild.SystemToUserPropertiesEventAware.ORDER_SYSTEM_TO_USER_PROPERTIES;
-import static top.infra.maven.extension.mavenbuild.model.ProjectBuilderActivatorModelResolver.ORDER_MODEL_RESOLVER;
 import static top.infra.maven.extension.mavenbuild.multiinfra.MavenSettingsFilesEventAware.ORDER_MAVEN_SETTINGS_FILES;
-import static top.infra.maven.extension.mavenbuild.options.CiOptionNames.PATTERN_VARS_ENV_DOT_CI;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -29,9 +29,11 @@ import org.apache.maven.settings.building.SettingsBuildingResult;
 import org.apache.maven.toolchain.building.ToolchainsBuildingRequest;
 import org.apache.maven.toolchain.building.ToolchainsBuildingResult;
 
-import top.infra.maven.extension.mavenbuild.utils.PropertiesUtils;
+import top.infra.maven.core.CiOptions;
+import top.infra.maven.extension.MavenEventAware;
 import top.infra.maven.logging.Logger;
 import top.infra.maven.logging.LoggerPlexusImpl;
+import top.infra.maven.utils.PropertiesUtils;
 
 /**
  * Main entry point. Reads properties and exposes them as user properties.
@@ -50,7 +52,7 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
 
     private final List<MavenEventAware> eventAwares;
 
-    private CiOptionAccessor ciOpts;
+    private CiOptions ciOpts;
 
     /**
      * Constructor.
@@ -139,7 +141,7 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
         this.afterInit(context, this.ciOpts);
     }
 
-    public void afterInit(final Context context, final CiOptionAccessor ciOpts) {
+    public void afterInit(final Context context, final CiOptions ciOpts) {
         // try to read settings.localRepository from request.userProperties
         assert ORDER_CI_OPTION < ORDER_MAVEN_SETTINGS_LOCALREPOSITORY;
         // download maven settings.xml, settings-security.xml (optional) and toolchains.xml
@@ -153,7 +155,7 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
 
     public void onSettingsBuildingRequest(
         final SettingsBuildingRequest request,
-        final CiOptionAccessor ciOpts
+        final CiOptions ciOpts
     ) {
         if (logger.isInfoEnabled()) {
             logger.info(String.format("onEvent SettingsBuildingRequest %s", request));
@@ -171,7 +173,7 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
 
     public void onSettingsBuildingResult(
         final SettingsBuildingResult result,
-        final CiOptionAccessor ciOpts
+        final CiOptions ciOpts
     ) {
         if (logger.isInfoEnabled()) {
             logger.info(String.format("onEvent SettingsBuildingResult %s", result));
@@ -185,7 +187,7 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
 
     public void onToolchainsBuildingRequest(
         final ToolchainsBuildingRequest request,
-        final CiOptionAccessor ciOpts
+        final CiOptions ciOpts
     ) {
         if (logger.isInfoEnabled()) {
             logger.info(String.format("onEvent ToolchainsBuildingRequest %s", request));
@@ -196,7 +198,7 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
 
     public void onToolchainsBuildingResult(
         final ToolchainsBuildingResult result,
-        final CiOptionAccessor ciOpts
+        final CiOptions ciOpts
     ) {
         if (logger.isInfoEnabled()) {
             logger.info(String.format("onEvent ToolchainsBuildingResult %s", result));
@@ -207,7 +209,7 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
 
     public void onMavenExecutionRequest(
         final MavenExecutionRequest request,
-        final CiOptionAccessor ciOpts
+        final CiOptions ciOpts
     ) {
         if (logger.isInfoEnabled()) {
             logger.info(String.format("onEvent MavenExecutionRequest %s", request));
@@ -246,7 +248,7 @@ public class MavenBuildEventSpy extends AbstractEventSpy {
     public void onProjectBuildingRequest(
         final MavenExecutionRequest mavenExecution,
         final ProjectBuildingRequest projectBuilding,
-        final CiOptionAccessor ciOpts
+        final CiOptions ciOpts
     ) {
         if (logger.isInfoEnabled()) {
             logger.info(String.format("onEvent ProjectBuildingRequest %s", projectBuilding));

@@ -1,10 +1,10 @@
 package top.infra.maven.extension.mavenbuild;
 
 import static top.infra.maven.extension.mavenbuild.utils.FileUtils.find;
-import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.isEmpty;
-import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.isNotEmpty;
-import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.lines;
-import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.notEmpty;
+import static top.infra.maven.utils.SupportFunction.isEmpty;
+import static top.infra.maven.utils.SupportFunction.isNotEmpty;
+import static top.infra.maven.utils.SupportFunction.lines;
+import static top.infra.maven.utils.SupportFunction.notEmpty;
 
 import java.io.File;
 import java.io.IOException;
@@ -21,8 +21,8 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import top.infra.maven.extension.mavenbuild.utils.SupportFunction;
-import top.infra.maven.extension.mavenbuild.utils.SystemUtils;
+import top.infra.maven.utils.SupportFunction;
+import top.infra.maven.utils.SystemUtils;
 
 /**
  * TODO use a java docker client ?

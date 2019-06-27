@@ -2,8 +2,8 @@ package top.infra.maven.extension.mavenbuild;
 
 import static top.infra.maven.extension.mavenbuild.multiinfra.InfraOption.MAVEN_SETTINGS_FILE;
 import static top.infra.maven.extension.mavenbuild.multiinfra.MavenSettingsFilesEventAware.ORDER_MAVEN_SETTINGS_FILES;
-import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.isEmpty;
-import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.isNotEmpty;
+import static top.infra.maven.utils.SupportFunction.isEmpty;
+import static top.infra.maven.utils.SupportFunction.isNotEmpty;
 
 import cn.home1.tools.maven.MavenSettingsSecurity;
 
@@ -28,8 +28,10 @@ import org.apache.maven.settings.Settings;
 import org.apache.maven.settings.crypto.SettingsDecrypter;
 import org.unix4j.Unix4j;
 
-import top.infra.maven.extension.mavenbuild.utils.MavenUtils;
-import top.infra.maven.extension.mavenbuild.utils.SupportFunction;
+import top.infra.maven.core.CiOptions;
+import top.infra.maven.extension.MavenEventAware;
+import top.infra.maven.utils.MavenUtils;
+import top.infra.maven.utils.SupportFunction;
 import top.infra.maven.logging.Logger;
 import top.infra.maven.logging.LoggerPlexusImpl;
 
@@ -109,7 +111,7 @@ public class MavenSettingsServersEventAware extends AbstractMavenLifecyclePartic
      * @param ciOpts  ciOpts
      */
     @Override
-    public void afterInit(final Context context, final CiOptionAccessor ciOpts) {
+    public void afterInit(final Context context, final CiOptions ciOpts) {
         final String settingsXmlPathname = ciOpts.getOption(MAVEN_SETTINGS_FILE).orElse(null);
 
         final Properties systemProperties = (Properties) context.getData().get("systemProperties");
@@ -132,7 +134,7 @@ public class MavenSettingsServersEventAware extends AbstractMavenLifecyclePartic
      * @param ciOpts  ciOpts
      */
     @Override
-    public void onMavenExecutionRequest(final MavenExecutionRequest request, final CiOptionAccessor ciOpts) {
+    public void onMavenExecutionRequest(final MavenExecutionRequest request, final CiOptions ciOpts) {
         this.settingsSecurity = new MavenSettingsSecurity(MavenUtils.settingsSecurityXml(), false);
         this.encryptedBlankString = this.settingsSecurity.encodeText(" ");
         this.checkServers(request.getServers());

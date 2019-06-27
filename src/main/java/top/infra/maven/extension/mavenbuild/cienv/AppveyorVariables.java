@@ -6,7 +6,7 @@ import static top.infra.maven.extension.mavenbuild.cienv.GitlabCiVariables.NA;
 import java.util.Optional;
 import java.util.Properties;
 
-import top.infra.maven.extension.mavenbuild.utils.SupportFunction;
+import top.infra.maven.utils.SupportFunction;
 
 public class AppveyorVariables {
 

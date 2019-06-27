@@ -16,9 +16,11 @@ import javax.inject.Singleton;
 import org.apache.maven.execution.MavenExecutionRequest;
 import org.apache.maven.project.ProjectBuildingRequest;
 
+import top.infra.maven.core.CiOptions;
+import top.infra.maven.extension.MavenEventAware;
 import top.infra.maven.extension.mavenbuild.options.MavenBuildExtensionOption;
 import top.infra.maven.extension.mavenbuild.options.MavenOption;
-import top.infra.maven.extension.mavenbuild.utils.PropertiesUtils;
+import top.infra.maven.utils.PropertiesUtils;
 import top.infra.maven.logging.Logger;
 import top.infra.maven.logging.LoggerPlexusImpl;
 
@@ -46,7 +48,7 @@ public class MavenGoalEditorEventAware implements MavenEventAware {
     public void onProjectBuildingRequest(
         final MavenExecutionRequest mavenExecution,
         final ProjectBuildingRequest projectBuilding,
-        final CiOptionAccessor ciOpts
+        final CiOptions ciOpts
     ) {
         final Entry<List<String>, Properties> goalsAndProps = editGoals(logger, mavenExecution, ciOpts);
 
@@ -64,7 +66,7 @@ public class MavenGoalEditorEventAware implements MavenEventAware {
     private static Entry<List<String>, Properties> editGoals(
         final Logger logger,
         final MavenExecutionRequest request,
-        final CiOptionAccessor ciOpts
+        final CiOptions ciOpts
     ) {
         final List<String> requestedGoals = new ArrayList<>(request.getGoals());
         if (logger.isInfoEnabled()) {

@@ -13,7 +13,7 @@ import static top.infra.maven.extension.mavenbuild.multiinfra.InfraOption.DOCKER
 import static top.infra.maven.extension.mavenbuild.options.MavenBuildExtensionOption.DOCKER;
 import static top.infra.maven.extension.mavenbuild.options.MavenBuildExtensionOption.FAST;
 import static top.infra.maven.extension.mavenbuild.options.MavenBuildPomOption.DOCKERFILE_USEMAVENSETTINGSFORAUTH;
-import static top.infra.maven.extension.mavenbuild.utils.SupportFunction.isNotEmpty;
+import static top.infra.maven.utils.SupportFunction.isNotEmpty;
 
 import java.util.List;
 import java.util.Optional;
@@ -25,7 +25,9 @@ import javax.inject.Singleton;
 import org.apache.maven.execution.MavenExecutionRequest;
 import org.apache.maven.project.ProjectBuildingRequest;
 
-import top.infra.maven.extension.mavenbuild.utils.SystemUtils;
+import top.infra.maven.core.CiOptions;
+import top.infra.maven.extension.MavenEventAware;
+import top.infra.maven.utils.SystemUtils;
 import top.infra.maven.logging.Logger;
 import top.infra.maven.logging.LoggerPlexusImpl;
 
@@ -53,7 +55,7 @@ public class DockerEventAware implements MavenEventAware {
     public void onProjectBuildingRequest(
         final MavenExecutionRequest mavenExecution,
         final ProjectBuildingRequest projectBuilding,
-        final CiOptionAccessor ciOpts
+        final CiOptions ciOpts
     ) {
         final List<String> goals = mavenExecution.getGoals();
         final boolean dockerEnabled = ciOpts.getOption(DOCKER).map(Boolean::parseBoolean).orElse(FALSE)

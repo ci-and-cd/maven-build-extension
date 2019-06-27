@@ -1,8 +1,8 @@
 package top.infra.maven.extension.mavenbuild.multiinfra;
 
 import static java.lang.Boolean.FALSE;
-import static top.infra.maven.extension.mavenbuild.utils.MavenUtils.profileId;
-import static top.infra.maven.extension.mavenbuild.utils.MavenUtils.projectName;
+import static top.infra.maven.utils.MavenUtils.profileId;
+import static top.infra.maven.utils.MavenUtils.projectName;
 
 import java.util.Optional;
 import java.util.regex.Matcher;
@@ -20,12 +20,12 @@ import org.apache.maven.model.profile.ProfileActivationContext;
 import org.apache.maven.model.profile.activation.ProfileActivator;
 import org.codehaus.plexus.logging.Logger;
 
-import top.infra.maven.extension.mavenbuild.AbstractCustomActivator;
-import top.infra.maven.extension.mavenbuild.CiOptionAccessor;
+import top.infra.maven.extension.activator.AbstractCustomActivator;
+import top.infra.maven.core.CiOptions;
 import top.infra.maven.extension.mavenbuild.CiOptionEventAware;
-import top.infra.maven.extension.mavenbuild.CustomActivator;
-import top.infra.maven.extension.mavenbuild.MavenEventAware;
-import top.infra.maven.extension.mavenbuild.model.ProjectBuilderActivatorModelResolver;
+import top.infra.maven.extension.activator.CustomActivator;
+import top.infra.maven.extension.MavenEventAware;
+import top.infra.maven.extension.activator.model.ProjectBuilderActivatorModelResolver;
 
 // @Component(role = CustomActivator.class, hint = "InfrastructureActivator") // This instance has multiple roles
 @Named
@@ -36,7 +36,7 @@ public class InfrastructureActivator extends AbstractCustomActivator implements 
 
     private final CiOptionEventAware ciOptsFactory;
 
-    private CiOptionAccessor ciOpts;
+    private CiOptions ciOpts;
 
     @Inject
     public InfrastructureActivator(

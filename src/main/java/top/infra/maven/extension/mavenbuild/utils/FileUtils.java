@@ -11,7 +11,7 @@ import java.nio.file.StandardOpenOption;
 import java.util.List;
 import java.util.Optional;
 
-import top.infra.exception.RuntimeIOException;
+import top.infra.maven.exception.RuntimeIOException;
 
 public class FileUtils {
 
@@ -21,6 +21,16 @@ public class FileUtils {
         } catch (final IOException ex) {
             throw new RuntimeIOException(ex);
         }
+    }
+
+    public static String createDirectories(final String pathname) {
+        final Path path = Paths.get(pathname);
+        try {
+            Files.createDirectories(path);
+        } catch (final IOException ex) {
+            throw new RuntimeIOException(String.format("Error create directory '%s'. %s", pathname, ex.getMessage()), ex);
+        }
+        return pathname;
     }
 
     public static List<String> find(final String path, final String name) {

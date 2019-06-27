@@ -15,17 +15,18 @@ import javax.inject.Singleton;
 import org.apache.maven.execution.MavenExecutionRequest;
 import org.apache.maven.project.ProjectBuildingRequest;
 
-import top.infra.maven.extension.mavenbuild.model.ProjectBuilderActivatorModelResolver;
+import top.infra.maven.core.CiOptions;
+import top.infra.maven.extension.MavenEventAware;
 import top.infra.maven.extension.mavenbuild.options.MavenOption;
-import top.infra.maven.extension.mavenbuild.utils.SystemUtils;
 import top.infra.maven.logging.Logger;
 import top.infra.maven.logging.LoggerPlexusImpl;
+import top.infra.maven.utils.SystemUtils;
 
 @Named
 @Singleton
 public class GpgEventAware implements MavenEventAware {
 
-    public static final int ORDER_GPG = ProjectBuilderActivatorModelResolver.ORDER_MODEL_RESOLVER + 1;
+    public static final int ORDER_GPG = ModelResolverEventAware.ORDER_MODEL_RESOLVER + 1;
 
     private Logger logger;
 
@@ -45,7 +46,7 @@ public class GpgEventAware implements MavenEventAware {
     public void onProjectBuildingRequest(
         final MavenExecutionRequest mavenExecution,
         final ProjectBuildingRequest projectBuilding,
-        final CiOptionAccessor ciOpts
+        final CiOptions ciOpts
     ) {
         logger.info("    >>>>>>>>>> ---------- decrypt files and handle keys ---------- >>>>>>>>>>");
         final Optional<String> executable = ciOpts.getOption(GPG_EXECUTABLE);

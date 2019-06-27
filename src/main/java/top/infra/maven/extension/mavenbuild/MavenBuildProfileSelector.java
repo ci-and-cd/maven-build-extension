@@ -25,6 +25,8 @@ import org.codehaus.plexus.component.annotations.Component;
 import org.codehaus.plexus.component.annotations.Requirement;
 import org.codehaus.plexus.logging.Logger;
 
+import top.infra.maven.extension.activator.CustomActivator;
+
 /**
  * Profile selector which combines profiles activated by custom and default
  * activators. Overrides "default" provider.

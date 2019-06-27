@@ -1,14 +1,20 @@
 package top.infra.maven.extension.mavenbuild;
 
 import static java.lang.Boolean.FALSE;
+import static top.infra.maven.extension.mavenbuild.Constants.BRANCH_PREFIX_FEATURE;
+import static top.infra.maven.extension.mavenbuild.Constants.GIT_REF_NAME_DEVELOP;
+import static top.infra.maven.extension.mavenbuild.Constants.PUBLISH_CHANNEL_SNAPSHOT;
 import static top.infra.maven.extension.mavenbuild.GpgEventAware.ORDER_GPG;
 import static top.infra.maven.extension.mavenbuild.MavenProjectInfo.newProjectInfoByBuildProject;
 import static top.infra.maven.extension.mavenbuild.MavenProjectInfo.newProjectInfoByReadPom;
 import static top.infra.maven.extension.mavenbuild.options.MavenBuildExtensionOption.FAST;
 import static top.infra.maven.extension.mavenbuild.options.MavenBuildExtensionOption.GIT_REF_NAME;
+import static top.infra.maven.utils.SupportFunction.isEmpty;
+import static top.infra.maven.utils.SupportFunction.isSemanticSnapshotVersion;
+import static top.infra.maven.utils.SupportFunction.newTuple;
 
 import java.io.File;
-import java.util.Map;
+import java.util.Map.Entry;
 
 import javax.inject.Inject;
 import javax.inject.Named;
@@ -21,6 +27,10 @@ import org.apache.maven.project.ProjectBuilder;
 import org.apache.maven.project.ProjectBuildingRequest;
 import org.eclipse.aether.RepositorySystemSession;
 
+import top.infra.maven.core.CiOptions;
+import top.infra.maven.extension.MavenEventAware;
+import top.infra.maven.extension.mavenbuild.options.MavenBuildExtensionOption;
+import top.infra.maven.extension.mavenbuild.options.MavenBuildPomOption;
 import top.infra.maven.logging.Logger;
 import top.infra.maven.logging.LoggerPlexusImpl;
 
@@ -37,7 +47,7 @@ public class MavenProjectInfoEventAware implements MavenEventAware {
 
     private final DefaultRepositorySystemSessionFactory repositorySessionFactory;
 
-    private CiOptionAccessor ciOpts;
+    private CiOptions ciOpts;
 
     private MavenExecutionRequest mavenExecutionCopied;
 
@@ -127,7 +137,7 @@ public class MavenProjectInfoEventAware implements MavenEventAware {
     public void onProjectBuildingRequest(
         final MavenExecutionRequest mavenExecution,
         final ProjectBuildingRequest projectBuilding,
-        final CiOptionAccessor ciOpts
+        final CiOptions ciOpts
     ) {
         if (!ciOpts.getOption(FAST).map(Boolean::parseBoolean).orElse(FALSE)) {
             this.projectInfo = this.resolveAndCheck(ciOpts, mavenExecution);
@@ -140,7 +150,7 @@ public class MavenProjectInfoEventAware implements MavenEventAware {
         }
     }
 
-    private MavenProjectInfo resolveAndCheck(final CiOptionAccessor ciOpts, final MavenExecutionRequest mavenExecution) {
+    private MavenProjectInfo resolveAndCheck(final CiOptions ciOpts, final MavenExecutionRequest mavenExecution) {
         final MavenProjectInfo mavenProjectInfo = this.getMavenProjectInfo(mavenExecution);
 
         if (logger.isInfoEnabled()) {
@@ -150,7 +160,7 @@ public class MavenProjectInfoEventAware implements MavenEventAware {
         }
 
         final String gitRefName = ciOpts.getOption(GIT_REF_NAME).orElse("");
-        final Map.Entry<Boolean, RuntimeException> checkResult = ciOpts.checkProjectVersion(mavenProjectInfo.getVersion());
+        final Entry<Boolean, RuntimeException> checkResult = checkProjectVersion(ciOpts, mavenProjectInfo.getVersion());
         final boolean valid = checkResult.getKey();
         if (logger.isInfoEnabled()) {
             logger.info(">>>>>>>>>> ---------- check project version ---------- >>>>>>>>>>");
@@ -172,5 +182,39 @@ public class MavenProjectInfoEventAware implements MavenEventAware {
         }
 
         return mavenProjectInfo;
+    }
+
+    static Entry<Boolean, RuntimeException> checkProjectVersion(
+        final CiOptions ciOpts,
+        final String projectVersion
+    ) {
+        final String gitRefName = ciOpts.getOption(MavenBuildExtensionOption.GIT_REF_NAME).orElse("");
+        final String msgInvalidVersion = String.format("Invalid version [%s] for ref [%s]", projectVersion, gitRefName);
+        final boolean semanticSnapshotVersion = isSemanticSnapshotVersion(projectVersion); // no feature name in version
+        final boolean snapshotChannel = PUBLISH_CHANNEL_SNAPSHOT.equals(
+            ciOpts.getOption(MavenBuildPomOption.PUBLISH_CHANNEL).orElse(null));
+        final boolean snapshotVersion = projectVersion != null && projectVersion.endsWith("-SNAPSHOT");
+
+        final boolean result;
+        final RuntimeException ex;
+        if (snapshotChannel) {
+            final boolean onDevelopBranch = GIT_REF_NAME_DEVELOP.equals(gitRefName);
+            final boolean onFeatureBranches = gitRefName.startsWith(BRANCH_PREFIX_FEATURE);
+            if (onFeatureBranches) {
+                result = snapshotVersion && !semanticSnapshotVersion;
+                ex = null;
+            } else if (isEmpty(gitRefName) || onDevelopBranch) {
+                result = snapshotVersion && semanticSnapshotVersion;
+                ex = null;
+            } else {
+                result = snapshotVersion;
+                ex = result ? null : new IllegalArgumentException(msgInvalidVersion);
+            }
+        } else {
+            result = !snapshotVersion;
+            ex = result ? null : new IllegalArgumentException(msgInvalidVersion);
+        }
+
+        return newTuple(result, ex);
     }
 }

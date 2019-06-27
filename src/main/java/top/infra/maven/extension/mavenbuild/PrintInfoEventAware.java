@@ -1,6 +1,6 @@
 package top.infra.maven.extension.mavenbuild;
 
-import static top.infra.maven.extension.mavenbuild.utils.SystemUtils.systemUserHome;
+import static top.infra.maven.utils.SystemUtils.systemUserHome;
 
 import java.io.File;
 import java.net.URL;
@@ -18,13 +18,14 @@ import javax.inject.Singleton;
 import org.apache.maven.eventspy.EventSpy.Context;
 import org.apache.maven.rtinfo.RuntimeInformation;
 
+import top.infra.maven.extension.MavenEventAware;
 import top.infra.maven.extension.mavenbuild.cienv.AppveyorVariables;
 import top.infra.maven.extension.mavenbuild.cienv.GitlabCiVariables;
 import top.infra.maven.extension.mavenbuild.cienv.TravisCiVariables;
-import top.infra.maven.extension.mavenbuild.options.CiOptionNames;
+import top.infra.maven.core.CiOptionNames;
 import top.infra.maven.extension.mavenbuild.options.MavenOption;
-import top.infra.maven.extension.mavenbuild.utils.MavenUtils;
-import top.infra.maven.extension.mavenbuild.utils.PropertiesUtils;
+import top.infra.maven.utils.MavenUtils;
+import top.infra.maven.utils.PropertiesUtils;
 import top.infra.maven.logging.Logger;
 import top.infra.maven.logging.LoggerPlexusImpl;
 

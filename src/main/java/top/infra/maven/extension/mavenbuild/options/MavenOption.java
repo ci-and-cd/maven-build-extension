@@ -6,15 +6,17 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static top.infra.maven.extension.mavenbuild.Constants.BOOL_STRING_FALSE;
 import static top.infra.maven.extension.mavenbuild.Constants.BOOL_STRING_TRUE;
 import static top.infra.maven.extension.mavenbuild.options.MavenBuildExtensionOption.FAST;
-import static top.infra.maven.extension.mavenbuild.utils.SystemUtils.systemJavaVersion;
-import static top.infra.maven.extension.mavenbuild.utils.SystemUtils.systemUserDir;
+import static top.infra.maven.utils.SystemUtils.systemJavaVersion;
+import static top.infra.maven.utils.SystemUtils.systemUserDir;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Optional;
 import java.util.Properties;
 
-import top.infra.maven.extension.mavenbuild.GitProperties;
+import top.infra.maven.core.CiOption;
+import top.infra.maven.core.CiOptionNames;
+import top.infra.maven.core.GitProperties;
 
 /**
  * Maven official (include official plugin) options.
