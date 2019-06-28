@@ -1,16 +1,15 @@
 package top.infra.maven.extension.mavenbuild.options;
 
 import static java.lang.Boolean.FALSE;
-import static top.infra.maven.extension.mavenbuild.Constants.BOOL_STRING_FALSE;
-import static top.infra.maven.extension.mavenbuild.Constants.BOOL_STRING_TRUE;
-import static top.infra.maven.extension.mavenbuild.Constants.BRANCH_PREFIX_FEATURE;
-import static top.infra.maven.extension.mavenbuild.Constants.BRANCH_PREFIX_HOTFIX;
-import static top.infra.maven.extension.mavenbuild.Constants.BRANCH_PREFIX_RELEASE;
-import static top.infra.maven.extension.mavenbuild.Constants.BRANCH_PREFIX_SUPPORT;
-import static top.infra.maven.extension.mavenbuild.Constants.GIT_REF_NAME_DEVELOP;
+import static top.infra.maven.Constants.BOOL_STRING_FALSE;
+import static top.infra.maven.Constants.BOOL_STRING_TRUE;
+import static top.infra.maven.Constants.BRANCH_PREFIX_FEATURE;
+import static top.infra.maven.Constants.BRANCH_PREFIX_HOTFIX;
+import static top.infra.maven.Constants.BRANCH_PREFIX_RELEASE;
+import static top.infra.maven.Constants.BRANCH_PREFIX_SUPPORT;
+import static top.infra.maven.Constants.GIT_REF_NAME_DEVELOP;
 import static top.infra.maven.extension.mavenbuild.Docker.dockerHost;
 import static top.infra.maven.extension.mavenbuild.Docker.dockerfiles;
-import static top.infra.maven.extension.mavenbuild.utils.FileUtils.find;
 import static top.infra.maven.utils.SystemUtils.existsInPath;
 import static top.infra.maven.utils.SystemUtils.systemUserHome;
 
@@ -65,7 +64,7 @@ public enum MavenBuildExtensionOption implements CiOption {
                 // TCP
                 final boolean envDockerHostPresent = dockerHost(systemProperties).isPresent();
                 // [[ -n "$(find . -name '*Docker*')" ]] || [[ -n "$(find . -name '*docker-compose*.yml')" ]]
-                final int dockerComposeFilesCount = find(".", "*docker-compose*.yml").size();
+                final int dockerComposeFilesCount = org.unix4j.Unix4j.find(".", "*docker-compose*.yml").toStringList().size();
                 final boolean dockerFilesFound = !dockerfiles().isEmpty() || dockerComposeFilesCount > 0;
 
                 result = dockerFilesFound && (dockerSockFilePresent || envDockerHostPresent);

@@ -1,8 +1,8 @@
 package top.infra.maven.extension.mavenbuild.multiinfra;
 
-import static top.infra.maven.extension.mavenbuild.Constants.GIT_REF_NAME_MASTER;
-import static top.infra.maven.extension.mavenbuild.Constants.SRC_CI_OPTS_PROPERTIES;
-import static top.infra.maven.extension.mavenbuild.Constants.SRC_MAVEN_SETTINGS_XML;
+import static top.infra.maven.Constants.GIT_REF_NAME_MASTER;
+import static top.infra.maven.Constants.SRC_CI_OPTS_PROPERTIES;
+import static top.infra.maven.Constants.SRC_MAVEN_SETTINGS_XML;
 import static top.infra.maven.utils.SystemUtils.systemJavaIoTmp;
 import static top.infra.maven.utils.SystemUtils.systemUserHome;
 import static top.infra.maven.utils.UrlUtils.domainOrHostFromUrl;
@@ -14,11 +14,10 @@ import java.nio.file.Paths;
 import java.util.Optional;
 import java.util.Properties;
 
-import top.infra.maven.core.GitProperties;
-import top.infra.maven.extension.mavenbuild.cienv.GitlabCiVariables;
 import top.infra.maven.core.CiOption;
 import top.infra.maven.core.CiOptionNames;
-import top.infra.maven.extension.mavenbuild.options.MavenOption;
+import top.infra.maven.core.GitProperties;
+import top.infra.maven.utils.MavenUtils;
 import top.infra.maven.utils.UrlUtils;
 
 public enum InfraOption implements CiOption {
@@ -32,7 +31,7 @@ public enum InfraOption implements CiOption {
         ) {
             // We need a stable global cache path
             final String infrastructure = INFRASTRUCTURE.getValue(gitProperties, systemProperties, userProperties)
-                .orElseGet(() -> MavenOption.rootProjectPath(systemProperties).getFileName().toString());
+                .orElseGet(() -> MavenUtils.rootProjectPath(systemProperties).getFileName().toString());
             return Optional.of(Paths.get(systemUserHome(), ".ci-and-cd", infrastructure).toString());
         }
     },
@@ -223,9 +222,9 @@ public enum InfraOption implements CiOption {
             if (found.isPresent()) {
                 result = found;
             } else {
-                final GitlabCiVariables gitlabCi = new GitlabCiVariables(systemProperties);
-                if (gitlabCi.ciProjectUrl().isPresent()) {
-                    result = gitlabCi.ciProjectUrl().map(url -> urlWithoutPath(url).orElse(null));
+                final Optional<String> ciProjectUrl = Optional.ofNullable(systemProperties.getProperty("env.CI_PROJECT_URL"));
+                if (ciProjectUrl.isPresent()) {
+                    result = ciProjectUrl.map(url -> urlWithoutPath(url).orElse(null));
                 } else {
                     result = gitProperties.remoteOriginUrl()
                         .map(url -> url.startsWith("http")
@@ -286,7 +285,7 @@ public enum InfraOption implements CiOption {
             final Properties systemProperties,
             final Properties userProperties
         ) {
-            final Path rootProjectPath = MavenOption.rootProjectPath(systemProperties);
+            final Path rootProjectPath = MavenUtils.rootProjectPath(systemProperties);
             final String settingsFile = rootProjectPath.resolve(SRC_MAVEN_SETTINGS_XML).toAbsolutePath().toString();
 
             final Optional<String> result;

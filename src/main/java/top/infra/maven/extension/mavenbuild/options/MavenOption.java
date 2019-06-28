@@ -3,14 +3,11 @@ package top.infra.maven.extension.mavenbuild.options;
 import static java.lang.Boolean.FALSE;
 import static java.lang.Boolean.TRUE;
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static top.infra.maven.extension.mavenbuild.Constants.BOOL_STRING_FALSE;
-import static top.infra.maven.extension.mavenbuild.Constants.BOOL_STRING_TRUE;
+import static top.infra.maven.Constants.BOOL_STRING_FALSE;
+import static top.infra.maven.Constants.BOOL_STRING_TRUE;
 import static top.infra.maven.extension.mavenbuild.options.MavenBuildExtensionOption.FAST;
 import static top.infra.maven.utils.SystemUtils.systemJavaVersion;
-import static top.infra.maven.utils.SystemUtils.systemUserDir;
 
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Optional;
 import java.util.Properties;
 
@@ -343,22 +340,5 @@ public enum MavenOption implements CiOption {
 
     public String getSystemPropertyName() {
         return this.systemPropertyName;
-    }
-
-    public static final String PROP_MAVEN_MULTIMODULEPROJECTDIRECTORY = "maven.multiModuleProjectDirectory";
-
-    public static Path rootProjectPath(final Properties systemProperties) {
-        return mavenMultiModuleProjectDirectory(systemProperties).orElseGet(() -> Paths.get(systemUserDir()));
-    }
-
-    private static Optional<Path> mavenMultiModuleProjectDirectory(final Properties systemProperties) {
-        final Optional<Path> result;
-        if (systemProperties != null) {
-            final String value = systemProperties.getProperty(PROP_MAVEN_MULTIMODULEPROJECTDIRECTORY);
-            result = Optional.ofNullable(value != null ? Paths.get(value) : null);
-        } else {
-            result = Optional.empty();
-        }
-        return result;
     }
 }

@@ -1,7 +1,7 @@
 package top.infra.maven.extension.mavenbuild;
 
 import static java.util.Collections.singletonList;
-import static top.infra.maven.extension.mavenbuild.utils.FileUtils.pathname;
+import static top.infra.maven.utils.FileUtils.pathname;
 import static top.infra.maven.utils.SupportFunction.stackTrace;
 
 import java.io.File;

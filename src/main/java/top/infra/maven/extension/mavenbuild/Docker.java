@@ -1,6 +1,5 @@
 package top.infra.maven.extension.mavenbuild;
 
-import static top.infra.maven.extension.mavenbuild.utils.FileUtils.find;
 import static top.infra.maven.utils.SupportFunction.isEmpty;
 import static top.infra.maven.utils.SupportFunction.isNotEmpty;
 import static top.infra.maven.utils.SupportFunction.lines;
@@ -161,7 +160,8 @@ public class Docker {
     }
 
     public static List<String> dockerfiles() {
-        return find(".", "*Docker*")
+        return org.unix4j.Unix4j.find(".", "*Docker*")
+            .toStringList()
             .stream()
             .filter(line -> !line.contains("/target/classes/")) // TODO windows ?
             .filter(line -> !PATTERN_FILE_WITH_EXT.matcher(line).matches())

@@ -1,7 +1,6 @@
 package top.infra.maven.extension.mavenbuild;
 
 import static top.infra.maven.extension.mavenbuild.PrintInfoEventAware.ORDER_PRINT_INFO;
-import static top.infra.maven.extension.mavenbuild.options.MavenOption.PROP_MAVEN_MULTIMODULEPROJECTDIRECTORY;
 
 import java.util.Collections;
 import java.util.List;
@@ -17,11 +16,11 @@ import javax.inject.Singleton;
 import org.apache.maven.eventspy.EventSpy.Context;
 
 import top.infra.maven.extension.MavenEventAware;
+import top.infra.maven.logging.Logger;
+import top.infra.maven.logging.LoggerPlexusImpl;
 import top.infra.maven.utils.MavenUtils;
 import top.infra.maven.utils.PropertiesUtils;
 import top.infra.maven.utils.SystemUtils;
-import top.infra.maven.logging.Logger;
-import top.infra.maven.logging.LoggerPlexusImpl;
 
 /**
  * Move -Dproperty=value in MAVEN_OPTS from systemProperties into userProperties (maven does not do this automatically).
@@ -56,12 +55,12 @@ public class SystemToUserPropertiesEventAware implements MavenEventAware {
         copyOrSetDefaultToUserProps(
             systemProperties,
             userProperties,
-            PROP_MAVEN_MULTIMODULEPROJECTDIRECTORY,
+            MavenUtils.PROP_MAVEN_MULTIMODULEPROJECTDIRECTORY,
             () -> {
                 final String systemUserDir = SystemUtils.systemUserDir();
                 logger.warn(String.format(
                     "Value of system property [%s] not found, use user.dir [%s] instead.",
-                    PROP_MAVEN_MULTIMODULEPROJECTDIRECTORY, systemUserDir
+                    MavenUtils.PROP_MAVEN_MULTIMODULEPROJECTDIRECTORY, systemUserDir
                 ));
                 return systemUserDir;
             }

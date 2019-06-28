@@ -3,9 +3,10 @@ package top.infra.maven.extension.mavenbuild;
 import static java.lang.Boolean.FALSE;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
-import static top.infra.maven.extension.mavenbuild.Constants.BOOL_STRING_TRUE;
-import static top.infra.maven.extension.mavenbuild.Constants.GIT_REF_NAME_DEVELOP;
+import static top.infra.maven.Constants.BOOL_STRING_TRUE;
+import static top.infra.maven.Constants.GIT_REF_NAME_DEVELOP;
 import static top.infra.maven.extension.mavenbuild.MavenProjectInfoEventAware.checkProjectVersion;
+import static top.infra.maven.extension.mavenbuild.multiinfra.GitPropertiesBean.newJgitProperties;
 import static top.infra.maven.extension.mavenbuild.options.MavenBuildExtensionOption.GIT_REF_NAME;
 import static top.infra.maven.extension.mavenbuild.options.MavenBuildExtensionOption.ORIGIN_REPO;
 import static top.infra.maven.extension.mavenbuild.options.MavenBuildExtensionOption.PUBLISH_TO_REPO;
@@ -34,7 +35,9 @@ public class ProjectVersionTest {
 
     private static GitProperties gitProperties() {
         final Logger logger = logger();
-        return GitProperties.newInstance(logger).orElseGet(() -> GitProperties.newBlankInstance(logger));
+        return newJgitProperties(logger)
+            .map(GitProperties::newGitProperties)
+            .orElseGet(GitProperties::newBlankGitProperties);
     }
 
     @Test

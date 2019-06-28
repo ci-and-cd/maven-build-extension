@@ -1,8 +1,8 @@
 package top.infra.maven.extension.mavenbuild;
 
 import static java.lang.Boolean.FALSE;
+import static top.infra.maven.Constants.SRC_CI_OPTS_PROPERTIES;
 import static top.infra.maven.core.CiOptionNames.PATTERN_VARS_ENV_DOT_CI;
-import static top.infra.maven.extension.mavenbuild.Constants.SRC_CI_OPTS_PROPERTIES;
 import static top.infra.maven.extension.mavenbuild.SystemToUserPropertiesEventAware.ORDER_SYSTEM_TO_USER_PROPERTIES;
 import static top.infra.maven.extension.mavenbuild.multiinfra.InfraOption.CACHE_SETTINGS_PATH;
 import static top.infra.maven.extension.mavenbuild.multiinfra.InfraOption.GIT_AUTH_TOKEN;
@@ -34,9 +34,9 @@ import top.infra.maven.extension.mavenbuild.multiinfra.InfraOption;
 import top.infra.maven.extension.mavenbuild.options.MavenBuildExtensionOption;
 import top.infra.maven.extension.mavenbuild.options.MavenBuildPomOption;
 import top.infra.maven.extension.mavenbuild.options.MavenOption;
-import top.infra.maven.extension.mavenbuild.utils.FileUtils;
 import top.infra.maven.logging.Logger;
 import top.infra.maven.logging.LoggerPlexusImpl;
+import top.infra.maven.utils.FileUtils;
 import top.infra.maven.utils.MavenUtils;
 import top.infra.maven.utils.PropertiesUtils;
 
@@ -82,7 +82,7 @@ public class CiOptionEventAware implements MavenEventAware {
                 checkGitAuthToken(logger, result);
 
                 // ci options from file
-                this.loadedProperties = ciOptsFromFile(result, logger);
+                this.loadedProperties = ciOptsFromFile(result, logger).orElse(null);
                 result.updateSystemProperties(this.loadedProperties);
 
                 // github site options
@@ -116,11 +116,11 @@ public class CiOptionEventAware implements MavenEventAware {
         }
 
         if (logger.isInfoEnabled()) {
-            logger.info(">>>>>>>>>> ---------- load options from file ---------- >>>>>>>>>>");
-            logger.info("    >>>>>>>>>> ---------- loadedProperties ---------- >>>>>>>>>>");
-            logger.info(PropertiesUtils.toString(this.loadedProperties, null));
-            logger.info("    <<<<<<<<<< ---------- loadedProperties ---------- <<<<<<<<<<");
-            logger.info("<<<<<<<<<< ---------- load options from file ---------- <<<<<<<<<<");
+            if (this.loadedProperties != null) {
+                logger.info(">>>>>>>>>> ---------- load options from file ---------- >>>>>>>>>>");
+                logger.info(PropertiesUtils.toString(this.loadedProperties, null));
+                logger.info("<<<<<<<<<< ---------- load options from file ---------- <<<<<<<<<<");
+            }
 
             logger.info(">>>>>>>>>> ---------- set options (update userProperties) ---------- >>>>>>>>>>");
             Stream.of(
@@ -152,14 +152,15 @@ public class CiOptionEventAware implements MavenEventAware {
         }
     }
 
-    static Properties ciOptsFromFile( // TODO this is part of multi-infra support
+    static Optional<Properties> ciOptsFromFile(
         final CiOptions ciOpts,
         final Logger logger
     ) {
-        final Properties properties = new Properties();
+        return ciOpts.getOption(InfraOption.CI_OPTS_FILE).map(ciOptsFile -> {
+            final Properties properties = new Properties();
 
-        ciOpts.getOption(InfraOption.CI_OPTS_FILE).ifPresent(ciOptsFile -> {
             ciOpts.getOption(CACHE_SETTINGS_PATH).ifPresent(FileUtils::createDirectories);
+
             final boolean offline = MavenUtils.cmdArgOffline(ciOpts.getSystemProperties()).orElse(FALSE);
             final boolean update = MavenUtils.cmdArgUpdate(ciOpts.getSystemProperties()).orElse(FALSE);
             GitRepository.newGitRepository(ciOpts, logger).ifPresent(repo -> {
@@ -172,9 +173,9 @@ public class CiOptionEventAware implements MavenEventAware {
                     throw new RuntimeIOException(errorMsg, ex);
                 }
             });
-        });
 
-        return properties;
+            return properties;
+        });
     }
 
     static Properties setCiOptPropertiesInto(final CiOptions ciOpts, final Properties... targetProperties) {

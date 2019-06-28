@@ -18,11 +18,14 @@ import org.apache.maven.project.ProjectBuildingRequest;
 
 import top.infra.maven.core.CiOptions;
 import top.infra.maven.extension.MavenEventAware;
+import top.infra.maven.extension.mavenbuild.cienv.AppveyorVariables;
+import top.infra.maven.extension.mavenbuild.cienv.GitlabCiVariables;
+import top.infra.maven.extension.mavenbuild.cienv.TravisCiVariables;
 import top.infra.maven.extension.mavenbuild.options.MavenBuildExtensionOption;
 import top.infra.maven.extension.mavenbuild.options.MavenOption;
-import top.infra.maven.utils.PropertiesUtils;
 import top.infra.maven.logging.Logger;
 import top.infra.maven.logging.LoggerPlexusImpl;
+import top.infra.maven.utils.PropertiesUtils;
 
 @Named
 @Singleton
@@ -72,6 +75,9 @@ public class MavenGoalEditorEventAware implements MavenEventAware {
         if (logger.isInfoEnabled()) {
             logger.info(">>>>>>>>>> ---------- run_mvn alter_mvn ---------- >>>>>>>>>>");
             logger.info(String.format("onMavenExecutionRequest requested goals: %s", String.join(" ", requestedGoals)));
+            logger.info(new AppveyorVariables(request.getSystemProperties()).toString());
+            logger.info(new GitlabCiVariables(request.getSystemProperties()).toString());
+            logger.info(new TravisCiVariables(request.getSystemProperties()).toString());
         }
 
         final MavenGoalEditor goalEditor = new MavenGoalEditor(

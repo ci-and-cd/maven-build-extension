@@ -2,9 +2,9 @@ package top.infra.maven.extension.mavenbuild;
 
 import static java.util.stream.Collectors.toCollection;
 import static java.util.stream.Collectors.toMap;
-import static top.infra.maven.extension.mavenbuild.Constants.BOOL_STRING_FALSE;
-import static top.infra.maven.extension.mavenbuild.Constants.BOOL_STRING_TRUE;
-import static top.infra.maven.extension.mavenbuild.Constants.GIT_REF_NAME_DEVELOP;
+import static top.infra.maven.Constants.BOOL_STRING_FALSE;
+import static top.infra.maven.Constants.BOOL_STRING_TRUE;
+import static top.infra.maven.Constants.GIT_REF_NAME_DEVELOP;
 import static top.infra.maven.utils.SupportFunction.isNotEmpty;
 import static top.infra.maven.utils.SupportFunction.newTuple;
 

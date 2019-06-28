@@ -1,9 +1,9 @@
 package top.infra.maven.extension.mavenbuild;
 
 import static java.lang.Boolean.FALSE;
-import static top.infra.maven.extension.mavenbuild.Constants.BRANCH_PREFIX_FEATURE;
-import static top.infra.maven.extension.mavenbuild.Constants.GIT_REF_NAME_DEVELOP;
-import static top.infra.maven.extension.mavenbuild.Constants.PUBLISH_CHANNEL_SNAPSHOT;
+import static top.infra.maven.Constants.BRANCH_PREFIX_FEATURE;
+import static top.infra.maven.Constants.GIT_REF_NAME_DEVELOP;
+import static top.infra.maven.Constants.PUBLISH_CHANNEL_SNAPSHOT;
 import static top.infra.maven.extension.mavenbuild.GpgEventAware.ORDER_GPG;
 import static top.infra.maven.extension.mavenbuild.MavenProjectInfo.newProjectInfoByBuildProject;
 import static top.infra.maven.extension.mavenbuild.MavenProjectInfo.newProjectInfoByReadPom;

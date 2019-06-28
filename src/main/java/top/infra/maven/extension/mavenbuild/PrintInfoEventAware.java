@@ -18,16 +18,12 @@ import javax.inject.Singleton;
 import org.apache.maven.eventspy.EventSpy.Context;
 import org.apache.maven.rtinfo.RuntimeInformation;
 
-import top.infra.maven.extension.MavenEventAware;
-import top.infra.maven.extension.mavenbuild.cienv.AppveyorVariables;
-import top.infra.maven.extension.mavenbuild.cienv.GitlabCiVariables;
-import top.infra.maven.extension.mavenbuild.cienv.TravisCiVariables;
 import top.infra.maven.core.CiOptionNames;
-import top.infra.maven.extension.mavenbuild.options.MavenOption;
-import top.infra.maven.utils.MavenUtils;
-import top.infra.maven.utils.PropertiesUtils;
+import top.infra.maven.extension.MavenEventAware;
 import top.infra.maven.logging.Logger;
 import top.infra.maven.logging.LoggerPlexusImpl;
+import top.infra.maven.utils.MavenUtils;
+import top.infra.maven.utils.PropertiesUtils;
 
 @Named
 @Singleton
@@ -86,7 +82,7 @@ public class PrintInfoEventAware implements MavenEventAware {
         logger.info(PropertiesUtils.toString(userProperties, null));
         logger.info("<<<<<<<<<< ---------- init userProperties ---------- <<<<<<<<<<");
 
-        final Path rootProjectPath = MavenOption.rootProjectPath(systemProperties).toAbsolutePath();
+        final Path rootProjectPath = MavenUtils.rootProjectPath(systemProperties).toAbsolutePath();
         final String artifactId = new File(rootProjectPath.toString()).getName();
         if (logger.isInfoEnabled()) {
             logger.info(String.format("artifactId: [%s]", artifactId));
@@ -106,10 +102,6 @@ public class PrintInfoEventAware implements MavenEventAware {
 
             logger.info(String.format("Java version [%s]", javaVersion));
             logger.info(String.format("Maven version [%s]", this.runtime.getMavenVersion()));
-
-            logger.info(new AppveyorVariables(systemProperties).toString());
-            logger.info(new GitlabCiVariables(systemProperties).toString());
-            logger.info(new TravisCiVariables(systemProperties).toString());
             logger.info("<<<<<<<<<< ---------- build context info ---------- <<<<<<<<<<");
         }
     }

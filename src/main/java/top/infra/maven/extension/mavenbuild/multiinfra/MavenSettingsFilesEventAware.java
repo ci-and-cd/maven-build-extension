@@ -1,8 +1,8 @@
 package top.infra.maven.extension.mavenbuild.multiinfra;
 
 import static java.lang.Boolean.FALSE;
-import static top.infra.maven.extension.mavenbuild.Constants.SRC_MAVEN_SETTINGS_SECURITY_XML;
-import static top.infra.maven.extension.mavenbuild.Constants.SRC_MAVEN_SETTINGS_XML;
+import static top.infra.maven.Constants.SRC_MAVEN_SETTINGS_SECURITY_XML;
+import static top.infra.maven.Constants.SRC_MAVEN_SETTINGS_XML;
 import static top.infra.maven.extension.mavenbuild.MavenSettingsLocalRepositoryEventAware.ORDER_MAVEN_SETTINGS_LOCALREPOSITORY;
 import static top.infra.maven.extension.mavenbuild.multiinfra.InfraOption.CACHE_SETTINGS_PATH;
 import static top.infra.maven.utils.SupportFunction.isNotEmpty;
@@ -19,7 +19,7 @@ import org.apache.maven.settings.building.SettingsBuildingRequest;
 
 import top.infra.maven.core.CiOptions;
 import top.infra.maven.extension.MavenEventAware;
-import top.infra.maven.extension.mavenbuild.utils.FileUtils;
+import top.infra.maven.utils.FileUtils;
 import top.infra.maven.logging.Logger;
 import top.infra.maven.logging.LoggerPlexusImpl;
 import top.infra.maven.utils.MavenUtils;

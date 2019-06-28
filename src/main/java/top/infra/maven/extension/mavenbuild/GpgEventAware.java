@@ -17,9 +17,9 @@ import org.apache.maven.project.ProjectBuildingRequest;
 
 import top.infra.maven.core.CiOptions;
 import top.infra.maven.extension.MavenEventAware;
-import top.infra.maven.extension.mavenbuild.options.MavenOption;
 import top.infra.maven.logging.Logger;
 import top.infra.maven.logging.LoggerPlexusImpl;
+import top.infra.maven.utils.MavenUtils;
 import top.infra.maven.utils.SystemUtils;
 
 @Named
@@ -31,9 +31,7 @@ public class GpgEventAware implements MavenEventAware {
     private Logger logger;
 
     @Inject
-    public GpgEventAware(
-        final org.codehaus.plexus.logging.Logger logger
-    ) {
+    public GpgEventAware(final org.codehaus.plexus.logging.Logger logger) {
         this.logger = new LoggerPlexusImpl(logger);
     }
 
@@ -57,7 +55,7 @@ public class GpgEventAware implements MavenEventAware {
             final Gpg gpg = new Gpg(
                 logger,
                 Paths.get(SystemUtils.systemUserHome()),
-                MavenOption.rootProjectPath(projectBuilding.getSystemProperties()),
+                MavenUtils.rootProjectPath(projectBuilding.getSystemProperties()),
                 executable.get(),
                 gpgKeyid.orElse(null),
                 gpgKeyname,

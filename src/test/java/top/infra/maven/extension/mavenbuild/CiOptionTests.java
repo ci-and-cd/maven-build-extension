@@ -4,7 +4,8 @@ import static java.lang.Boolean.TRUE;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
-import static top.infra.maven.extension.mavenbuild.Constants.BOOL_STRING_TRUE;
+import static top.infra.maven.Constants.BOOL_STRING_TRUE;
+import static top.infra.maven.extension.mavenbuild.multiinfra.GitPropertiesBean.newJgitProperties;
 import static top.infra.maven.extension.mavenbuild.multiinfra.InfraOption.DOCKER_REGISTRY;
 import static top.infra.maven.extension.mavenbuild.multiinfra.InfraOption.DOCKER_REGISTRY_URL;
 import static top.infra.maven.extension.mavenbuild.multiinfra.InfraOption.SONAR_HOST_URL;
@@ -33,7 +34,9 @@ public class CiOptionTests {
 
     private static GitProperties gitProperties() {
         final Logger logger = logger();
-        return GitProperties.newInstance(logger).orElseGet(() -> GitProperties.newBlankInstance(logger));
+        return newJgitProperties(logger)
+            .map(GitProperties::newGitProperties)
+            .orElseGet(GitProperties::newBlankGitProperties);
     }
 
     @Test
@@ -104,8 +107,7 @@ public class CiOptionTests {
         slf4jLogger.info("generateReports {}", ciOpts.getOption(GENERATEREPORTS).orElse(null));
         assertEquals(TRUE.toString(), ciOpts.getOption(GENERATEREPORTS).orElse(null));
 
-        final Properties loadedProperties = CiOptionEventAware.ciOptsFromFile(ciOpts, logger());
-        ciOpts.updateSystemProperties(loadedProperties);
+        CiOptionEventAware.ciOptsFromFile(ciOpts, logger()).ifPresent(ciOpts::updateSystemProperties);
 
         slf4jLogger.info("generateReports {}", ciOpts.getOption(GENERATEREPORTS).orElse(null));
         assertEquals(TRUE.toString(), ciOpts.getOption(GENERATEREPORTS).orElse(null));

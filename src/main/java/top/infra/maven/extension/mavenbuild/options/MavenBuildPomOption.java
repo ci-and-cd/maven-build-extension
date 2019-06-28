@@ -1,15 +1,15 @@
 package top.infra.maven.extension.mavenbuild.options;
 
 import static java.lang.Boolean.FALSE;
-import static top.infra.maven.extension.mavenbuild.Constants.BOOL_STRING_FALSE;
-import static top.infra.maven.extension.mavenbuild.Constants.BOOL_STRING_TRUE;
-import static top.infra.maven.extension.mavenbuild.Constants.BRANCH_PREFIX_FEATURE;
-import static top.infra.maven.extension.mavenbuild.Constants.BRANCH_PREFIX_HOTFIX;
-import static top.infra.maven.extension.mavenbuild.Constants.BRANCH_PREFIX_RELEASE;
-import static top.infra.maven.extension.mavenbuild.Constants.BRANCH_PREFIX_SUPPORT;
-import static top.infra.maven.extension.mavenbuild.Constants.GIT_REF_NAME_DEVELOP;
-import static top.infra.maven.extension.mavenbuild.Constants.PUBLISH_CHANNEL_RELEASE;
-import static top.infra.maven.extension.mavenbuild.Constants.PUBLISH_CHANNEL_SNAPSHOT;
+import static top.infra.maven.Constants.BOOL_STRING_FALSE;
+import static top.infra.maven.Constants.BOOL_STRING_TRUE;
+import static top.infra.maven.Constants.BRANCH_PREFIX_FEATURE;
+import static top.infra.maven.Constants.BRANCH_PREFIX_HOTFIX;
+import static top.infra.maven.Constants.BRANCH_PREFIX_RELEASE;
+import static top.infra.maven.Constants.BRANCH_PREFIX_SUPPORT;
+import static top.infra.maven.Constants.GIT_REF_NAME_DEVELOP;
+import static top.infra.maven.Constants.PUBLISH_CHANNEL_RELEASE;
+import static top.infra.maven.Constants.PUBLISH_CHANNEL_SNAPSHOT;
 import static top.infra.maven.extension.mavenbuild.Gpg.gpgVersionGreater;
 import static top.infra.maven.extension.mavenbuild.multiinfra.InfraOption.DOCKER_REGISTRY;
 import static top.infra.maven.extension.mavenbuild.multiinfra.InfraOption.GIT_AUTH_TOKEN;
